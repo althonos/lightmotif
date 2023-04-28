@@ -1,0 +1,13 @@
+[package]
+name = "fastpwm"
+version = "0.1.0"
+authors = ["Martin Larralde <martin.larralde@embl.de>"]
+edition = "2021"
+license = "MIT"
+description = "Fast position-weight matrices using sequence striping and SIMD."
+repository = "https://github.com/althonos/fastpwm"
+homepage = "https://github.com/althonos/fastpwm"
+readme = "README.md"
+keywords = []
+
+[dependencies]
