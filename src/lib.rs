@@ -2,4 +2,5 @@
 
 mod abc;
 mod dense;
+mod pwm;
 mod seq;
