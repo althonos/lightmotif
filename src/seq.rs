@@ -10,10 +10,12 @@ pub struct EncodedSequence<A: Alphabet> {
 
 impl<A: Alphabet> EncodedSequence<A> {
     /// Create a new encoded sequence from a textual representation.
-    pub fn from_text(sequence: &str) -> Result<Self, InvalidSymbol> 
-        where InvalidSymbol: From<<A::Symbol as TryFrom<char>>::Error>
+    pub fn from_text(sequence: &str) -> Result<Self, InvalidSymbol>
+    where
+        InvalidSymbol: From<<A::Symbol as TryFrom<char>>::Error>,
     {
-        let data = sequence.chars()
+        let data = sequence
+            .chars()
             .map(|c| A::Symbol::try_from(c))
             .collect::<Result<_, _>>()?;
         Ok(Self {
@@ -22,15 +24,20 @@ impl<A: Alphabet> EncodedSequence<A> {
         })
     }
 
+    /// Return the number of symbols in the sequence.
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
     /// Convert the encoded sequence to a striped matrix.
     pub fn to_striped<const C: usize>(&self) -> StripedSequence<A, C> {
         let length = self.data.len();
         let n = (length + C) / C;
         let mut data = DenseMatrix::new(n);
         for (i, &x) in self.data.iter().enumerate() {
-            data[i%n][i/n] = x;
+            data[i % n][i / n] = x;
         }
-        StripedSequence { 
+        StripedSequence {
             alphabet: self.alphabet,
             data,
             length,
