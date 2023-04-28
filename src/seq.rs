@@ -1,6 +1,6 @@
 use super::abc::Alphabet;
 use super::abc::InvalidSymbol;
-use super::matrix::DenseMatrix;
+use super::dense::DenseMatrix;
 
 #[derive(Clone, Debug)]
 pub struct EncodedSequence<A: Alphabet> {
