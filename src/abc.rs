@@ -3,9 +3,15 @@ use std::fmt::Debug;
 
 pub struct InvalidSymbol(char);
 
+/// Common traits for a biological symbol.
+pub trait Symbol: Default + Sized + Copy + TryFrom<char> {
+    fn as_index(&self) -> usize;
+}
+
 /// Common traits for a biological alphabet.
-pub trait Alphabet: Debug + Copy + Default {
-    type Symbol: Default + Sized + Copy + TryFrom<char>;
+pub trait Alphabet: Debug + Copy + Default + 'static {
+    type Symbol: Symbol;
+    const K: usize;
 }
 
 #[derive(Clone, Copy)]
@@ -16,6 +22,12 @@ pub enum DnaSymbol {
     T = 2,
     G = 3,
     N = 4,
+}
+
+impl Symbol for DnaSymbol {
+    fn as_index(&self) -> usize {
+        *self as usize
+    }
 }
 
 impl TryFrom<char> for DnaSymbol {
@@ -43,4 +55,5 @@ pub struct DnaAlphabet;
 
 impl Alphabet for DnaAlphabet {
     type Symbol = DnaSymbol;
+    const K: usize = 5;
 }
