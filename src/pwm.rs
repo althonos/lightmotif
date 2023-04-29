@@ -5,6 +5,30 @@ use super::seq::EncodedSequence;
 use super::seq::StripedSequence;
 
 #[derive(Clone, Debug)]
+pub struct Pseudocount<A: Alphabet, const K: usize> {
+    pub alphabet: A,
+    pub counts: [f32; K],
+}
+
+impl<A: Alphabet, const K: usize> From<[f32; K]> for Pseudocount<A, K> {
+    fn from(counts: [f32; K]) -> Self {
+        Self {
+            alphabet: A::default(),
+            counts,
+        }
+    }
+}
+
+impl<A: Alphabet, const K: usize> From<f32> for Pseudocount<A, K> {
+    fn from(count: f32) -> Self {
+        Self {
+            alphabet: A::default(),
+            counts: [count; K],
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct CountMatrix<A: Alphabet, const K: usize> {
     pub alphabet: A,
     pub data: DenseMatrix<u32, K>,
@@ -43,13 +67,17 @@ impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
     }
 
     /// Build a probability matrix from this count matrix using pseudo-counts.
-    pub fn to_probability(&self, pseudo: f32) -> ProbabilityMatrix<A, K> {
+    pub fn to_probability<P>(&self, pseudo: P) -> ProbabilityMatrix<A, K>
+    where
+        P: Into<Pseudocount<A, K>>,
+    {
+        let mut p = pseudo.into();
         let mut probas = DenseMatrix::new(self.data.rows());
         for i in 0..self.data.rows() {
             let src = &self.data[i];
             let mut dst = &mut probas[i];
             for (j, &x) in src.iter().enumerate() {
-                dst[j] = x as f32 + pseudo;
+                dst[j] = x as f32 + p.counts[j] as f32;
             }
             let s: f32 = dst.iter().sum();
             for x in dst.iter_mut() {
@@ -70,17 +98,21 @@ pub struct ProbabilityMatrix<A: Alphabet, const K: usize> {
 }
 
 impl<A: Alphabet, const K: usize> ProbabilityMatrix<A, K> {
-    pub fn to_weight(&self, background: Background<A, K>) -> WeightMatrix<A, K> {
+    pub fn to_weight<B>(&self, background: B) -> WeightMatrix<A, K>
+    where
+        B: Into<Background<A, K>>,
+    {
+        let b = background.into();
         let mut weight = DenseMatrix::new(self.data.rows());
         for i in 0..self.data.rows() {
             let src = &self.data[i];
             let mut dst = &mut weight[i];
-            for (j, (&x, &f)) in src.iter().zip(&background.frequencies).enumerate() {
+            for (j, (&x, &f)) in src.iter().zip(&b.frequencies).enumerate() {
                 dst[j] = (x / f).log2();
             }
         }
         WeightMatrix {
-            background,
+            background: b,
             alphabet: self.alphabet,
             data: weight,
         }
@@ -97,6 +129,15 @@ impl<A: Alphabet, const K: usize> Background<A, K> {
     pub fn uniform() -> Self {
         Self {
             frequencies: [1.0 / (K as f32); K],
+            _marker: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<A: Alphabet, const K: usize> From<[f32; K]> for Background<A, K> {
+    fn from(frequencies: [f32; K]) -> Self {
+        Self {
+            frequencies,
             _marker: std::marker::PhantomData,
         }
     }

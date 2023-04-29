@@ -1,6 +1,7 @@
 use std::convert::TryFrom;
 use std::fmt::Debug;
 
+#[derive(Debug)]
 pub struct InvalidSymbol(char);
 
 /// Common traits for a biological symbol.
