@@ -1,5 +1,9 @@
 //! Fast position-weight matrices using sequence striping and SIMD.
 
+extern crate nom;
+
+pub mod io;
+
 mod abc;
 mod dense;
 mod pli;

@@ -11,3 +11,4 @@ readme = "README.md"
 keywords = []
 
 [dependencies]
+nom = "7"

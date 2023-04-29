@@ -15,7 +15,7 @@ pub trait Alphabet: Debug + Copy + Default + 'static {
     const K: usize;
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 #[repr(u8)]
 pub enum DnaSymbol {
     A = 0,
