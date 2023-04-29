@@ -60,11 +60,19 @@ impl Pipeline<DnaAlphabet, f32> {
 impl Pipeline<DnaAlphabet, __m256> {
     pub fn score(
         &self,
-        seq: &StripedSequence<DnaAlphabet, 32>,
+        seq: &StripedSequence<DnaAlphabet, { std::mem::size_of::<__m256i>() }>,
         pwm: &WeightMatrix<DnaAlphabet, { DnaAlphabet::K }>,
     ) -> DenseMatrix<f32, 32> {
+        const S: i32 = std::mem::size_of::<f32>() as i32;
+        const C: usize = std::mem::size_of::<__m256i>();
+        const K: usize = DnaAlphabet::K;
+
         let mut result = DenseMatrix::new(seq.data.rows());
         unsafe {
+            // get raw pointers to data
+            let sdata = seq.data[0].as_ptr();
+            let mdata = pwm.data[0].as_ptr();
+            let rdata: *mut f32 = result[0].as_mut_ptr();
             // mask vectors for broadcasting:
             let m1: __m256i = _mm256_set_epi32(
                 0xFFFFFF03u32 as i32,
@@ -113,49 +121,14 @@ impl Pipeline<DnaAlphabet, __m256> {
                 let mut s3 = _mm256_setzero_ps();
                 let mut s4 = _mm256_setzero_ps();
 
-                // for j in 0..pwm.data.rows() {
-                //     // load table
-                //     let row = pwm.data[j].as_ptr();
-                //     let c = _mm_load_ps(row);
-                //     let t = _mm256_set_m128(c, c);
-                //     // load text
-                //     let x = _mm256_loadu_si256(seq.data[i+j].as_ptr() as *const __m256i);
-                //     // compute probabilities using an external lookup table
-                //     let p1 = _mm256_permutevar_ps(t, _mm256_shuffle_epi8(x, m1));
-                //     let p2 = _mm256_permutevar_ps(t, _mm256_shuffle_epi8(x, m2));
-                //     let p3 = _mm256_permutevar_ps(t, _mm256_shuffle_epi8(x, m3));
-                //     let p4 = _mm256_permutevar_ps(t, _mm256_shuffle_epi8(x, m4));
-                //     // add log odds
-                //     s1 = _mm256_add_ps(s1, p1);
-                //     s2 = _mm256_add_ps(s2, p2);
-                //     s3 = _mm256_add_ps(s3, p3);
-                //     s4 = _mm256_add_ps(s4, p4);
-                // }
-
                 for j in 0..pwm.data.rows() {
-                    let x = _mm256_loadu_si256(seq.data[i + j].as_ptr() as *const __m256i);
-                    let row = pwm.data[j].as_ptr();
+                    let x = _mm256_loadu_si256(sdata.add((i+j)*C) as *const __m256i);
+                    let row = mdata.add(j*K);
                     // compute probabilities using an external lookup table
-                    let p1 = _mm256_i32gather_ps(
-                        row,
-                        _mm256_shuffle_epi8(x, m1),
-                        std::mem::size_of::<f32>() as _,
-                    );
-                    let p2 = _mm256_i32gather_ps(
-                        row,
-                        _mm256_shuffle_epi8(x, m2),
-                        std::mem::size_of::<f32>() as _,
-                    );
-                    let p3 = _mm256_i32gather_ps(
-                        row,
-                        _mm256_shuffle_epi8(x, m3),
-                        std::mem::size_of::<f32>() as _,
-                    );
-                    let p4 = _mm256_i32gather_ps(
-                        row,
-                        _mm256_shuffle_epi8(x, m4),
-                        std::mem::size_of::<f32>() as _,
-                    );
+                    let p1 = _mm256_i32gather_ps(row, _mm256_shuffle_epi8(x, m1), S);
+                    let p2 = _mm256_i32gather_ps(row, _mm256_shuffle_epi8(x, m2), S);
+                    let p3 = _mm256_i32gather_ps(row, _mm256_shuffle_epi8(x, m3), S);
+                    let p4 = _mm256_i32gather_ps(row, _mm256_shuffle_epi8(x, m4), S);
                     // add log odds
                     s1 = _mm256_add_ps(s1, p1);
                     s2 = _mm256_add_ps(s2, p2);
@@ -163,11 +136,11 @@ impl Pipeline<DnaAlphabet, __m256> {
                     s4 = _mm256_add_ps(s4, p4);
                 }
 
-                let row: &mut [f32] = &mut result[i];
-                _mm256_storeu_ps(&mut row[0x0], s1);
-                _mm256_storeu_ps(&mut row[0x4], s1);
-                _mm256_storeu_ps(&mut row[0x8], s1);
-                _mm256_storeu_ps(&mut row[0xc], s1);
+                let row = rdata.add(i);
+                _mm256_storeu_ps(row, s1);
+                _mm256_storeu_ps(row.add(0x4), s2);
+                _mm256_storeu_ps(row.add(0x8), s3);
+                _mm256_storeu_ps(row.add(0xc), s4);
             }
         }
         result

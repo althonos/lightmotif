@@ -32,11 +32,11 @@ impl<A: Alphabet, const K: usize> From<f32> for Pseudocount<A, K> {
 pub struct CountMatrix<A: Alphabet, const K: usize> {
     pub alphabet: A,
     pub data: DenseMatrix<u32, K>,
-    pub name: String,  // FIXME: Use `Rc` instead to avoid copies.
+    pub name: String, // FIXME: Use `Rc` instead to avoid copies.
 }
 
 impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
-    pub fn new<S>(name: S, data: DenseMatrix<u32, K>) -> Result<Self, ()> 
+    pub fn new<S>(name: S, data: DenseMatrix<u32, K>) -> Result<Self, ()>
     where
         S: Into<String>,
     {
@@ -69,7 +69,7 @@ impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
         Ok(Self {
             alphabet: A::default(),
             data: data.unwrap_or_else(|| DenseMatrix::new(0)),
-            name: name.into()
+            name: name.into(),
         })
     }
 

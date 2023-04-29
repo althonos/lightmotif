@@ -1,24 +1,23 @@
 use std::str::FromStr;
 
-use nom::IResult;
-use nom::error::Error;
-use nom::error::ErrorKind;
-use nom::multi::count;
-use nom::multi::many_till;
-use nom::combinator::eof;
-use nom::combinator::map_res;
-use nom::sequence::delimited;
 use nom::bytes::complete::is_a;
 use nom::bytes::complete::tag;
 use nom::bytes::complete::take_till;
 use nom::bytes::complete::take_while;
 use nom::bytes::complete::take_while1;
+use nom::combinator::eof;
+use nom::combinator::map_res;
+use nom::error::Error;
+use nom::error::ErrorKind;
+use nom::multi::count;
+use nom::multi::many_till;
+use nom::sequence::delimited;
+use nom::IResult;
 
-use crate::abc::Symbol;
 use crate::abc::Alphabet;
-use crate::pwm::CountMatrix;
+use crate::abc::Symbol;
 use crate::dense::DenseMatrix;
-
+use crate::pwm::CountMatrix;
 
 fn is_newline(c: char) -> bool {
     c == '\r' || c == '\n'
@@ -56,7 +55,7 @@ fn parse_symbol<S: Symbol>(input: &str) -> IResult<&str, S> {
     if let Some(c) = input.chars().nth(0) {
         match S::try_from(c) {
             Ok(s) => Ok((&input[1..], s)),
-            Err(_) => Err(nom::Err::Failure(Error::new(input, ErrorKind::MapRes)))
+            Err(_) => Err(nom::Err::Failure(Error::new(input, ErrorKind::MapRes))),
         }
     } else {
         Err(nom::Err::Error(Error::new(input, ErrorKind::Eof)))
@@ -66,9 +65,9 @@ fn parse_symbol<S: Symbol>(input: &str) -> IResult<&str, S> {
 fn parse_alphabet<S: Symbol>(input: &str) -> IResult<&str, Vec<S>> {
     let (input, _) = tag("P0")(input)?;
     let (input, _) = take_while1(is_space)(input)?;
-    let (input, ( symbols, _ )) = many_till(
+    let (input, (symbols, _)) = many_till(
         delimited(take_while(is_space), parse_symbol, take_while(is_space)),
-        is_a("\n\r")
+        is_a("\n\r"),
     )(input)?;
     let (input, _) = take_while(is_newline)(input)?;
     Ok((input, symbols))
@@ -78,7 +77,11 @@ fn parse_row(input: &str, k: usize) -> IResult<&str, Vec<u32>> {
     let (input, _) = take_while1(char::is_numeric)(input)?;
     let (input, _) = take_while1(char::is_whitespace)(input)?;
     let (input, counts) = count(
-        delimited(take_while(is_space), parse_integer::<u32>, take_while(is_space)),
+        delimited(
+            take_while(is_space),
+            parse_integer::<u32>,
+            take_while(is_space),
+        ),
         k,
     )(input)?;
     let (input, _) = take_till(is_newline)(input)?;
@@ -96,7 +99,6 @@ pub fn parse_matrix<A: Alphabet, const K: usize>(input: &str) -> IResult<&str, C
     let (input, _) = tag("//")(input)?;
     let (input, _) = take_while1(char::is_whitespace)(input)?;
 
-
     let mut data = DenseMatrix::<u32, K>::new(counts.len());
     for (i, count) in counts.iter().enumerate() {
         for (s, &c) in symbols.iter().zip(count.iter()) {
@@ -108,18 +110,19 @@ pub fn parse_matrix<A: Alphabet, const K: usize>(input: &str) -> IResult<&str, C
     Ok((input, matrix))
 }
 
-pub fn parse_matrices<A: Alphabet, const K: usize>(input: &str) -> IResult<&str, Vec<CountMatrix<A, K>>> {
+pub fn parse_matrices<A: Alphabet, const K: usize>(
+    input: &str,
+) -> IResult<&str, Vec<CountMatrix<A, K>>> {
     let (input, (matrices, _)) = many_till(parse_matrix, eof)(input)?;
     Ok((input, matrices))
 }
 
-
 #[cfg(test)]
 mod test {
 
-    use crate::abc::DnaSymbol;
-    use crate::abc::DnaAlphabet;
     use crate::abc::Alphabet;
+    use crate::abc::DnaAlphabet;
+    use crate::abc::DnaSymbol;
     use crate::abc::Symbol;
 
     #[test]
@@ -143,7 +146,10 @@ mod test {
         let line = "P0      A      T      G      C\n";
         let res = super::parse_alphabet::<DnaSymbol>(line).unwrap();
         assert_eq!(res.0, "");
-        assert_eq!(res.1, vec![DnaSymbol::A, DnaSymbol::T, DnaSymbol::G, DnaSymbol::C]);
+        assert_eq!(
+            res.1,
+            vec![DnaSymbol::A, DnaSymbol::T, DnaSymbol::G, DnaSymbol::C]
+        );
 
         let line = "P0  A   T\n";
         let res = super::parse_alphabet::<DnaSymbol>(line).unwrap();
@@ -179,9 +185,9 @@ mod test {
             "XX\n",
             "//\n",
         );
-        let res = super::parse_matrix::<DnaAlphabet, {DnaAlphabet::K}>(text).unwrap();
+        let res = super::parse_matrix::<DnaAlphabet, { DnaAlphabet::K }>(text).unwrap();
         assert_eq!(res.0, "");
-        
+
         let matrix = res.1;
         assert_eq!(matrix.name, "prodoric_MX000001");
         assert_eq!(matrix.data.rows(), 7);
