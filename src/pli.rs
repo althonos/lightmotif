@@ -54,7 +54,7 @@ impl Pipeline<DnaAlphabet, f32> {
             result[row][col] = score;
         }
         StripedScores {
-            length: seq.length,
+            length: seq.length - pwm.data.rows() + 1,
             data: result,
         }
     }
@@ -149,7 +149,7 @@ impl Pipeline<DnaAlphabet, __m256> {
         }
 
         StripedScores {
-            length: seq.length,
+            length: seq.length - pwm.data.rows() + 1,
             data: result,
         }
     }

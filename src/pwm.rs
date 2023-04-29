@@ -49,11 +49,13 @@ impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
 
     pub fn from_sequences<'seq, I, S>(name: S, sequences: I) -> Result<Self, ()>
     where
-        I: IntoIterator<Item = &'seq EncodedSequence<A>>,
+        I: IntoIterator,
+        <I as IntoIterator>::Item: AsRef<EncodedSequence<A>>,
         S: Into<String>,
     {
         let mut data = None;
         for seq in sequences {
+            let seq = seq.as_ref();
             let mut d = match data.as_mut() {
                 Some(d) => d,
                 None => {
@@ -61,6 +63,9 @@ impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
                     data.as_mut().unwrap()
                 }
             };
+            if seq.len() != d.rows() {
+                return Err(());
+            }
             for (i, x) in seq.data.iter().enumerate() {
                 d[i][x.as_index()] += 1;
             }
@@ -165,4 +170,16 @@ pub struct WeightMatrix<A: Alphabet, const K: usize> {
 pub struct StripedScores<const C: usize = 32> {
     pub length: usize,
     pub data: DenseMatrix<f32, C>,
+}
+
+impl<const C: usize> StripedScores<C> {
+    pub fn to_vec(&self) -> Vec<f32> {
+        let mut vec = Vec::with_capacity(self.length);
+        for i in 0..self.length {
+            let col = i / self.data.rows();
+            let row = i % self.data.rows();
+            vec.push(self.data[row][col]);
+        }
+        vec
+    }
 }

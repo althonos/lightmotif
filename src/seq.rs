@@ -45,6 +45,12 @@ impl<A: Alphabet> EncodedSequence<A> {
     }
 }
 
+impl<A: Alphabet> AsRef<EncodedSequence<A>> for EncodedSequence<A> {
+    fn as_ref(&self) -> &Self {
+        &self
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct StripedSequence<A: Alphabet, const C: usize = 32> {
     pub alphabet: A,
