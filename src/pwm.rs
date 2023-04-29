@@ -32,19 +32,25 @@ impl<A: Alphabet, const K: usize> From<f32> for Pseudocount<A, K> {
 pub struct CountMatrix<A: Alphabet, const K: usize> {
     pub alphabet: A,
     pub data: DenseMatrix<u32, K>,
+    pub name: String,  // FIXME: Use `Rc` instead to avoid copies.
 }
 
 impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
-    pub fn new(data: DenseMatrix<u32, K>) -> Result<Self, ()> {
+    pub fn new<S>(name: S, data: DenseMatrix<u32, K>) -> Result<Self, ()> 
+    where
+        S: Into<String>,
+    {
         Ok(Self {
             data,
+            name: name.into(),
             alphabet: A::default(),
         })
     }
 
-    pub fn from_sequences<'seq, I>(sequences: I) -> Result<Self, ()>
+    pub fn from_sequences<'seq, I, S>(name: S, sequences: I) -> Result<Self, ()>
     where
         I: IntoIterator<Item = &'seq EncodedSequence<A>>,
+        S: Into<String>,
     {
         let mut data = None;
         for seq in sequences {
@@ -63,6 +69,7 @@ impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
         Ok(Self {
             alphabet: A::default(),
             data: data.unwrap_or_else(|| DenseMatrix::new(0)),
+            name: name.into()
         })
     }
 
@@ -87,6 +94,7 @@ impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
         ProbabilityMatrix {
             alphabet: self.alphabet,
             data: probas,
+            name: self.name.clone(),
         }
     }
 }
@@ -95,6 +103,7 @@ impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
 pub struct ProbabilityMatrix<A: Alphabet, const K: usize> {
     pub alphabet: A,
     pub data: DenseMatrix<f32, K>,
+    pub name: String,
 }
 
 impl<A: Alphabet, const K: usize> ProbabilityMatrix<A, K> {
@@ -115,6 +124,7 @@ impl<A: Alphabet, const K: usize> ProbabilityMatrix<A, K> {
             background: b,
             alphabet: self.alphabet,
             data: weight,
+            name: self.name.clone(),
         }
     }
 }
@@ -148,4 +158,5 @@ pub struct WeightMatrix<A: Alphabet, const K: usize> {
     pub alphabet: A,
     pub background: Background<A, K>,
     pub data: DenseMatrix<f32, K>,
+    pub name: String,
 }
