@@ -160,3 +160,9 @@ pub struct WeightMatrix<A: Alphabet, const K: usize> {
     pub data: DenseMatrix<f32, K>,
     pub name: String,
 }
+
+#[derive(Clone, Debug)]
+pub struct StripedScores<const C: usize = 32> {
+    pub length: usize,
+    pub data: DenseMatrix<f32, C>,
+}

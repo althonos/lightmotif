@@ -6,6 +6,7 @@ use super::abc::Alphabet;
 use super::abc::DnaAlphabet;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
+use super::pwm::StripedScores;
 use super::pwm::WeightMatrix;
 use super::seq::EncodedSequence;
 use super::seq::StripedSequence;
@@ -38,7 +39,7 @@ impl Pipeline<DnaAlphabet, f32> {
         &self,
         seq: &StripedSequence<DnaAlphabet, C>,
         pwm: &WeightMatrix<DnaAlphabet, { DnaAlphabet::K }>,
-    ) -> DenseMatrix<f32, C> {
+    ) -> StripedScores<C> {
         let mut result = DenseMatrix::<f32, C>::new(seq.data.rows());
         for i in 0..seq.length - pwm.data.rows() + 1 {
             let mut score = 0.0;
@@ -52,7 +53,10 @@ impl Pipeline<DnaAlphabet, f32> {
             let row = i % result.rows();
             result[row][col] = score;
         }
-        result
+        StripedScores {
+            length: seq.length,
+            data: result,
+        }
     }
 }
 
@@ -62,12 +66,12 @@ impl Pipeline<DnaAlphabet, __m256> {
         &self,
         seq: &StripedSequence<DnaAlphabet, { std::mem::size_of::<__m256i>() }>,
         pwm: &WeightMatrix<DnaAlphabet, { DnaAlphabet::K }>,
-    ) -> DenseMatrix<f32, 32> {
+    ) -> StripedScores<{ std::mem::size_of::<__m256i>() }> {
         const S: i32 = std::mem::size_of::<f32>() as i32;
         const C: usize = std::mem::size_of::<__m256i>();
         const K: usize = DnaAlphabet::K;
 
-        let mut result = DenseMatrix::new(seq.data.rows());
+        let mut result = DenseMatrix::new((seq.length + C) / C);
         unsafe {
             // get raw pointers to data
             let sdata = seq.data[0].as_ptr();
@@ -136,13 +140,17 @@ impl Pipeline<DnaAlphabet, __m256> {
                     s4 = _mm256_add_ps(s4, p4);
                 }
 
-                let row = rdata.add(i);
-                _mm256_storeu_ps(row, s1);
-                _mm256_storeu_ps(row.add(0x4), s2);
-                _mm256_storeu_ps(row.add(0x8), s3);
-                _mm256_storeu_ps(row.add(0xc), s4);
+                let row = rdata.add(i * 32);
+                _mm256_store_ps(row.add(0x00), s1);
+                _mm256_store_ps(row.add(0x08), s2);
+                _mm256_store_ps(row.add(0x10), s3);
+                _mm256_store_ps(row.add(0x18), s4);
             }
         }
-        result
+
+        StripedScores {
+            length: seq.length,
+            data: result,
+        }
     }
 }

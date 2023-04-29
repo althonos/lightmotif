@@ -20,5 +20,6 @@ pub use pwm::Background;
 pub use pwm::CountMatrix;
 pub use pwm::ProbabilityMatrix;
 pub use pwm::WeightMatrix;
+pub use pwm::StripedScores;
 pub use seq::EncodedSequence;
 pub use seq::StripedSequence;
