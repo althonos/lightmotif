@@ -199,6 +199,15 @@ impl<V: Vector, const C: usize> StripedScores<V, C> {
             seq.data.rows() - seq.wrap
         )
     }
+
+    pub fn resize(&mut self, length: usize, rows: usize) {
+        self.length = length;
+        self.data.resize(rows);
+    }
+
+    pub fn resize_for<A: Alphabet, const K: usize>(&mut self, seq: &StripedSequence<A, C>, pwm: &WeightMatrix<A, K>) {
+        self.resize(seq.length - pwm.len() + 1, seq.data.rows() - seq.wrap);
+    }
 }
 
 impl<const C: usize> StripedScores<f32, C> {
