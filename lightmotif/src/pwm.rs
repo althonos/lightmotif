@@ -3,6 +3,7 @@ use super::abc::Symbol;
 use super::dense::DenseMatrix;
 use super::seq::EncodedSequence;
 
+/// A structure for storing the pseudocounts over an alphabet.
 #[derive(Clone, Debug)]
 pub struct Pseudocount<A: Alphabet, const K: usize> {
     alphabet: std::marker::PhantomData<A>,
@@ -20,9 +21,15 @@ impl<A: Alphabet, const K: usize> From<[f32; K]> for Pseudocount<A, K> {
 
 impl<A: Alphabet, const K: usize> From<f32> for Pseudocount<A, K> {
     fn from(count: f32) -> Self {
+        let mut counts: [f32; K] = [0.0; K];
+        for i in 0..K {
+            if i != A::default_symbol().as_index() {
+                counts[i] = count;
+            }
+        }
         Self {
+            counts,
             alphabet: std::marker::PhantomData,
-            counts: [count; K],
         }
     }
 }
@@ -155,8 +162,16 @@ pub struct Background<A: Alphabet, const K: usize> {
 
 impl<A: Alphabet, const K: usize> Background<A, K> {
     pub fn uniform() -> Self {
+
+        let mut frequencies = [0.0; K];
+        for i in 0..K {
+            if i != A::default_symbol().as_index() {
+                frequencies[i] = 1.0 / ((K-1) as f32);
+            }
+        }
+
         Self {
-            frequencies: [1.0 / (K as f32); K],
+            frequencies,
             alphabet: std::marker::PhantomData,
         }
     }
