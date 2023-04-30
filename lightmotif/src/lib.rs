@@ -1,8 +1,4 @@
-//! Fast position-weight matrices using sequence striping and SIMD.
-
-extern crate nom;
-
-pub mod io;
+//! A lightweight platform-accelerated library for biological motif scanning using position weight matrices.
 
 mod abc;
 mod dense;

@@ -14,10 +14,10 @@ use nom::multi::many_till;
 use nom::sequence::delimited;
 use nom::IResult;
 
-use crate::abc::Alphabet;
-use crate::abc::Symbol;
-use crate::dense::DenseMatrix;
-use crate::pwm::CountMatrix;
+use lightmotif::Alphabet;
+use lightmotif::CountMatrix;
+use lightmotif::DenseMatrix;
+use lightmotif::Symbol;
 
 fn is_newline(c: char) -> bool {
     c == '\r' || c == '\n'
@@ -120,10 +120,10 @@ pub fn parse_matrices<A: Alphabet, const K: usize>(
 #[cfg(test)]
 mod test {
 
-    use crate::abc::Alphabet;
-    use crate::abc::DnaAlphabet;
-    use crate::abc::DnaSymbol;
-    use crate::abc::Symbol;
+    use lightmotif::Alphabet;
+    use lightmotif::DnaAlphabet;
+    use lightmotif::DnaSymbol;
+    use lightmotif::Symbol;
 
     #[test]
     fn test_parse_id() {

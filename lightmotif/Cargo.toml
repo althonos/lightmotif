@@ -9,6 +9,3 @@ repository = "https://github.com/althonos/lightmotif"
 homepage = "https://github.com/althonos/lightmotif"
 readme = "README.md"
 keywords = []
-
-[dependencies]
-nom = "7"

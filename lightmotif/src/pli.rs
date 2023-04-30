@@ -144,10 +144,10 @@ impl Pipeline<DnaAlphabet, __m256> {
                 for j in 0..pwm.len() {
                     // load sequence row and broadcast to f32
                     let x = _mm256_load_si256(seq.data[i + j].as_ptr() as *const __m256i);
-                    let x1 =  _mm256_shuffle_epi8(x, m1);
-                    let x2 =  _mm256_shuffle_epi8(x, m2);
-                    let x3 =  _mm256_shuffle_epi8(x, m3);
-                    let x4 =  _mm256_shuffle_epi8(x, m4);
+                    let x1 = _mm256_shuffle_epi8(x, m1);
+                    let x2 = _mm256_shuffle_epi8(x, m2);
+                    let x3 = _mm256_shuffle_epi8(x, m3);
+                    let x4 = _mm256_shuffle_epi8(x, m4);
                     // load row for current weight matrix position
                     let row = pwm.data[j].as_ptr();
                     let c = _mm_load_ps(row);
@@ -214,11 +214,11 @@ impl<V: Vector, const C: usize> StripedScores<V, C> {
     }
 
     /// Create a new matrix large enough to store the scores of `pwm` applied to `seq`.
-    pub fn new_for<A: Alphabet, const K: usize>(seq: &StripedSequence<A, C>, pwm: &WeightMatrix<A, K>) -> Self {
-        Self::new(
-            seq.length - pwm.len() + 1, 
-            seq.data.rows() - seq.wrap
-        )
+    pub fn new_for<A: Alphabet, const K: usize>(
+        seq: &StripedSequence<A, C>,
+        pwm: &WeightMatrix<A, K>,
+    ) -> Self {
+        Self::new(seq.length - pwm.len() + 1, seq.data.rows() - seq.wrap)
     }
 
     pub fn resize(&mut self, length: usize, rows: usize) {
@@ -226,7 +226,11 @@ impl<V: Vector, const C: usize> StripedScores<V, C> {
         self.data.resize(rows);
     }
 
-    pub fn resize_for<A: Alphabet, const K: usize>(&mut self, seq: &StripedSequence<A, C>, pwm: &WeightMatrix<A, K>) {
+    pub fn resize_for<A: Alphabet, const K: usize>(
+        &mut self,
+        seq: &StripedSequence<A, C>,
+        pwm: &WeightMatrix<A, K>,
+    ) {
         self.resize(seq.length - pwm.len() + 1, seq.data.rows() - seq.wrap);
     }
 }
