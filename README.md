@@ -13,7 +13,8 @@
 
 Motif scanning with position weight matrices (also known as position-specific 
 scoring matrices) is a robust method for identifying motifs of fixed length
-inside a biological sequence. They can be used to identiy
+inside a biological sequence. They can be used to identify transcription 
+factor binding sites in DNA, or protease cleavage site in polypeptides
 
 The `lightmotif` library provides a Rust crate to run very efficient 
 searches for a motif encoded in a position weight matrix. The position 
