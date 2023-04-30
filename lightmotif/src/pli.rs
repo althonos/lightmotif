@@ -20,14 +20,14 @@ mod seal {
 }
 
 pub struct Pipeline<A: Alphabet, V: Vector> {
-    alphabet: A,
+    alphabet: std::marker::PhantomData<A>,
     vector: std::marker::PhantomData<V>,
 }
 
 impl<A: Alphabet, V: Vector> Pipeline<A, V> {
     pub fn new() -> Self {
         Self {
-            alphabet: A::default(),
+            alphabet: std::marker::PhantomData,
             vector: std::marker::PhantomData,
         }
     }
@@ -41,7 +41,7 @@ impl Pipeline<DnaAlphabet, f32> {
         scores: &mut StripedScores<f32, C>,
     ) {
         let seq_rows = seq.data.rows() - seq.wrap;
-        let mut result = &mut scores.data;
+        let result = &mut scores.data;
         if result.rows() < seq_rows {
             panic!("not enough rows for scores: {}", pwm.len());
         }
@@ -79,7 +79,7 @@ impl Pipeline<DnaAlphabet, __m256> {
         pwm: &WeightMatrix<DnaAlphabet, { DnaAlphabet::K }>,
         scores: &mut StripedScores<__m256, { std::mem::size_of::<__m256i>() }>,
     ) {
-        let mut result = &mut scores.data;
+        let result = &mut scores.data;
         scores.length = seq.length - pwm.len() + 1;
 
         if seq.wrap < pwm.len() - 1 {
@@ -262,7 +262,7 @@ impl<const C: usize> StripedScores<__m256, C> {
         let mut col = 0;
         let mut row = 0;
         let mut vec = Vec::with_capacity(self.length);
-        for i in 0..self.length {
+        while vec.len() < self.length {
             vec.push(self.data[row][COLS[col]]);
             row += 1;
             if row == self.data.rows() {
