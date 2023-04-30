@@ -13,6 +13,11 @@ pub trait Symbol: Default + Sized + Copy + TryFrom<char> {
 pub trait Alphabet: Debug + Copy + Default + 'static {
     type Symbol: Symbol;
     const K: usize;
+
+    /// Get the default symbol for this alphabet.
+    fn default_symbol() -> Self::Symbol {
+        Default::default()
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]

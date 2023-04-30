@@ -162,11 +162,10 @@ pub struct Background<A: Alphabet, const K: usize> {
 
 impl<A: Alphabet, const K: usize> Background<A, K> {
     pub fn uniform() -> Self {
-
         let mut frequencies = [0.0; K];
         for i in 0..K {
             if i != A::default_symbol().as_index() {
-                frequencies[i] = 1.0 / ((K-1) as f32);
+                frequencies[i] = 1.0 / ((K - 1) as f32);
             }
         }
 

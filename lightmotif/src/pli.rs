@@ -257,6 +257,7 @@ impl<V: Vector, const C: usize> StripedScores<V, C> {
 }
 
 impl<const C: usize> StripedScores<f32, C> {
+    /// Convert the striped scores to a vector of scores.
     pub fn to_vec(&self) -> Vec<f32> {
         let mut vec = Vec::with_capacity(self.length);
         for i in 0..self.length {
@@ -266,18 +267,37 @@ impl<const C: usize> StripedScores<f32, C> {
         }
         vec
     }
+
+    /// Get the index of the highest scoring position.
+    ///
+    /// ## Panic
+    /// Panics if the data buffer is empty.
+    pub fn argmax(&self) -> usize {
+        let mut best_pos = 0;
+        let mut best_score = self.data[0][0];
+        for i in 0..self.length {
+            let col = i / self.data.rows();
+            let row = i % self.data.rows();
+            if self.data[row][col] > best_score {
+                best_pos = i;
+                best_score = self.data[row][col];
+            }
+        }
+        best_pos
+    }
 }
 
 #[cfg(target_feature = "avx2")]
 impl<const C: usize> StripedScores<__m256, C> {
+    /// Convert the striped scores to a vector of scores.
     pub fn to_vec(&self) -> Vec<f32> {
         // NOTE(@althonos): Because in AVX2 the __m256 vector is actually
         //                  two independent __m128, the shuffling creates
         //                  intrication in the results.
         #[rustfmt::skip]
         const COLS: &[usize] = &[
-             0,  1,  2,  3,  8,  9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27,
-             4,  5,  6,  7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31,
+            0,  1,  2,  3,  8,  9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27,
+            4,  5,  6,  7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31,
         ];
 
         let mut col = 0;
@@ -292,5 +312,28 @@ impl<const C: usize> StripedScores<__m256, C> {
             }
         }
         vec
+    }
+
+    /// Get the index of the highest scoring position.
+    ///
+    /// ## Panic
+    /// Panics if the data buffer is empty.
+    pub fn argmax(&self) -> usize {
+        let mut best_pos = 0;
+        let mut best_score = self.data[0][0];
+        let mut col = 0;
+        let mut row = 0;
+        for i in 0..self.length {
+            if self.data[row][col] > best_score {
+                best_pos = i;
+                best_score = self.data[row][col];
+            }
+            row += 1;
+            if row == self.data.rows() {
+                row = 0;
+                col += 1;
+            }
+        }
+        best_pos
     }
 }
