@@ -1,7 +1,7 @@
 use super::abc::Alphabet;
 use super::abc::InvalidSymbol;
-use super::pwm::WeightMatrix;
 use super::dense::DenseMatrix;
+use super::pwm::WeightMatrix;
 
 #[derive(Clone, Debug)]
 pub struct EncodedSequence<A: Alphabet> {
@@ -62,20 +62,21 @@ pub struct StripedSequence<A: Alphabet, const C: usize = 32> {
 }
 
 impl<A: Alphabet, const C: usize> StripedSequence<A, C> {
-
     /// Reconfigure the striped sequence for searching with a motif.
     pub fn configure<const K: usize>(&mut self, motif: &WeightMatrix<A, K>) {
-        self.configure_wrap(motif.len());
+        if motif.len() > 0 {
+            self.configure_wrap(motif.len() - 1);
+        }
     }
 
     /// Add wrap-around rows for a motif of length `m`.
     pub fn configure_wrap(&mut self, m: usize) {
         if m > self.wrap {
             let rows = self.data.rows() - self.wrap;
-            self.data.resize( self.data.rows() + m - self.wrap );
+            self.data.resize(self.data.rows() + m - self.wrap);
             for i in 0..m {
-                for j in 0..C-1 {
-                    self.data[rows + i][j] = self.data[i][j+1];
+                for j in 0..C - 1 {
+                    self.data[rows + i][j] = self.data[i][j + 1];
                 }
             }
             self.wrap = m;
@@ -89,8 +90,6 @@ impl<A: Alphabet, const C: usize> From<EncodedSequence<A>> for StripedSequence<A
     }
 }
 
-
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -102,14 +101,14 @@ mod test {
         let seq = EncodedSequence::<DnaAlphabet>::from_text("ATGCA").unwrap();
         let striped = seq.to_striped::<4>();
         assert_eq!(striped.data.rows(), 2);
-        assert_eq!(&striped.data[0], &[ A, G, A, N ]);
-        assert_eq!(&striped.data[1], &[ T, C, N, N ]);
+        assert_eq!(&striped.data[0], &[A, G, A, N]);
+        assert_eq!(&striped.data[1], &[T, C, N, N]);
 
         let striped = seq.to_striped::<2>();
         assert_eq!(striped.data.rows(), 3);
-        assert_eq!(&striped.data[0], &[ A, C, ]);
-        assert_eq!(&striped.data[1], &[ T, A, ]);
-        assert_eq!(&striped.data[2], &[ G, N, ]);
+        assert_eq!(&striped.data[0], &[A, C,]);
+        assert_eq!(&striped.data[1], &[T, A,]);
+        assert_eq!(&striped.data[2], &[G, N,]);
     }
 
     #[test]
@@ -119,9 +118,9 @@ mod test {
 
         striped.configure_wrap(2);
         assert_eq!(striped.data.rows(), 4);
-        assert_eq!(&striped.data[0], &[ A, G, A, N ]);
-        assert_eq!(&striped.data[1], &[ T, C, N, N ]);
-        assert_eq!(&striped.data[2], &[ G, A, N, N ]);
-        assert_eq!(&striped.data[3], &[ C, N, N, N ]);
+        assert_eq!(&striped.data[0], &[A, G, A, N]);
+        assert_eq!(&striped.data[1], &[T, C, N, N]);
+        assert_eq!(&striped.data[2], &[G, A, N, N]);
+        assert_eq!(&striped.data[3], &[C, N, N, N]);
     }
 }

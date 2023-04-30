@@ -33,7 +33,7 @@ const EXPECTED: &[f32] = &[
 #[test]
 fn test_score_generic() {
     let encoded = EncodedSequence::<DnaAlphabet>::from_text(SEQUENCE).unwrap();
-    let striped = encoded.to_striped::<2>();
+    let mut striped = encoded.to_striped::<2>();
 
     let cm = CountMatrix::<DnaAlphabet, { DnaAlphabet::K }>::from_sequences(
         "MX000001",
@@ -45,6 +45,7 @@ fn test_score_generic() {
     let pbm = cm.to_probability([0.1, 0.1, 0.1, 0.1, 0.0]);
     let pwm = pbm.to_weight([0.25, 0.25, 0.25, 0.25, 0.0]);
 
+    striped.configure(&pwm);
     let pli = Pipeline::<_, f32>::new();
     let result = pli.score(&striped, &pwm);
     let scores = result.to_vec();
@@ -79,11 +80,11 @@ fn test_score_avx2() {
     let pbm = cm.to_probability([0.1, 0.1, 0.1, 0.1, 0.0]);
     let pwm = pbm.to_weight([0.25, 0.25, 0.25, 0.25, 0.0]);
 
-    striped.configure_wrap(pwm.data.rows() - 1);
+    striped.configure(&pwm);
     let pli = Pipeline::<_, __m256>::new();
     let result = pli.score(&striped, &pwm);
-
     let scores = result.to_vec();
+
     assert_eq!(scores.len(), EXPECTED.len());
     for i in 0..EXPECTED.len() {
         assert!(

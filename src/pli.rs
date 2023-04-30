@@ -39,13 +39,15 @@ impl Pipeline<DnaAlphabet, f32> {
         seq: &StripedSequence<DnaAlphabet, C>,
         pwm: &WeightMatrix<DnaAlphabet, { DnaAlphabet::K }>,
     ) -> StripedScores<f32, C> {
-        let mut result = DenseMatrix::<f32, C>::new(seq.data.rows());
+        let seq_rows = seq.data.rows() - seq.wrap;
+        let mut result = DenseMatrix::<f32, C>::new(seq_rows);
+
         for i in 0..seq.length - pwm.len() + 1 {
             let mut score = 0.0;
             for j in 0..pwm.len() {
                 let offset = i + j;
-                let col = offset / seq.data.rows();
-                let row = offset % seq.data.rows();
+                let col = offset / seq_rows;
+                let row = offset % seq_rows;
                 score += pwm.data[j][seq.data[row][col].as_index()];
             }
             let col = i / result.rows();
@@ -126,7 +128,7 @@ impl Pipeline<DnaAlphabet, __m256> {
                 let mut s3 = _mm256_setzero_ps();
                 let mut s4 = _mm256_setzero_ps();
                 for j in 0..pwm.len() {
-                    let x = _mm256_load_si256(seq.data[i+j].as_ptr() as *const __m256i);
+                    let x = _mm256_load_si256(seq.data[i + j].as_ptr() as *const __m256i);
                     let row = pwm.data[j].as_ptr();
                     // compute probabilities using an external lookup table
                     let p1 = _mm256_i32gather_ps(row, _mm256_shuffle_epi8(x, m1), S);
@@ -140,10 +142,10 @@ impl Pipeline<DnaAlphabet, __m256> {
                     s4 = _mm256_add_ps(s4, p4);
                 }
                 let row = &mut result[i];
-                _mm256_storeu_ps(row[0..].as_mut_ptr(), s1);
-                _mm256_storeu_ps(row[8..].as_mut_ptr(), s2);
-                _mm256_storeu_ps(row[16..].as_mut_ptr(), s3);
-                _mm256_storeu_ps(row[24..].as_mut_ptr(), s4);
+                _mm256_store_ps(row[0..].as_mut_ptr(), s1);
+                _mm256_store_ps(row[8..].as_mut_ptr(), s2);
+                _mm256_store_ps(row[16..].as_mut_ptr(), s3);
+                _mm256_store_ps(row[24..].as_mut_ptr(), s4);
             }
         }
 
@@ -192,7 +194,7 @@ impl<const C: usize> StripedScores<__m256, C> {
         for i in 0..self.length {
             vec.push(self.data[row][COLS[col]]);
             row += 1;
-            if row >= self.data.rows() {
+            if row == self.data.rows() {
                 row = 0;
                 col += 1;
             }

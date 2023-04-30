@@ -30,7 +30,6 @@ impl<T: Default + Copy, const C: usize> DenseMatrix<T, C> {
 
     /// Change the number of rows of the matrix.
     pub fn resize(&mut self, rows: usize) {
-
         // alway over-allocate columns to avoid alignment issues.
         let c = C.next_power_of_two();
 
@@ -50,8 +49,8 @@ impl<T: Default + Copy, const C: usize> DenseMatrix<T, C> {
         // copy data in case alignment offset changed
         if previous_offset != offset {
             self.data.as_mut_slice().copy_within(
-                previous_offset..previous_offset+(previous_rows*c),
-                offset
+                previous_offset..previous_offset + (previous_rows * c),
+                offset,
             );
         }
 
