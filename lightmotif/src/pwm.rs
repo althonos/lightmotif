@@ -95,6 +95,18 @@ impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
     }
 }
 
+impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<u32, K>> for CountMatrix<A, K> {
+    fn as_ref(&self) -> &DenseMatrix<u32, K> {
+        &self.data
+    }
+}
+
+impl<A: Alphabet, const K: usize> AsMut<DenseMatrix<u32, K>> for CountMatrix<A, K> {
+    fn as_mut(&mut self) -> &mut DenseMatrix<u32, K> {
+        &mut self.data
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ProbabilityMatrix<A: Alphabet, const K: usize> {
     alphabet: std::marker::PhantomData<A>,
@@ -120,6 +132,18 @@ impl<A: Alphabet, const K: usize> ProbabilityMatrix<A, K> {
             alphabet: std::marker::PhantomData,
             data: weight,
         }
+    }
+}
+
+impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<f32, K>> for ProbabilityMatrix<A, K> {
+    fn as_ref(&self) -> &DenseMatrix<f32, K> {
+        &self.data
+    }
+}
+
+impl<A: Alphabet, const K: usize> AsMut<DenseMatrix<f32, K>> for ProbabilityMatrix<A, K> {
+    fn as_mut(&mut self) -> &mut DenseMatrix<f32, K> {
+        &mut self.data
     }
 }
 
@@ -158,5 +182,23 @@ impl<A: Alphabet, const K: usize> WeightMatrix<A, K> {
     /// The length of the motif encoded in this weight matrix.
     pub fn len(&self) -> usize {
         self.data.rows()
+    }
+}
+
+impl<A: Alphabet, const K: usize> AsRef<WeightMatrix<A, K>> for WeightMatrix<A, K> {
+    fn as_ref(&self) -> &Self {
+        &self
+    }
+}
+
+impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<f32, K>> for WeightMatrix<A, K> {
+    fn as_ref(&self) -> &DenseMatrix<f32, K> {
+        &self.data
+    }
+}
+
+impl<A: Alphabet, const K: usize> AsMut<DenseMatrix<f32, K>> for WeightMatrix<A, K> {
+    fn as_mut(&mut self) -> &mut DenseMatrix<f32, K> {
+        &mut self.data
     }
 }

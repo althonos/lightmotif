@@ -84,6 +84,12 @@ impl<A: Alphabet, const C: usize> StripedSequence<A, C> {
     }
 }
 
+impl<A: Alphabet, const C: usize> AsRef<StripedSequence<A, C>> for StripedSequence<A, C> {
+    fn as_ref(&self) -> &Self {
+        &self
+    }
+}
+
 impl<A: Alphabet, const C: usize> From<EncodedSequence<A>> for StripedSequence<A, C> {
     fn from(encoded: EncodedSequence<A>) -> Self {
         encoded.to_striped()

@@ -13,7 +13,6 @@ use lightmotif::DnaAlphabet;
 use lightmotif::EncodedSequence;
 use lightmotif::Pipeline;
 use lightmotif::StripedScores;
-use lightmotif::StripedScores;
 
 const SEQUENCE: &'static str = include_str!("ecoli.txt");
 
