@@ -77,12 +77,12 @@ jobs:
       with:
         path: target
         key: ${{ runner.os }}-cargo-${{ matrix.rust-toolchain }}
-    - name: Measure code coverage with ${{ matrix.features }}
+    - name: Measure code coverage on CPU ${{ matrix.cpu }}
       uses: actions-rs/tarpaulin@v0.1
       with:
         env: RUSTFLAGS="--target-cpu=${{ matrix.cpu }}"
         version: '0.19.0'
-        args: '--lib -v --out Xml --ciserver github-actions'
+        args: '-v --out Xml --ciserver github-actions'
     - name: Upload to Codecov
       uses: codecov/codecov-action@v3
       with:
