@@ -7,7 +7,13 @@ use super::seq::EncodedSequence;
 #[derive(Clone, Debug)]
 pub struct Pseudocount<A: Alphabet, const K: usize> {
     alphabet: std::marker::PhantomData<A>,
-    pub counts: [f32; K],
+    counts: [f32; K],
+}
+
+impl<A: Alphabet, const K: usize> Default for Pseudocount<A, K> {
+    fn default() -> Self {
+        Self::from([0.0; K])
+    }
 }
 
 impl<A: Alphabet, const K: usize> From<[f32; K]> for Pseudocount<A, K> {
@@ -34,13 +40,27 @@ impl<A: Alphabet, const K: usize> From<f32> for Pseudocount<A, K> {
     }
 }
 
+impl<A: Alphabet, const K: usize> AsRef<[f32; K]> for Pseudocount<A, K> {
+    fn as_ref(&self) -> &[f32; K] {
+        &self.counts
+    }
+}
+
+impl<A: Alphabet, const K: usize> AsMut<[f32; K]> for Pseudocount<A, K> {
+    fn as_mut(&mut self) -> &mut [f32; K] {
+        &mut self.counts
+    }
+}
+
+/// A matrix storing symbol occurences at each position.
 #[derive(Clone, Debug)]
 pub struct CountMatrix<A: Alphabet, const K: usize> {
     alphabet: std::marker::PhantomData<A>,
-    pub data: DenseMatrix<u32, K>,
+    data: DenseMatrix<u32, K>,
 }
 
 impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
+    /// Create a new count matrix from the given data.
     pub fn new(data: DenseMatrix<u32, K>) -> Result<Self, ()> {
         Ok(Self {
             data,
@@ -48,6 +68,7 @@ impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
         })
     }
 
+    /// Create a new count matrix from the given sequences.
     pub fn from_sequences<'seq, I>(sequences: I) -> Result<Self, ()>
     where
         I: IntoIterator,
@@ -100,6 +121,12 @@ impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
             data: probas,
         }
     }
+
+    /// The raw counts from the count matrix.
+    #[inline]
+    pub fn counts(&self) -> &DenseMatrix<u32, K> {
+        &self.data
+    }
 }
 
 impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<u32, K>> for CountMatrix<A, K> {
@@ -108,19 +135,15 @@ impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<u32, K>> for CountMatrix<A, 
     }
 }
 
-impl<A: Alphabet, const K: usize> AsMut<DenseMatrix<u32, K>> for CountMatrix<A, K> {
-    fn as_mut(&mut self) -> &mut DenseMatrix<u32, K> {
-        &mut self.data
-    }
-}
-
+/// A matrix storing symbol probabilities at each position.
 #[derive(Clone, Debug)]
 pub struct ProbabilityMatrix<A: Alphabet, const K: usize> {
     alphabet: std::marker::PhantomData<A>,
-    pub data: DenseMatrix<f32, K>,
+    data: DenseMatrix<f32, K>,
 }
 
 impl<A: Alphabet, const K: usize> ProbabilityMatrix<A, K> {
+    /// Convert to a weight matrix using the given background frequencies.
     pub fn to_weight<B>(&self, background: B) -> WeightMatrix<A, K>
     where
         B: Into<Background<A, K>>,
@@ -148,19 +171,19 @@ impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<f32, K>> for ProbabilityMatr
     }
 }
 
-impl<A: Alphabet, const K: usize> AsMut<DenseMatrix<f32, K>> for ProbabilityMatrix<A, K> {
-    fn as_mut(&mut self) -> &mut DenseMatrix<f32, K> {
-        &mut self.data
-    }
-}
-
+/// A structure for storing background frequencies.
 #[derive(Clone, Debug)]
 pub struct Background<A: Alphabet, const K: usize> {
-    pub frequencies: [f32; K],
+    frequencies: [f32; K],
     alphabet: std::marker::PhantomData<A>,
 }
 
 impl<A: Alphabet, const K: usize> Background<A, K> {
+    // Create a new background with uniform frequencies.
+    //
+    // The non-default symbols from the alphabet `A` will be initialized
+    // with a frequency of `1/(K-1)`, while the default symbol will remain
+    // with a zero frequency.
     pub fn uniform() -> Self {
         let mut frequencies = [0.0; K];
         for i in 0..K {
@@ -168,11 +191,16 @@ impl<A: Alphabet, const K: usize> Background<A, K> {
                 frequencies[i] = 1.0 / ((K - 1) as f32);
             }
         }
-
         Self {
             frequencies,
             alphabet: std::marker::PhantomData,
         }
+    }
+}
+
+impl<A: Alphabet, const K: usize> AsRef<[f32; K]> for Background<A, K> {
+    fn as_ref(&self) -> &[f32; K] {
+        &self.frequencies
     }
 }
 
@@ -185,17 +213,31 @@ impl<A: Alphabet, const K: usize> From<[f32; K]> for Background<A, K> {
     }
 }
 
+/// A matrix storing log-likelihood of symbol probabilities at each position.
 #[derive(Clone, Debug)]
 pub struct WeightMatrix<A: Alphabet, const K: usize> {
     alphabet: std::marker::PhantomData<A>,
-    pub background: Background<A, K>,
-    pub data: DenseMatrix<f32, K>,
+    background: Background<A, K>,
+    data: DenseMatrix<f32, K>,
 }
 
 impl<A: Alphabet, const K: usize> WeightMatrix<A, K> {
     /// The length of the motif encoded in this weight matrix.
+    #[inline]
     pub fn len(&self) -> usize {
         self.data.rows()
+    }
+
+    /// The log-likelihoods of the position weight matrix.
+    #[inline]
+    pub fn weights(&self) -> &DenseMatrix<f32, K> {
+        &self.data
+    }
+
+    /// The background frequencies of the position weight matrix.
+    #[inline]
+    pub fn background(&self) -> &Background<A, K> {
+        &self.background
     }
 }
 
@@ -208,11 +250,5 @@ impl<A: Alphabet, const K: usize> AsRef<WeightMatrix<A, K>> for WeightMatrix<A, 
 impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<f32, K>> for WeightMatrix<A, K> {
     fn as_ref(&self) -> &DenseMatrix<f32, K> {
         &self.data
-    }
-}
-
-impl<A: Alphabet, const K: usize> AsMut<DenseMatrix<f32, K>> for WeightMatrix<A, K> {
-    fn as_mut(&mut self) -> &mut DenseMatrix<f32, K> {
-        &mut self.data
     }
 }

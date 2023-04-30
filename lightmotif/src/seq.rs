@@ -118,12 +118,12 @@ impl<A: Alphabet, const C: usize> From<EncodedSequence<A>> for StripedSequence<A
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::DnaAlphabet;
-    use crate::DnaSymbol::*;
+    use crate::Dna;
+    use crate::Nucleotide::*;
 
     #[test]
     fn test_stripe() {
-        let seq = EncodedSequence::<DnaAlphabet>::from_str("ATGCA").unwrap();
+        let seq = EncodedSequence::<Dna>::from_str("ATGCA").unwrap();
         let striped = seq.to_striped::<4>();
         assert_eq!(striped.data.rows(), 2);
         assert_eq!(&striped.data[0], &[A, G, A, N]);
@@ -138,7 +138,7 @@ mod test {
 
     #[test]
     fn test_configure_wrap() {
-        let seq = EncodedSequence::<DnaAlphabet>::from_str("ATGCA").unwrap();
+        let seq = EncodedSequence::<Dna>::from_str("ATGCA").unwrap();
         let mut striped = seq.to_striped::<4>();
 
         striped.configure_wrap(2);

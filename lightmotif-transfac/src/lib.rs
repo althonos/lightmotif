@@ -121,8 +121,8 @@ pub fn parse_matrices<A: Alphabet, const K: usize>(
 mod test {
 
     use lightmotif::Alphabet;
-    use lightmotif::DnaAlphabet;
-    use lightmotif::DnaSymbol;
+    use lightmotif::Dna;
+    use lightmotif::Nucleotide;
     use lightmotif::Symbol;
 
     #[test]
@@ -144,20 +144,20 @@ mod test {
     #[test]
     fn test_parse_alphabet() {
         let line = "P0      A      T      G      C\n";
-        let res = super::parse_alphabet::<DnaSymbol>(line).unwrap();
+        let res = super::parse_alphabet::<Nucleotide>(line).unwrap();
         assert_eq!(res.0, "");
         assert_eq!(
             res.1,
-            vec![DnaSymbol::A, DnaSymbol::T, DnaSymbol::G, DnaSymbol::C]
+            vec![Nucleotide::A, Nucleotide::T, Nucleotide::G, Nucleotide::C]
         );
 
         let line = "P0  A   T\n";
-        let res = super::parse_alphabet::<DnaSymbol>(line).unwrap();
+        let res = super::parse_alphabet::<Nucleotide>(line).unwrap();
         assert_eq!(res.0, "");
-        assert_eq!(res.1, vec![DnaSymbol::A, DnaSymbol::T]);
+        assert_eq!(res.1, vec![Nucleotide::A, Nucleotide::T]);
 
         let line = "P0  X Y Z\n";
-        let res = super::parse_alphabet::<DnaSymbol>(line);
+        let res = super::parse_alphabet::<Nucleotide>(line);
         assert!(res.is_err());
     }
 
@@ -185,21 +185,21 @@ mod test {
             "XX\n",
             "//\n",
         );
-        let res = super::parse_matrix::<DnaAlphabet, { DnaAlphabet::K }>(text).unwrap();
+        let res = super::parse_matrix::<Dna, { Dna::K }>(text).unwrap();
         assert_eq!(res.0, "");
 
         let matrix = res.1;
         // assert_eq!(matrix.name, "prodoric_MX000001");
-        assert_eq!(matrix.data.rows(), 7);
-        assert_eq!(matrix.data[0][DnaSymbol::A.as_index()], 0);
-        assert_eq!(matrix.data[0][DnaSymbol::T.as_index()], 0);
-        assert_eq!(matrix.data[0][DnaSymbol::G.as_index()], 2);
-        assert_eq!(matrix.data[0][DnaSymbol::C.as_index()], 0);
-        assert_eq!(matrix.data[0][DnaSymbol::N.as_index()], 0);
-        assert_eq!(matrix.data[5][DnaSymbol::A.as_index()], 0);
-        assert_eq!(matrix.data[5][DnaSymbol::T.as_index()], 1);
-        assert_eq!(matrix.data[5][DnaSymbol::G.as_index()], 0);
-        assert_eq!(matrix.data[5][DnaSymbol::C.as_index()], 1);
-        assert_eq!(matrix.data[5][DnaSymbol::N.as_index()], 0);
+        assert_eq!(matrix.counts().rows(), 7);
+        assert_eq!(matrix.counts()[0][Nucleotide::A.as_index()], 0);
+        assert_eq!(matrix.counts()[0][Nucleotide::T.as_index()], 0);
+        assert_eq!(matrix.counts()[0][Nucleotide::G.as_index()], 2);
+        assert_eq!(matrix.counts()[0][Nucleotide::C.as_index()], 0);
+        assert_eq!(matrix.counts()[0][Nucleotide::N.as_index()], 0);
+        assert_eq!(matrix.counts()[5][Nucleotide::A.as_index()], 0);
+        assert_eq!(matrix.counts()[5][Nucleotide::T.as_index()], 1);
+        assert_eq!(matrix.counts()[5][Nucleotide::G.as_index()], 0);
+        assert_eq!(matrix.counts()[5][Nucleotide::C.as_index()], 1);
+        assert_eq!(matrix.counts()[5][Nucleotide::N.as_index()], 0);
     }
 }

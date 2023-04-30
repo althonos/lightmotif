@@ -45,7 +45,7 @@ let pwm = pbm.to_weight(Background::uniform());
 
 // Encode the target sequence into a striped matrix
 let seq = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
-let encoded = EncodedSequence::<DnaAlphabet>::encode(seq).unwrap();
+let encoded = EncodedSequence::<Dna>::encode(seq).unwrap();
 let mut striped = encoded.to_striped::<32>();
 
 // Create a pipeline and compute scores for every position of the matrix

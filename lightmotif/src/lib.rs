@@ -7,8 +7,8 @@ mod pwm;
 mod seq;
 
 pub use abc::Alphabet;
-pub use abc::DnaAlphabet;
-pub use abc::DnaSymbol;
+pub use abc::Dna;
+pub use abc::Nucleotide;
 pub use abc::Symbol;
 pub use dense::DenseMatrix;
 pub use pli::Pipeline;

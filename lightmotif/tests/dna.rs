@@ -8,7 +8,7 @@ use std::str::FromStr;
 
 use lightmotif::Alphabet;
 use lightmotif::CountMatrix;
-use lightmotif::DnaAlphabet;
+use lightmotif::Dna;
 use lightmotif::EncodedSequence;
 use lightmotif::Pipeline;
 
@@ -35,10 +35,10 @@ const EXPECTED: &[f32] = &[
 
 #[test]
 fn test_score_generic() {
-    let encoded = EncodedSequence::<DnaAlphabet>::from_str(SEQUENCE).unwrap();
+    let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped::<2>();
 
-    let cm = CountMatrix::<DnaAlphabet, { DnaAlphabet::K }>::from_sequences(
+    let cm = CountMatrix::<Dna, { Dna::K }>::from_sequences(
         PATTERNS
             .iter()
             .map(|x| EncodedSequence::from_str(x).unwrap()),
@@ -68,7 +68,7 @@ fn test_score_generic() {
 #[cfg(target_feature = "ssse3")]
 #[test]
 fn test_score_ssse3() {
-    let encoded = EncodedSequence::<DnaAlphabet>::from_str(SEQUENCE).unwrap();
+    let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped();
 
     let cm = CountMatrix::from_sequences(
@@ -104,10 +104,10 @@ fn test_score_ssse3() {
 #[cfg(target_feature = "avx2")]
 #[test]
 fn test_score_avx2() {
-    let encoded = EncodedSequence::<DnaAlphabet>::from_str(SEQUENCE).unwrap();
+    let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped::<{ std::mem::size_of::<__m256>() }>();
 
-    let cm = CountMatrix::<DnaAlphabet, { DnaAlphabet::K }>::from_sequences(
+    let cm = CountMatrix::<Dna, { Dna::K }>::from_sequences(
         PATTERNS
             .iter()
             .map(|x| EncodedSequence::from_str(x).unwrap()),

@@ -20,46 +20,53 @@ pub trait Alphabet: Debug + Copy + Default + 'static {
     }
 }
 
+/// A nucleobase
 #[derive(Clone, Copy, PartialEq, Debug)]
 #[repr(u8)]
-pub enum DnaSymbol {
+pub enum Nucleotide {
+    /// Adenine.
     A = 0,
+    /// Cytosine.
     C = 1,
+    /// Thymine.
     T = 2,
+    /// Guanine.
     G = 3,
+    /// Unknown base.
     N = 4,
 }
 
-impl Symbol for DnaSymbol {
+impl Symbol for Nucleotide {
     fn as_index(&self) -> usize {
         *self as usize
     }
 }
 
-impl TryFrom<char> for DnaSymbol {
+impl TryFrom<char> for Nucleotide {
     type Error = InvalidSymbol;
     fn try_from(c: char) -> Result<Self, Self::Error> {
         match c {
-            'A' => Ok(DnaSymbol::A),
-            'C' => Ok(DnaSymbol::C),
-            'T' => Ok(DnaSymbol::T),
-            'G' => Ok(DnaSymbol::G),
-            'N' => Ok(DnaSymbol::N),
+            'A' => Ok(Nucleotide::A),
+            'C' => Ok(Nucleotide::C),
+            'T' => Ok(Nucleotide::T),
+            'G' => Ok(Nucleotide::G),
+            'N' => Ok(Nucleotide::N),
             _ => Err(InvalidSymbol(c)),
         }
     }
 }
 
-impl Default for DnaSymbol {
-    fn default() -> DnaSymbol {
-        DnaSymbol::N
+impl Default for Nucleotide {
+    fn default() -> Nucleotide {
+        Nucleotide::N
     }
 }
 
+/// The standard DNA alphabet composed of 4 nucleobases and a wildcard.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct DnaAlphabet;
+pub struct Dna;
 
-impl Alphabet for DnaAlphabet {
-    type Symbol = DnaSymbol;
+impl Alphabet for Dna {
+    type Symbol = Nucleotide;
     const K: usize = 5;
 }
