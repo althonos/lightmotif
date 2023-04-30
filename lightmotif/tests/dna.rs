@@ -1,13 +1,13 @@
-extern crate fastpwm;
+extern crate lightmotif;
 
 #[cfg(target_feature = "avx2")]
 use std::arch::x86_64::__m256;
 
-use fastpwm::Alphabet;
-use fastpwm::CountMatrix;
-use fastpwm::DnaAlphabet;
-use fastpwm::EncodedSequence;
-use fastpwm::Pipeline;
+use lightmotif::Alphabet;
+use lightmotif::CountMatrix;
+use lightmotif::DnaAlphabet;
+use lightmotif::EncodedSequence;
+use lightmotif::Pipeline;
 
 const SEQUENCE: &'static str = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
 const PATTERNS: &[&'static str] = &["GTTGACCTTATCAAC", "GTTGATCCAGTCAAC"];

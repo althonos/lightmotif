@@ -1,0 +1,14 @@
+[package]
+name = "lightmotif"
+version = "0.1.0"
+authors = ["Martin Larralde <martin.larralde@embl.de>"]
+edition = "2021"
+license = "MIT"
+description = "A lightweight platform-accelerated library for biological motif scanning using position weight matrices."
+repository = "https://github.com/althonos/lightmotif"
+homepage = "https://github.com/althonos/lightmotif"
+readme = "README.md"
+keywords = []
+
+[dependencies]
+nom = "7"
