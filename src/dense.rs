@@ -11,17 +11,20 @@ pub struct DenseMatrix<T: Default, const C: usize = 32> {
 impl<T: Default, const C: usize> DenseMatrix<T, C> {
     /// Create a new matrix
     pub fn new(rows: usize) -> Self {
+        // alway over-allocate columns to avoid alignment issues.
+        let c = C.next_power_of_two();
         // allocate data block
-        let mut data = Vec::with_capacity(rows * C + C - 1); // FIXME
-        for _ in 0..data.capacity() {
-            data.push(T::default());
-        }
+        let mut data = Vec::with_capacity( (rows+1) * c ); // FIXME
+        data.resize_with(data.capacity(), T::default);
         // compute offset to have proper alignment
-        let offset = unsafe { data.align_to::<[u8; C]>().0.len() };
+        let mut offset = 0;
+        while data[offset..].as_ptr() as usize % c > 0 {
+            offset += 1
+        }
         // record row coordinates (only really useful when aligned)
         let mut indices = Vec::with_capacity(rows);
         for i in 0..rows {
-            indices.push(offset + i * C)
+            indices.push(offset + i * c)
         }
         // finish matrix
         Self { data, indices }

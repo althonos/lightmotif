@@ -76,7 +76,6 @@ impl Pipeline<DnaAlphabet, __m256> {
             // get raw pointers to data
             let sdata = seq.data[0].as_ptr();
             let mdata = pwm.data[0].as_ptr();
-            let rdata: *mut f32 = result[0].as_mut_ptr();
             // mask vectors for broadcasting:
             let m1: __m256i = _mm256_set_epi32(
                 0xFFFFFF03u32 as i32,
@@ -124,10 +123,9 @@ impl Pipeline<DnaAlphabet, __m256> {
                 let mut s2 = _mm256_setzero_ps();
                 let mut s3 = _mm256_setzero_ps();
                 let mut s4 = _mm256_setzero_ps();
-
                 for j in 0..pwm.data.rows() {
-                    let x = _mm256_loadu_si256(sdata.add((i+j)*C) as *const __m256i);
-                    let row = mdata.add(j*K);
+                    let x = _mm256_load_si256(seq.data[i+j].as_ptr() as *const __m256i);
+                    let row = pwm.data[j].as_ptr();
                     // compute probabilities using an external lookup table
                     let p1 = _mm256_i32gather_ps(row, _mm256_shuffle_epi8(x, m1), S);
                     let p2 = _mm256_i32gather_ps(row, _mm256_shuffle_epi8(x, m2), S);
@@ -140,11 +138,12 @@ impl Pipeline<DnaAlphabet, __m256> {
                     s4 = _mm256_add_ps(s4, p4);
                 }
 
-                let row = rdata.add(i * 32);
-                _mm256_store_ps(row.add(0x00), s1);
-                _mm256_store_ps(row.add(0x08), s2);
-                _mm256_store_ps(row.add(0x10), s3);
-                _mm256_store_ps(row.add(0x18), s4);
+                let row = &mut result[i];
+                let rowptr = row.as_mut_ptr();
+                _mm256_store_ps(rowptr, s1);
+                _mm256_store_ps(rowptr.add(0x08), s2);
+                _mm256_store_ps(rowptr.add(0x10), s3);
+                _mm256_store_ps(rowptr.add(0x18), s4);
             }
         }
 
