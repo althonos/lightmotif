@@ -1,4 +1,4 @@
-#[cfg(target_feature = "avx2")]
+#[cfg(target_feature = "ssse3")]
 use std::arch::x86_64::*;
 
 use self::seal::Vector;
@@ -16,6 +16,9 @@ mod seal {
 
     #[cfg(target_feature = "avx2")]
     impl Vector for std::arch::x86_64::__m256 {}
+
+    #[cfg(target_feature = "ssse3")]
+    impl Vector for std::arch::x86_64::__m128 {}
 }
 
 pub struct Pipeline<A: Alphabet, V: Vector> {
@@ -68,6 +71,112 @@ impl Pipeline<DnaAlphabet, f32> {
     pub fn score<S, M, const C: usize>(&self, seq: S, pwm: M) -> StripedScores<f32, C>
     where
         S: AsRef<StripedSequence<DnaAlphabet, C>>,
+        M: AsRef<WeightMatrix<DnaAlphabet, { DnaAlphabet::K }>>,
+    {
+        let mut scores = StripedScores::new_for(&seq, &pwm);
+        self.score_into(seq, pwm, &mut scores);
+        scores
+    }
+}
+
+#[cfg(target_feature = "ssse3")]
+impl Pipeline<DnaAlphabet, __m128> {
+    pub fn score_into<S, M>(
+        &self,
+        seq: S,
+        pwm: M,
+        scores: &mut StripedScores<__m128, { std::mem::size_of::<__m128i>() }>,
+    ) where
+        S: AsRef<StripedSequence<DnaAlphabet, { std::mem::size_of::<__m128i>() }>>,
+        M: AsRef<WeightMatrix<DnaAlphabet, { DnaAlphabet::K }>>,
+    {
+        let seq = seq.as_ref();
+        let pwm = pwm.as_ref();
+        let result = &mut scores.data;
+
+        if seq.wrap < pwm.len() - 1 {
+            panic!("not enough wrapping rows for motif of length {}", pwm.len());
+        }
+        if result.rows() < (seq.data.rows() - seq.wrap) {
+            panic!("not enough rows for scores: {}", pwm.len());
+        }
+
+        scores.length = seq.length - pwm.len() + 1;
+        unsafe {
+            // mask vectors for broadcasting uint8x16_t to uint32x4_t to floatx4_t
+            let m1 = _mm_set_epi32(
+                0xFFFFFF03u32 as i32,
+                0xFFFFFF02u32 as i32,
+                0xFFFFFF01u32 as i32,
+                0xFFFFFF00u32 as i32,
+            );
+            let m2 = _mm_set_epi32(
+                0xFFFFFF07u32 as i32,
+                0xFFFFFF06u32 as i32,
+                0xFFFFFF05u32 as i32,
+                0xFFFFFF04u32 as i32,
+            );
+            let m3 = _mm_set_epi32(
+                0xFFFFFF0Bu32 as i32,
+                0xFFFFFF0Au32 as i32,
+                0xFFFFFF09u32 as i32,
+                0xFFFFFF08u32 as i32,
+            );
+            let m4 = _mm_set_epi32(
+                0xFFFFFF0Fu32 as i32,
+                0xFFFFFF0Eu32 as i32,
+                0xFFFFFF0Du32 as i32,
+                0xFFFFFF0Cu32 as i32,
+            );
+            //
+            // process every position of the sequence data
+            for i in 0..seq.data.rows() - seq.wrap {
+                // reset sums for current position
+                let mut s1 = _mm_setzero_ps();
+                let mut s2 = _mm_setzero_ps();
+                let mut s3 = _mm_setzero_ps();
+                let mut s4 = _mm_setzero_ps();
+                // advance position in the position weight matrix
+                for j in 0..pwm.len() {
+                    // load sequence row and broadcast to f32
+                    let x = _mm_load_si128(seq.data[i + j].as_ptr() as *const __m128i);
+                    let x1 = _mm_shuffle_epi8(x, m1);
+                    let x2 = _mm_shuffle_epi8(x, m2);
+                    let x3 = _mm_shuffle_epi8(x, m3);
+                    let x4 = _mm_shuffle_epi8(x, m4);
+                    // load row for current weight matrix position
+                    let row = pwm.data[j].as_ptr();
+                    // index lookup table with each bases incrementally
+                    for i in 0..DnaAlphabet::K {
+                        let sym = _mm_set1_epi32(i as i32);
+                        let lut = _mm_set1_ps(*row.add(i as usize));
+                        let p1 = _mm_castsi128_ps(_mm_cmpeq_epi32(x1, sym));
+                        let p2 = _mm_castsi128_ps(_mm_cmpeq_epi32(x2, sym));
+                        let p3 = _mm_castsi128_ps(_mm_cmpeq_epi32(x3, sym));
+                        let p4 = _mm_castsi128_ps(_mm_cmpeq_epi32(x4, sym));
+                        s1 = _mm_add_ps(s1, _mm_and_ps(lut, p1));
+                        s2 = _mm_add_ps(s2, _mm_and_ps(lut, p2));
+                        s3 = _mm_add_ps(s3, _mm_and_ps(lut, p3));
+                        s4 = _mm_add_ps(s4, _mm_and_ps(lut, p4));
+                    }
+                }
+                // record the score for the current position
+                let row = &mut result[i];
+                _mm_store_ps(row[0..].as_mut_ptr(), s1);
+                _mm_store_ps(row[4..].as_mut_ptr(), s2);
+                _mm_store_ps(row[8..].as_mut_ptr(), s3);
+                _mm_store_ps(row[12..].as_mut_ptr(), s4);
+            }
+        }
+    }
+
+    pub fn score<S, M>(
+        &self,
+        seq: S,
+        pwm: M,
+    ) -> StripedScores<__m128, { std::mem::size_of::<__m128i>() }>
+    where
+        S: AsRef<StripedSequence<DnaAlphabet, { std::mem::size_of::<__m128i>() }>>,
         M: AsRef<WeightMatrix<DnaAlphabet, { DnaAlphabet::K }>>,
     {
         let mut scores = StripedScores::new_for(&seq, &pwm);
@@ -281,6 +390,43 @@ impl<const C: usize> StripedScores<f32, C> {
             if self.data[row][col] > best_score {
                 best_pos = i;
                 best_score = self.data[row][col];
+            }
+        }
+        best_pos
+    }
+}
+
+#[cfg(target_feature = "ssse3")]
+impl<const C: usize> StripedScores<__m128, C> {
+    /// Convert the striped scores to a vector of scores.
+    pub fn to_vec(&self) -> Vec<f32> {
+        let mut vec = Vec::with_capacity(self.length);
+        for i in 0..self.length {
+            let col = i / self.data.rows();
+            let row = i % self.data.rows();
+            vec.push(self.data[row][col]);
+        }
+        vec
+    }
+
+    /// Get the index of the highest scoring position.
+    ///
+    /// ## Panic
+    /// Panics if the data buffer is empty.
+    pub fn argmax(&self) -> usize {
+        let mut best_pos = 0;
+        let mut best_score = self.data[0][0];
+        let mut col = 0;
+        let mut row = 0;
+        for i in 0..self.length {
+            if self.data[row][col] > best_score {
+                best_pos = i;
+                best_score = self.data[row][col];
+            }
+            row += 1;
+            if row == self.data.rows() {
+                row = 0;
+                col += 1;
             }
         }
         best_pos

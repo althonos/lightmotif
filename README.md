@@ -71,18 +71,20 @@ motif from [PRODORIC](https://www.prodoric.de/), and the
 
 - Score every position of the genome with the motif weight matrix:
   ```console
-  running 2 tests
-  test bench_avx     ... bench:  13,294,196 ns/iter (+/- 73,022) = 349 MB/s
-  test bench_generic ... bench: 316,647,932 ns/iter (+/- 1,420,798) = 14 MB/s
+  running 3 tests
+  test bench_avx2    ... bench:  13,053,752 ns/iter (+/- 45,411) = 355 MB/s
+  test bench_ssse3   ... bench:  37,203,277 ns/iter (+/- 2,416,572) = 124 MB/s
+  test bench_generic ... bench: 314,682,807 ns/iter (+/- 1,072,174) = 14 MB/s
   ```
 
-- Find the highest-scoring position for a motif in a sequence 
+- Find the highest-scoring position for a motif in a 10kb sequence 
   (compared to the PSSM algorithm implemented in 
   [`bio::pattern_matching::pssm`](https://docs.rs/bio/1.1.0/bio/pattern_matching/pssm/index.html)):
   ```console
-  test bench_avx     ... bench:      47,069 ns/iter (+/- 10) = 212 MB/s
-  test bench_bio     ... bench:   1,437,308 ns/iter (+/- 5,419) = 6 MB/s
-  test bench_generic ... bench:     740,348 ns/iter (+/- 2,277) = 13 MB/s
+  test bench_avx2    ... bench:      46,390 ns/iter (+/- 115) = 215 MB/s
+  test bench_ssse3   ... bench:      97,691 ns/iter (+/- 2,720) = 102 MB/s
+  test bench_generic ... bench:     740,305 ns/iter (+/- 2,527) = 13 MB/s
+  test bench_bio     ... bench:   1,575,504 ns/iter (+/- 2,799) = 6 MB/s
   ```
 
 
