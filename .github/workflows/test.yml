@@ -22,7 +22,7 @@ jobs:
           command: fmt
           args: --all -- --check
   test:
-    name: Test (${{ matrix.rust-toolchain }}, ${{ matrix.features }})
+    name: Test (${{ matrix.rust-toolchain }}, ${{ matrix.cpu }})
     runs-on: ubuntu-latest
     needs: lint
     strategy:
@@ -31,9 +31,9 @@ jobs:
           - stable
           - beta
           - nightly
-        flags:
-          - ""
-          - "--target-cpu=native"
+        cpu:
+          - "native"
+          - "x86-64"
     steps:
     - name: Checkout code
       uses: actions/checkout@v1
@@ -51,6 +51,45 @@ jobs:
     - name: Test code
       uses: actions-rs/cargo@v1
       with:
-        env: RUSTFLAGS="${{ matrix.flags }}"
+        env: RUSTFLAGS="--target-cpu=${{ matrix.cpu }}"
         command: test
-  
+  cover:
+    name: Coverage (${{ matrix.cpu }})
+    runs-on: ubuntu-latest
+    needs: test
+    if: "!startsWith(github.ref, 'refs/tags/v')"
+    strategy:
+      matrix:
+        cpu:
+          - "native"
+          - "x86-64"
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v1
+    - name: Setup Rust stable
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - name: Setup cache for cargo
+      uses: actions/cache@v2
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-${{ matrix.rust-toolchain }}
+    - name: Measure code coverage with ${{ matrix.features }}
+      uses: actions-rs/tarpaulin@v0.1
+      with:
+        env: RUSTFLAGS="--target-cpu=${{ matrix.cpu }}"
+        version: '0.19.0'
+        args: '--lib -v --out Xml --ciserver github-actions'
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        flags: ${{ matrix.cpu }}
+        env_vars: OS
+        name: test-${{ matrix.cpu }}
+        fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
+        codecov_curl_args: "--globoff"
+        verbose: true

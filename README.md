@@ -2,7 +2,7 @@
 
 *A lightweight [platform-accelerated](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data) library for [biological motif](https://en.wikipedia.org/wiki/Sequence_motif) scanning using [position weight matrices](https://en.wikipedia.org/wiki/Position_weight_matrix)*.
 
-[![Actions](https://img.shields.io/github/actions/workflow/status/althonos/lightmotif/test.yml?branch=master&logo=github&style=flat-square&maxAge=300)](https://github.com/althonos/lightmotif/actions)
+[![Actions](https://img.shields.io/github/actions/workflow/status/althonos/lightmotif/test.yml?branch=main&logo=github&style=flat-square&maxAge=300)](https://github.com/althonos/lightmotif/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square&maxAge=2678400)](https://choosealicense.com/licenses/mit/)
 [![Source](https://img.shields.io/badge/source-GitHub-303030.svg?maxAge=2678400&style=flat-square)](https://github.com/althonos/lightmotif/)
 [![Mirror](https://img.shields.io/badge/mirror-EMBL-009f4d?style=flat-square&maxAge=2678400)](https://git.embl.de/larralde/lightmotif/)
@@ -14,7 +14,7 @@
 Motif scanning with position weight matrices (also known as position-specific 
 scoring matrices) is a robust method for identifying motifs of fixed length
 inside a biological sequence. They can be used to identify transcription 
-factor binding sites in DNA, or protease cleavage site in polypeptides
+factor binding sites in DNA, or protease cleavage site in polypeptides.
 
 The `lightmotif` library provides a Rust crate to run very efficient 
 searches for a motif encoded in a position weight matrix. The position 
