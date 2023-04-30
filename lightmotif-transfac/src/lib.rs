@@ -90,7 +90,7 @@ fn parse_row(input: &str, k: usize) -> IResult<&str, Vec<u32>> {
 }
 
 pub fn parse_matrix<A: Alphabet, const K: usize>(input: &str) -> IResult<&str, CountMatrix<A, K>> {
-    let (input, id) = parse_id(input)?;
+    let (input, _id) = parse_id(input)?;
     let (input, _) = parse_species(input)?;
     let (input, symbols) = parse_alphabet::<A::Symbol>(input)?;
     let (input, (counts, _)) = many_till(|i| parse_row(i, symbols.len()), tag("XX"))(input)?;
@@ -106,7 +106,7 @@ pub fn parse_matrix<A: Alphabet, const K: usize>(input: &str) -> IResult<&str, C
         }
     }
 
-    let matrix = CountMatrix::new(id, data).unwrap(); // FIXME
+    let matrix = CountMatrix::new(data).unwrap(); // FIXME
     Ok((input, matrix))
 }
 
@@ -189,7 +189,7 @@ mod test {
         assert_eq!(res.0, "");
 
         let matrix = res.1;
-        assert_eq!(matrix.name, "prodoric_MX000001");
+        // assert_eq!(matrix.name, "prodoric_MX000001");
         assert_eq!(matrix.data.rows(), 7);
         assert_eq!(matrix.data[0][DnaSymbol::A.as_index()], 0);
         assert_eq!(matrix.data[0][DnaSymbol::T.as_index()], 0);

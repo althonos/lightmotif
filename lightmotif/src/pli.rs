@@ -4,7 +4,6 @@ use std::arch::x86_64::*;
 use self::seal::Vector;
 use super::abc::Alphabet;
 use super::abc::DnaAlphabet;
-use super::abc::DnaSymbol;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
 use super::pwm::WeightMatrix;
@@ -91,7 +90,7 @@ impl Pipeline<DnaAlphabet, __m256> {
 
         unsafe {
             // constant vector for comparing unknown bases
-            let n = _mm256_set1_epi8(DnaSymbol::N as i8);
+            let n = _mm256_set1_epi8(super::abc::DnaSymbol::N as i8);
             // mask vectors for broadcasting uint8x32_t to uint32x8_t to floatx8_t
             let m1 = _mm256_set_epi32(
                 0xFFFFFF03u32 as i32,

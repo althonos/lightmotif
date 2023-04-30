@@ -36,7 +36,6 @@ fn test_score_generic() {
     let mut striped = encoded.to_striped::<2>();
 
     let cm = CountMatrix::<DnaAlphabet, { DnaAlphabet::K }>::from_sequences(
-        "MX000001",
         PATTERNS
             .iter()
             .map(|x| EncodedSequence::from_text(x).unwrap()),
@@ -71,7 +70,6 @@ fn test_score_avx2() {
     let mut striped = encoded.to_striped::<{ std::mem::size_of::<__m256>() }>();
 
     let cm = CountMatrix::<DnaAlphabet, { DnaAlphabet::K }>::from_sequences(
-        "MX000001",
         PATTERNS
             .iter()
             .map(|x| EncodedSequence::from_text(x).unwrap()),
