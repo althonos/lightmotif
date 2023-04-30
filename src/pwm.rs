@@ -166,20 +166,9 @@ pub struct WeightMatrix<A: Alphabet, const K: usize> {
     pub name: String,
 }
 
-#[derive(Clone, Debug)]
-pub struct StripedScores<const C: usize = 32> {
-    pub length: usize,
-    pub data: DenseMatrix<f32, C>,
-}
-
-impl<const C: usize> StripedScores<C> {
-    pub fn to_vec(&self) -> Vec<f32> {
-        let mut vec = Vec::with_capacity(self.length);
-        for i in 0..self.length {
-            let col = i / self.data.rows();
-            let row = i % self.data.rows();
-            vec.push(self.data[row][col]);
-        }
-        vec
+impl<A: Alphabet, const K: usize> WeightMatrix<A, K> {
+    /// The length of the motif encoded in this weight matrix.
+    pub fn len(&self) -> usize {
+        self.data.rows()
     }
 }
