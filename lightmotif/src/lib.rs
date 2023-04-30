@@ -1,4 +1,4 @@
-//! A lightweight platform-accelerated library for biological motif scanning using position weight matrices.
+#![doc = include_str!("../README.md")]
 
 mod abc;
 mod dense;
