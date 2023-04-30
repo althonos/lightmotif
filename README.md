@@ -27,7 +27,7 @@ of sequences:
   HMMER[\[1\]](#ref1) or MEME[\[2\]](#ref2)
 - Striped sequence matrices to process several positions in parallel, 
   inspired by Farrar[\[3\]](#ref3).
-- High-throughput matrix row look-up using `permute` instructions of [AVX2](https://fr.wikipedia.org/wiki/Advanced_Vector_Extensions).
+- Vectorized matrix row look-up using `permute` instructions of [AVX2](https://fr.wikipedia.org/wiki/Advanced_Vector_Extensions).
 
 
 ## 💡 Example
@@ -37,15 +37,15 @@ use lightmotif::*;
 
 // Create a position weight matrix from a collection of motif sequences
 let cm = CountMatrix::from_sequences(&[
-    EncodedSequence::from_text("GTTGACCTTATCAAC").unwrap(),
-    EncodedSequence::from_text("GTTGACCTTATCAAC").unwrap(),
+    EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
+    EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
 ]).unwrap();
 let pbm = cm.to_probability(0.1);
 let pwm = pbm.to_weight(Background::uniform());
 
 // Encode the target sequence into a striped matrix
 let seq = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
-let encoded = EncodedSequence::<DnaAlphabet>::from_text(seq).unwrap();
+let encoded = EncodedSequence::<DnaAlphabet>::encode(seq).unwrap();
 let mut striped = encoded.to_striped::<32>();
 
 // Create a pipeline and compute scores for every position of the matrix

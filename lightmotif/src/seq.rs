@@ -1,17 +1,28 @@
+use std::str::FromStr;
+
 use super::abc::Alphabet;
 use super::abc::InvalidSymbol;
 use super::dense::DenseMatrix;
 use super::pwm::WeightMatrix;
 
+/// A biological sequence encoded with an alphabet.
 #[derive(Clone, Debug)]
 pub struct EncodedSequence<A: Alphabet> {
-    pub alphabet: A,
+    alphabet: std::marker::PhantomData<A>,
     pub data: Vec<A::Symbol>,
 }
 
 impl<A: Alphabet> EncodedSequence<A> {
+    /// Create a new encoded sequence.
+    pub fn new(data: Vec<A::Symbol>) -> Self {
+        Self {
+            data,
+            alphabet: std::marker::PhantomData,
+        }
+    }
+
     /// Create a new encoded sequence from a textual representation.
-    pub fn from_text(sequence: &str) -> Result<Self, InvalidSymbol>
+    pub fn encode(sequence: &str) -> Result<Self, InvalidSymbol>
     where
         InvalidSymbol: From<<A::Symbol as TryFrom<char>>::Error>,
     {
@@ -19,10 +30,7 @@ impl<A: Alphabet> EncodedSequence<A> {
             .chars()
             .map(|c| A::Symbol::try_from(c))
             .collect::<Result<_, _>>()?;
-        Ok(Self {
-            data,
-            alphabet: Default::default(),
-        })
+        Ok(Self::new(data))
     }
 
     /// Return the number of symbols in the sequence.
@@ -39,7 +47,7 @@ impl<A: Alphabet> EncodedSequence<A> {
             data[i % n][i / n] = x;
         }
         StripedSequence {
-            alphabet: self.alphabet,
+            alphabet: std::marker::PhantomData,
             data,
             length,
             wrap: 0,
@@ -53,9 +61,20 @@ impl<A: Alphabet> AsRef<EncodedSequence<A>> for EncodedSequence<A> {
     }
 }
 
+impl<A: Alphabet> FromStr for EncodedSequence<A>
+where
+    InvalidSymbol: From<<A::Symbol as TryFrom<char>>::Error>,
+{
+    type Err = InvalidSymbol;
+    fn from_str(seq: &str) -> Result<Self, Self::Err> {
+        Self::encode(seq)
+    }
+}
+
+/// An encoded sequence stored in a striped matrix with a fixed column count.
 #[derive(Clone, Debug)]
 pub struct StripedSequence<A: Alphabet, const C: usize = 32> {
-    pub alphabet: A,
+    alphabet: std::marker::PhantomData<A>,
     pub length: usize,
     pub wrap: usize,
     pub data: DenseMatrix<A::Symbol, C>,
@@ -104,7 +123,7 @@ mod test {
 
     #[test]
     fn test_stripe() {
-        let seq = EncodedSequence::<DnaAlphabet>::from_text("ATGCA").unwrap();
+        let seq = EncodedSequence::<DnaAlphabet>::from_str("ATGCA").unwrap();
         let striped = seq.to_striped::<4>();
         assert_eq!(striped.data.rows(), 2);
         assert_eq!(&striped.data[0], &[A, G, A, N]);
@@ -119,7 +138,7 @@ mod test {
 
     #[test]
     fn test_configure_wrap() {
-        let seq = EncodedSequence::<DnaAlphabet>::from_text("ATGCA").unwrap();
+        let seq = EncodedSequence::<DnaAlphabet>::from_str("ATGCA").unwrap();
         let mut striped = seq.to_striped::<4>();
 
         striped.configure_wrap(2);

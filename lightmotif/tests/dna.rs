@@ -4,6 +4,7 @@ extern crate lightmotif;
 use std::arch::x86_64::__m128;
 #[cfg(target_feature = "avx2")]
 use std::arch::x86_64::__m256;
+use std::str::FromStr;
 
 use lightmotif::Alphabet;
 use lightmotif::CountMatrix;
@@ -34,13 +35,13 @@ const EXPECTED: &[f32] = &[
 
 #[test]
 fn test_score_generic() {
-    let encoded = EncodedSequence::<DnaAlphabet>::from_text(SEQUENCE).unwrap();
+    let encoded = EncodedSequence::<DnaAlphabet>::from_str(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped::<2>();
 
     let cm = CountMatrix::<DnaAlphabet, { DnaAlphabet::K }>::from_sequences(
         PATTERNS
             .iter()
-            .map(|x| EncodedSequence::from_text(x).unwrap()),
+            .map(|x| EncodedSequence::from_str(x).unwrap()),
     )
     .unwrap();
     let pbm = cm.to_probability([0.1, 0.1, 0.1, 0.1, 0.0]);
@@ -67,13 +68,13 @@ fn test_score_generic() {
 #[cfg(target_feature = "ssse3")]
 #[test]
 fn test_score_ssse3() {
-    let encoded = EncodedSequence::<DnaAlphabet>::from_text(SEQUENCE).unwrap();
+    let encoded = EncodedSequence::<DnaAlphabet>::from_str(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped();
 
     let cm = CountMatrix::from_sequences(
         PATTERNS
             .iter()
-            .map(|x| EncodedSequence::from_text(x).unwrap()),
+            .map(|x| EncodedSequence::from_str(x).unwrap()),
     )
     .unwrap();
     let pbm = cm.to_probability([0.1, 0.1, 0.1, 0.1, 0.0]);
@@ -103,13 +104,13 @@ fn test_score_ssse3() {
 #[cfg(target_feature = "avx2")]
 #[test]
 fn test_score_avx2() {
-    let encoded = EncodedSequence::<DnaAlphabet>::from_text(SEQUENCE).unwrap();
+    let encoded = EncodedSequence::<DnaAlphabet>::from_str(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped::<{ std::mem::size_of::<__m256>() }>();
 
     let cm = CountMatrix::<DnaAlphabet, { DnaAlphabet::K }>::from_sequences(
         PATTERNS
             .iter()
-            .map(|x| EncodedSequence::from_text(x).unwrap()),
+            .map(|x| EncodedSequence::from_str(x).unwrap()),
     )
     .unwrap();
     let pbm = cm.to_probability([0.1, 0.1, 0.1, 0.1, 0.0]);
