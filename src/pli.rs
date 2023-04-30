@@ -124,7 +124,7 @@ impl Pipeline<DnaAlphabet, __m256> {
                 let mut s3 = _mm256_setzero_ps();
                 let mut s4 = _mm256_setzero_ps();
                 for j in 0..pwm.data.rows() {
-                    let x = _mm256_load_si256(seq.data[i+j].as_ptr() as *const __m256i);
+                    let x = _mm256_load_si256(seq.data[i + j].as_ptr() as *const __m256i);
                     let row = pwm.data[j].as_ptr();
                     // compute probabilities using an external lookup table
                     let p1 = _mm256_i32gather_ps(row, _mm256_shuffle_epi8(x, m1), S);

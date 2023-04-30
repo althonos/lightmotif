@@ -34,7 +34,9 @@ fn test_score_generic() {
 
     let cm = CountMatrix::<DnaAlphabet, { DnaAlphabet::K }>::from_sequences(
         "MX000001",
-        PATTERNS.iter().map(|x| EncodedSequence::from_text(x).unwrap()),
+        PATTERNS
+            .iter()
+            .map(|x| EncodedSequence::from_text(x).unwrap()),
     )
     .unwrap();
     let pbm = cm.to_probability([0.1, 0.1, 0.1, 0.1, 0.0]);
@@ -47,10 +49,10 @@ fn test_score_generic() {
     assert_eq!(scores.len(), EXPECTED.len());
     for i in 0..scores.len() {
         assert!(
-            (scores[i] - EXPECTED[i]).abs() < 1e-5, 
-            "{} != {} at position {}", 
-            scores[i], 
-            EXPECTED[i], 
+            (scores[i] - EXPECTED[i]).abs() < 1e-5,
+            "{} != {} at position {}",
+            scores[i],
+            EXPECTED[i],
             i
         );
     }
@@ -66,7 +68,9 @@ fn test_score_avx2() {
 
     let cm = CountMatrix::<DnaAlphabet, { DnaAlphabet::K }>::from_sequences(
         "MX000001",
-        PATTERNS.iter().map(|x| EncodedSequence::from_text(x).unwrap()),
+        PATTERNS
+            .iter()
+            .map(|x| EncodedSequence::from_text(x).unwrap()),
     )
     .unwrap();
     let pbm = cm.to_probability([0.1, 0.1, 0.1, 0.1, 0.0]);
@@ -81,10 +85,10 @@ fn test_score_avx2() {
     // assert_eq!(scores[0], -23.07094); // -23.07094
     for i in 0..EXPECTED.len() {
         assert!(
-            (scores[i] - EXPECTED[i]).abs() < 1e-5, 
-            "{} != {} at position {}", 
-            scores[i], 
-            EXPECTED[i], 
+            (scores[i] - EXPECTED[i]).abs() < 1e-5,
+            "{} != {} at position {}",
+            scores[i],
+            EXPECTED[i],
             i
         );
     }
