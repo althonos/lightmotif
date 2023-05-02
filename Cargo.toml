@@ -1,2 +1,2 @@
 [workspace]
-members = ["lightmotif", "lightmotif-bench", "lightmotif-transfac"]
+members = ["lightmotif", "lightmotif-bench", "lightmotif-transfac", "lightmotif-py"]

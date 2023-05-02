@@ -1,0 +1,34 @@
+[package]
+name = "lightmotif-py"
+version = "0.1.0"
+authors = ["Martin Larralde <martin.larralde@embl.de>"]
+edition = "2021"
+license = "MIT"
+description = "PyO3 bindings and Python interface to the lightmotif crate."
+repository = "https://github.com/althonos/lightmotif"
+homepage = "https://github.com/althonos/lightmotif"
+readme = "README.md"
+keywords = []
+build = "build.rs"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "lightmotif/lib/lib.rs"
+
+[build-dependencies.built]
+version = "0.6"
+features = ["chrono"]
+[build-dependencies]
+project-root = "0.2.2"
+
+[dependencies.lightmotif]
+path = "../lightmotif"
+version = "0.1.0"
+[dependencies]
+pyo3 = "0.18.3"
+pyo3-built = "0.4.7"
+
+[features]
+default = []
+extension-module = ["pyo3/extension-module"]
+nightly = ["pyo3/nightly"]
