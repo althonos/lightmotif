@@ -33,15 +33,15 @@ fn bench_generic(bencher: &mut test::Bencher) {
         EncodedSequence::from_str("GTTGATCCAGTCAAC").unwrap(),
     ])
     .unwrap();
-    let pbm = cm.to_probability(0.1);
-    let pwm = pbm.to_weight(bg);
+    let pbm = cm.to_freq(0.1);
+    let pssm = pbm.to_scoring(bg);
 
-    striped.configure(&pwm);
+    striped.configure(&pssm);
     let pli = Pipeline::<_, f32>::new();
-    let mut scores = StripedScores::new_for(&striped, &pwm);
+    let mut scores = StripedScores::new_for(&striped, &pssm);
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
-        pli.score_into(&striped, &pwm, &mut scores);
+        pli.score_into(&striped, &pssm, &mut scores);
         test::black_box(scores.argmax());
     });
 }
@@ -59,16 +59,16 @@ fn bench_sse2(bencher: &mut test::Bencher) {
         EncodedSequence::from_str("GTTGATCCAGTCAAC").unwrap(),
     ])
     .unwrap();
-    let pbm = cm.to_probability(0.1);
-    let pwm = pbm.to_weight(bg);
+    let pbm = cm.to_freq(0.1);
+    let pssm = pbm.to_scoring(bg);
 
-    striped.configure(&pwm);
+    striped.configure(&pssm);
     let pli = Pipeline::<_, __m128>::new();
 
-    let mut scores = StripedScores::new_for(&striped, &pwm);
+    let mut scores = StripedScores::new_for(&striped, &pssm);
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
-        pli.score_into(&striped, &pwm, &mut scores);
+        pli.score_into(&striped, &pssm, &mut scores);
         test::black_box(scores.argmax());
     });
 }
@@ -86,16 +86,16 @@ fn bench_avx2(bencher: &mut test::Bencher) {
         EncodedSequence::from_str("GTTGATCCAGTCAAC").unwrap(),
     ])
     .unwrap();
-    let pbm = cm.to_probability(0.1);
-    let pwm = pbm.to_weight(bg);
+    let pbm = cm.to_freq(0.1);
+    let pssm = pbm.to_scoring(bg);
 
-    striped.configure(&pwm);
+    striped.configure(&pssm);
     let pli = Pipeline::<_, __m256>::new();
 
-    let mut scores = StripedScores::new_for(&striped, &pwm);
+    let mut scores = StripedScores::new_for(&striped, &pssm);
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
-        pli.score_into(&striped, &pwm, &mut scores);
+        pli.score_into(&striped, &pssm, &mut scores);
         test::black_box(scores.argmax());
     });
 }

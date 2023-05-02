@@ -3,7 +3,7 @@ use std::str::FromStr;
 use super::abc::Alphabet;
 use super::dense::DenseMatrix;
 use super::err::InvalidSymbol;
-use super::pwm::WeightMatrix;
+use super::pwm::ScoringMatrix;
 
 /// A biological sequence encoded with an alphabet.
 #[derive(Clone, Debug)]
@@ -82,7 +82,7 @@ pub struct StripedSequence<A: Alphabet, const C: usize = 32> {
 
 impl<A: Alphabet, const C: usize> StripedSequence<A, C> {
     /// Reconfigure the striped sequence for searching with a motif.
-    pub fn configure<const K: usize>(&mut self, motif: &WeightMatrix<A, K>) {
+    pub fn configure<const K: usize>(&mut self, motif: &ScoringMatrix<A, K>) {
         if motif.len() > 0 {
             self.configure_wrap(motif.len() - 1);
         }

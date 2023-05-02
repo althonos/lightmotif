@@ -6,7 +6,7 @@ use super::abc::Alphabet;
 use super::abc::Dna;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
-use super::pwm::WeightMatrix;
+use super::pwm::ScoringMatrix;
 use super::seq::StripedSequence;
 
 mod seal {
@@ -39,28 +39,28 @@ impl Pipeline<Dna, f32> {
     pub fn score_into<S, M, const C: usize>(
         &self,
         seq: S,
-        pwm: M,
+        pssm: M,
         scores: &mut StripedScores<f32, C>,
     ) where
         S: AsRef<StripedSequence<Dna, C>>,
-        M: AsRef<WeightMatrix<Dna, { Dna::K }>>,
+        M: AsRef<ScoringMatrix<Dna, { Dna::K }>>,
     {
         let seq = seq.as_ref();
-        let pwm = pwm.as_ref();
+        let pssm = pssm.as_ref();
 
         let seq_rows = seq.data.rows() - seq.wrap;
         let result = &mut scores.data;
         if result.rows() < seq_rows {
-            panic!("not enough rows for scores: {}", pwm.len());
+            panic!("not enough rows for scores: {}", pssm.len());
         }
 
-        for i in 0..seq.length - pwm.len() + 1 {
+        for i in 0..seq.length - pssm.len() + 1 {
             let mut score = 0.0;
-            for j in 0..pwm.len() {
+            for j in 0..pssm.len() {
                 let offset = i + j;
                 let col = offset / seq_rows;
                 let row = offset % seq_rows;
-                score += pwm.weights()[j][seq.data[row][col].as_index()];
+                score += pssm.weights()[j][seq.data[row][col].as_index()];
             }
             let col = i / result.rows();
             let row = i % result.rows();
@@ -68,13 +68,13 @@ impl Pipeline<Dna, f32> {
         }
     }
 
-    pub fn score<S, M, const C: usize>(&self, seq: S, pwm: M) -> StripedScores<f32, C>
+    pub fn score<S, M, const C: usize>(&self, seq: S, pssm: M) -> StripedScores<f32, C>
     where
         S: AsRef<StripedSequence<Dna, C>>,
-        M: AsRef<WeightMatrix<Dna, { Dna::K }>>,
+        M: AsRef<ScoringMatrix<Dna, { Dna::K }>>,
     {
-        let mut scores = StripedScores::new_for(&seq, &pwm);
-        self.score_into(seq, pwm, &mut scores);
+        let mut scores = StripedScores::new_for(&seq, &pssm);
+        self.score_into(seq, pssm, &mut scores);
         scores
     }
 }
@@ -84,24 +84,27 @@ impl Pipeline<Dna, __m128> {
     pub fn score_into<S, M>(
         &self,
         seq: S,
-        pwm: M,
+        pssm: M,
         scores: &mut StripedScores<__m128, { std::mem::size_of::<__m128i>() }>,
     ) where
         S: AsRef<StripedSequence<Dna, { std::mem::size_of::<__m128i>() }>>,
-        M: AsRef<WeightMatrix<Dna, { Dna::K }>>,
+        M: AsRef<ScoringMatrix<Dna, { Dna::K }>>,
     {
         let seq = seq.as_ref();
-        let pwm = pwm.as_ref();
+        let pssm = pssm.as_ref();
         let result = &mut scores.data;
 
-        if seq.wrap < pwm.len() - 1 {
-            panic!("not enough wrapping rows for motif of length {}", pwm.len());
+        if seq.wrap < pssm.len() - 1 {
+            panic!(
+                "not enough wrapping rows for motif of length {}",
+                pssm.len()
+            );
         }
         if result.rows() < (seq.data.rows() - seq.wrap) {
-            panic!("not enough rows for scores: {}", pwm.len());
+            panic!("not enough rows for scores: {}", pssm.len());
         }
 
-        scores.length = seq.length - pwm.len() + 1;
+        scores.length = seq.length - pssm.len() + 1;
         unsafe {
             // mask vectors for broadcasting uint8x16_t to uint32x4_t to floatx4_t
             let m1 = _mm_set_epi32(
@@ -137,7 +140,7 @@ impl Pipeline<Dna, __m128> {
                 let mut s3 = _mm_setzero_ps();
                 let mut s4 = _mm_setzero_ps();
                 // advance position in the position weight matrix
-                for j in 0..pwm.len() {
+                for j in 0..pssm.len() {
                     // load sequence row and broadcast to f32
                     let x = _mm_load_si128(seq.data[i + j].as_ptr() as *const __m128i);
                     let x1 = _mm_shuffle_epi8(x, m1);
@@ -145,7 +148,7 @@ impl Pipeline<Dna, __m128> {
                     let x3 = _mm_shuffle_epi8(x, m3);
                     let x4 = _mm_shuffle_epi8(x, m4);
                     // load row for current weight matrix position
-                    let row = pwm.weights()[j].as_ptr();
+                    let row = pssm.weights()[j].as_ptr();
                     // index lookup table with each bases incrementally
                     for i in 0..Dna::K {
                         let sym = _mm_set1_epi32(i as i32);
@@ -173,14 +176,14 @@ impl Pipeline<Dna, __m128> {
     pub fn score<S, M>(
         &self,
         seq: S,
-        pwm: M,
+        pssm: M,
     ) -> StripedScores<__m128, { std::mem::size_of::<__m128i>() }>
     where
         S: AsRef<StripedSequence<Dna, { std::mem::size_of::<__m128i>() }>>,
-        M: AsRef<WeightMatrix<Dna, { Dna::K }>>,
+        M: AsRef<ScoringMatrix<Dna, { Dna::K }>>,
     {
-        let mut scores = StripedScores::new_for(&seq, &pwm);
-        self.score_into(seq, pwm, &mut scores);
+        let mut scores = StripedScores::new_for(&seq, &pssm);
+        self.score_into(seq, pssm, &mut scores);
         scores
     }
 }
@@ -190,24 +193,27 @@ impl Pipeline<Dna, __m256> {
     pub fn score_into<S, M>(
         &self,
         seq: S,
-        pwm: M,
+        pssm: M,
         scores: &mut StripedScores<__m256, { std::mem::size_of::<__m256i>() }>,
     ) where
         S: AsRef<StripedSequence<Dna, { std::mem::size_of::<__m256i>() }>>,
-        M: AsRef<WeightMatrix<Dna, { Dna::K }>>,
+        M: AsRef<ScoringMatrix<Dna, { Dna::K }>>,
     {
         let seq = seq.as_ref();
-        let pwm = pwm.as_ref();
+        let pssm = pssm.as_ref();
         let result = &mut scores.data;
 
-        if seq.wrap < pwm.len() - 1 {
-            panic!("not enough wrapping rows for motif of length {}", pwm.len());
+        if seq.wrap < pssm.len() - 1 {
+            panic!(
+                "not enough wrapping rows for motif of length {}",
+                pssm.len()
+            );
         }
         if result.rows() < (seq.data.rows() - seq.wrap) {
-            panic!("not enough rows for scores: {}", pwm.len());
+            panic!("not enough rows for scores: {}", pssm.len());
         }
 
-        scores.length = seq.length - pwm.len() + 1;
+        scores.length = seq.length - pssm.len() + 1;
         unsafe {
             // constant vector for comparing unknown bases
             let n = _mm256_set1_epi8(super::Nucleotide::N as i8);
@@ -260,7 +266,7 @@ impl Pipeline<Dna, __m256> {
                 let mut s3 = _mm256_setzero_ps();
                 let mut s4 = _mm256_setzero_ps();
                 // advance position in the position weight matrix
-                for j in 0..pwm.len() {
+                for j in 0..pssm.len() {
                     // load sequence row and broadcast to f32
                     let x = _mm256_load_si256(seq.data[i + j].as_ptr() as *const __m256i);
                     let x1 = _mm256_shuffle_epi8(x, m1);
@@ -268,7 +274,7 @@ impl Pipeline<Dna, __m256> {
                     let x3 = _mm256_shuffle_epi8(x, m3);
                     let x4 = _mm256_shuffle_epi8(x, m4);
                     // load row for current weight matrix position
-                    let row = pwm.weights()[j].as_ptr();
+                    let row = pssm.weights()[j].as_ptr();
                     let c = _mm_load_ps(row);
                     let t = _mm256_set_m128(c, c);
                     let u = _mm256_set1_ps(*row.add(crate::abc::Nucleotide::N.as_index()));
@@ -307,14 +313,14 @@ impl Pipeline<Dna, __m256> {
     pub fn score<S, M>(
         &self,
         seq: S,
-        pwm: M,
+        pssm: M,
     ) -> StripedScores<__m256, { std::mem::size_of::<__m256i>() }>
     where
         S: AsRef<StripedSequence<Dna, { std::mem::size_of::<__m256i>() }>>,
-        M: AsRef<WeightMatrix<Dna, { Dna::K }>>,
+        M: AsRef<ScoringMatrix<Dna, { Dna::K }>>,
     {
-        let mut scores = StripedScores::new_for(&seq, &pwm);
-        self.score_into(seq, pwm, &mut scores);
+        let mut scores = StripedScores::new_for(&seq, &pssm);
+        self.score_into(seq, pssm, &mut scores);
         scores
     }
 }
@@ -336,16 +342,16 @@ impl<V: Vector, const C: usize> StripedScores<V, C> {
         }
     }
 
-    /// Create a new matrix large enough to store the scores of `pwm` applied to `seq`.
-    pub fn new_for<S, M, A, const K: usize>(seq: S, pwm: M) -> Self
+    /// Create a new matrix large enough to store the scores of `pssm` applied to `seq`.
+    pub fn new_for<S, M, A, const K: usize>(seq: S, pssm: M) -> Self
     where
         A: Alphabet,
         S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<WeightMatrix<A, K>>,
+        M: AsRef<ScoringMatrix<A, K>>,
     {
         let seq = seq.as_ref();
-        let pwm = pwm.as_ref();
-        Self::new(seq.length - pwm.len() + 1, seq.data.rows() - seq.wrap)
+        let pssm = pssm.as_ref();
+        Self::new(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap)
     }
 
     pub fn resize(&mut self, length: usize, rows: usize) {
@@ -353,15 +359,15 @@ impl<V: Vector, const C: usize> StripedScores<V, C> {
         self.data.resize(rows);
     }
 
-    pub fn resize_for<S, M, A, const K: usize>(&mut self, seq: S, pwm: M)
+    pub fn resize_for<S, M, A, const K: usize>(&mut self, seq: S, pssm: M)
     where
         A: Alphabet,
         S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<WeightMatrix<A, K>>,
+        M: AsRef<ScoringMatrix<A, K>>,
     {
         let seq = seq.as_ref();
-        let pwm = pwm.as_ref();
-        self.resize(seq.length - pwm.len() + 1, seq.data.rows() - seq.wrap);
+        let pssm = pssm.as_ref();
+        self.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
     }
 }
 

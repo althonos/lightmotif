@@ -5,6 +5,8 @@ use super::abc::Symbol;
 use super::dense::DenseMatrix;
 use super::seq::EncodedSequence;
 
+// --- CountMatrix -------------------------------------------------------------
+
 /// A matrix storing symbol occurences at each position.
 #[derive(Clone, Debug)]
 pub struct CountMatrix<A: Alphabet, const K: usize> {
@@ -52,7 +54,7 @@ impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
     }
 
     /// Build a probability matrix from this count matrix using pseudo-counts.
-    pub fn to_probability<P>(&self, pseudo: P) -> ProbabilityMatrix<A, K>
+    pub fn to_freq<P>(&self, pseudo: P) -> FrequencyMatrix<A, K>
     where
         P: Into<Pseudocounts<A, K>>,
     {
@@ -69,7 +71,7 @@ impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
                 *x /= s;
             }
         }
-        ProbabilityMatrix {
+        FrequencyMatrix {
             alphabet: std::marker::PhantomData,
             data: probas,
         }
@@ -88,14 +90,16 @@ impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<u32, K>> for CountMatrix<A, 
     }
 }
 
-/// A matrix storing symbol probabilities at each position.
+// --- FrequencyMatrix ---------------------------------------------------------
+
+/// A matrix storing symbol frequencies at each position.
 #[derive(Clone, Debug)]
-pub struct ProbabilityMatrix<A: Alphabet, const K: usize> {
+pub struct FrequencyMatrix<A: Alphabet, const K: usize> {
     alphabet: std::marker::PhantomData<A>,
     data: DenseMatrix<f32, K>,
 }
 
-impl<A: Alphabet, const K: usize> ProbabilityMatrix<A, K> {
+impl<A: Alphabet, const K: usize> FrequencyMatrix<A, K> {
     /// Convert to a weight matrix using the given background frequencies.
     pub fn to_weight<B>(&self, background: B) -> WeightMatrix<A, K>
     where
@@ -107,7 +111,7 @@ impl<A: Alphabet, const K: usize> ProbabilityMatrix<A, K> {
             let src = &self.data[i];
             let dst = &mut weight[i];
             for (j, (&x, &f)) in src.iter().zip(b.frequencies()).enumerate() {
-                dst[j] = (x / f).log2();
+                dst[j] = x / f;
             }
         }
         WeightMatrix {
@@ -116,15 +120,25 @@ impl<A: Alphabet, const K: usize> ProbabilityMatrix<A, K> {
             data: weight,
         }
     }
+
+    /// Convert to a scoring matrix using the given background frequencies.
+    pub fn to_scoring<B>(&self, background: B) -> ScoringMatrix<A, K>
+    where
+        B: Into<Background<A, K>>,
+    {
+        self.to_weight(background).into()
+    }
 }
 
-impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<f32, K>> for ProbabilityMatrix<A, K> {
+impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<f32, K>> for FrequencyMatrix<A, K> {
     fn as_ref(&self) -> &DenseMatrix<f32, K> {
         &self.data
     }
 }
 
-/// A matrix storing log-likelihood of symbol probabilities at each position.
+// --- WeightMatrix ------------------------------------------------------------
+
+/// A matrix storing odds ratio of symbol occurences at each position.
 #[derive(Clone, Debug)]
 pub struct WeightMatrix<A: Alphabet, const K: usize> {
     alphabet: std::marker::PhantomData<A>,
@@ -161,5 +175,65 @@ impl<A: Alphabet, const K: usize> AsRef<WeightMatrix<A, K>> for WeightMatrix<A, 
 impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<f32, K>> for WeightMatrix<A, K> {
     fn as_ref(&self) -> &DenseMatrix<f32, K> {
         &self.data
+    }
+}
+
+// --- ScoringMatrix -----------------------------------------------------------
+
+/// A matrix storing odds ratio of symbol occurences at each position.
+#[derive(Clone, Debug)]
+pub struct ScoringMatrix<A: Alphabet, const K: usize> {
+    alphabet: std::marker::PhantomData<A>,
+    background: Background<A, K>,
+    data: DenseMatrix<f32, K>,
+}
+
+impl<A: Alphabet, const K: usize> ScoringMatrix<A, K> {
+    /// The length of the motif encoded in this scoring matrix.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.data.rows()
+    }
+
+    /// The log-likelihoods of the position weight matrix.
+    #[inline]
+    pub fn weights(&self) -> &DenseMatrix<f32, K> {
+        &self.data
+    }
+
+    /// The background frequencies of the position weight matrix.
+    #[inline]
+    pub fn background(&self) -> &Background<A, K> {
+        &self.background
+    }
+}
+
+impl<A: Alphabet, const K: usize> AsRef<ScoringMatrix<A, K>> for ScoringMatrix<A, K> {
+    fn as_ref(&self) -> &Self {
+        &self
+    }
+}
+
+impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<f32, K>> for ScoringMatrix<A, K> {
+    fn as_ref(&self) -> &DenseMatrix<f32, K> {
+        &self.data
+    }
+}
+
+impl<A: Alphabet, const K: usize> From<WeightMatrix<A, K>> for ScoringMatrix<A, K> {
+    fn from(pwm: WeightMatrix<A, K>) -> Self {
+        let alphabet = pwm.alphabet;
+        let background = pwm.background;
+        let mut data = pwm.data;
+        for row in data.iter_mut() {
+            for item in row.iter_mut() {
+                *item = item.log2();
+            }
+        }
+        ScoringMatrix {
+            alphabet,
+            background,
+            data,
+        }
     }
 }

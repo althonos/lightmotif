@@ -44,12 +44,13 @@ fn test_score_generic() {
             .map(|x| EncodedSequence::from_str(x).unwrap()),
     )
     .unwrap();
-    let pbm = cm.to_probability([0.1, 0.1, 0.1, 0.1, 0.0]);
+    let pbm = cm.to_freq([0.1, 0.1, 0.1, 0.1, 0.0]);
     let pwm = pbm.to_weight([0.25, 0.25, 0.25, 0.25, 0.0]);
+    let pssm = pwm.into();
 
-    striped.configure(&pwm);
+    striped.configure(&pssm);
     let pli = Pipeline::<_, f32>::new();
-    let result = pli.score(&striped, &pwm);
+    let result = pli.score(&striped, &pssm);
     let scores = result.to_vec();
 
     assert_eq!(scores.len(), EXPECTED.len());
@@ -77,12 +78,13 @@ fn test_score_ssse3() {
             .map(|x| EncodedSequence::from_str(x).unwrap()),
     )
     .unwrap();
-    let pbm = cm.to_probability([0.1, 0.1, 0.1, 0.1, 0.0]);
+    let pbm = cm.to_freq([0.1, 0.1, 0.1, 0.1, 0.0]);
     let pwm = pbm.to_weight([0.25, 0.25, 0.25, 0.25, 0.0]);
+    let pssm = pwm.into();
 
-    striped.configure(&pwm);
+    striped.configure(&pssm);
     let pli = Pipeline::<_, __m128>::new();
-    let result = pli.score(&striped, &pwm);
+    let result = pli.score(&striped, &pssm);
 
     // for i in 0..result.data.rows() {
     //     println!("i={} {:?}", i, &result.data[i]);
@@ -113,12 +115,13 @@ fn test_score_avx2() {
             .map(|x| EncodedSequence::from_str(x).unwrap()),
     )
     .unwrap();
-    let pbm = cm.to_probability([0.1, 0.1, 0.1, 0.1, 0.0]);
+    let pbm = cm.to_freq([0.1, 0.1, 0.1, 0.1, 0.0]);
     let pwm = pbm.to_weight([0.25, 0.25, 0.25, 0.25, 0.0]);
+    let pssm = pwm.into();
 
-    striped.configure(&pwm);
+    striped.configure(&pssm);
     let pli = Pipeline::<_, __m256>::new();
-    let result = pli.score(&striped, &pwm);
+    let result = pli.score(&striped, &pssm);
     let scores = result.to_vec();
 
     assert_eq!(scores.len(), EXPECTED.len());

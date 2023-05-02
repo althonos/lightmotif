@@ -36,12 +36,11 @@ of sequences:
 use lightmotif::*;
 
 // Create a position weight matrix from a collection of motif sequences
-let cm = CountMatrix::from_sequences(&[
+let counts = CountMatrix::from_sequences(&[
     EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
-    EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
+    EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
 ]).unwrap();
-let pbm = cm.to_probability(0.1);
-let pwm = pbm.to_weight(Background::uniform());
+let pssm = counts.to_freq(0.1).to_scoring(Background::uniform());
 
 // Encode the target sequence into a striped matrix
 let seq = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
@@ -49,9 +48,9 @@ let encoded = EncodedSequence::<Dna>::encode(seq).unwrap();
 let mut striped = encoded.to_striped::<32>();
 
 // Create a pipeline and compute scores for every position of the matrix
-striped.configure(&pwm);
+striped.configure(&pssm);
 let pli = Pipeline::<_, f32>::new();
-let scores = pli.score(&striped, &pwm);
+let scores = pli.score(&striped, &pssm);
 
 // Scores can be extracted into a Vec<f32>
 let v = scores.to_vec();
