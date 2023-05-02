@@ -32,3 +32,8 @@ pyo3-built = "0.4.7"
 default = []
 extension-module = ["pyo3/extension-module"]
 nightly = ["pyo3/nightly"]
+
+[[test]]
+name = "unittest"
+path = "lightmotif/tests/unittest.rs"
+harness = false
