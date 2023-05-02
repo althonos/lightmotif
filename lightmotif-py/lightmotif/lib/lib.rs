@@ -170,10 +170,14 @@ pub struct ScoringMatrix {
 #[pymethods]
 impl ScoringMatrix {
     /// Return the PSSM score for all positions of the given sequence.
-    pub fn calculate(&self, sequence: &mut StripedSequence) -> PyResult<StripedScores> {
+    pub fn calculate(
+        slf: PyRef<'_, Self>,
+        sequence: &mut StripedSequence,
+    ) -> PyResult<StripedScores> {
         let pli = lm::Pipeline::<lm::Dna, Vector>::new();
-        sequence.data.configure(&self.data);
-        let scores = pli.score(&sequence.data, &self.data);
+        let pssm = &slf.data;
+        sequence.data.configure(pssm);
+        let scores = slf.py().allow_threads(|| pli.score(&sequence.data, pssm));
         Ok(StripedScores::from(scores))
     }
 }
