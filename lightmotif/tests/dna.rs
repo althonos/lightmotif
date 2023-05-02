@@ -63,7 +63,6 @@ fn test_score_generic() {
             i
         );
     }
-    // assert_eq!(result.data[0][0], -23.07094); // -23.07094
 }
 
 #[cfg(target_feature = "ssse3")]
@@ -123,6 +122,10 @@ fn test_score_avx2() {
     let pli = Pipeline::<_, __m256>::new();
     let result = pli.score(&striped, &pssm);
     let scores = result.to_vec();
+
+    // for i in 0..result.data.rows() {
+    //     println!("{:?}", &result.data[i]);
+    // }
 
     assert_eq!(scores.len(), EXPECTED.len());
     for i in 0..EXPECTED.len() {

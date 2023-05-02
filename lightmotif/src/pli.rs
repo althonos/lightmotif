@@ -300,12 +300,17 @@ impl Pipeline<Dna, __m256> {
                     s3 = _mm256_add_ps(s3, b3);
                     s4 = _mm256_add_ps(s4, b4);
                 }
+                // permute lanes so that scores are in the right order
+                let r1 = _mm256_permute2f128_ps(s1, s2, 0x20);
+                let r2 = _mm256_permute2f128_ps(s3, s4, 0x20);
+                let r3 = _mm256_permute2f128_ps(s1, s2, 0x31);
+                let r4 = _mm256_permute2f128_ps(s3, s4, 0x31);
                 // record the score for the current position
                 let row = &mut result[i];
-                _mm256_store_ps(row[0..].as_mut_ptr(), s1);
-                _mm256_store_ps(row[8..].as_mut_ptr(), s2);
-                _mm256_store_ps(row[16..].as_mut_ptr(), s3);
-                _mm256_store_ps(row[24..].as_mut_ptr(), s4);
+                _mm256_store_ps(row[0x00..].as_mut_ptr(), r1);
+                _mm256_store_ps(row[0x08..].as_mut_ptr(), r2);
+                _mm256_store_ps(row[0x10..].as_mut_ptr(), r3);
+                _mm256_store_ps(row[0x18..].as_mut_ptr(), r4);
             }
         }
     }
@@ -443,25 +448,12 @@ impl<const C: usize> StripedScores<__m128, C> {
 impl<const C: usize> StripedScores<__m256, C> {
     /// Convert the striped scores to a vector of scores.
     pub fn to_vec(&self) -> Vec<f32> {
-        // NOTE(@althonos): Because in AVX2 the __m256 vector is actually
-        //                  two independent __m128, the shuffling creates
-        //                  intrication in the results.
-        #[rustfmt::skip]
-        const COLS: &[usize] = &[
-            0,  1,  2,  3,  8,  9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27,
-            4,  5,  6,  7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31,
-        ];
-
-        let mut col = 0;
-        let mut row = 0;
+        let rows = self.data.rows();
         let mut vec = Vec::with_capacity(self.length);
-        while vec.len() < self.length {
-            vec.push(self.data[row][COLS[col]]);
-            row += 1;
-            if row == self.data.rows() {
-                row = 0;
-                col += 1;
-            }
+        for i in 0..self.length {
+            let col = i / rows;
+            let row = i % rows;
+            vec.push(self.data[row][col]);
         }
         vec
     }
@@ -471,19 +463,15 @@ impl<const C: usize> StripedScores<__m256, C> {
     /// ## Panic
     /// Panics if the data buffer is empty.
     pub fn argmax(&self) -> usize {
+        let rows = self.data.rows();
         let mut best_pos = 0;
         let mut best_score = self.data[0][0];
-        let mut col = 0;
-        let mut row = 0;
         for i in 0..self.length {
+            let col = i / rows;
+            let row = i % rows;
             if self.data[row][col] > best_score {
                 best_pos = i;
                 best_score = self.data[row][col];
-            }
-            row += 1;
-            if row == self.data.rows() {
-                row = 0;
-                col += 1;
             }
         }
         best_pos
