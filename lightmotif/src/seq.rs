@@ -1,15 +1,19 @@
 use std::str::FromStr;
+use std::string::ToString;
 
 use super::abc::Alphabet;
+use super::abc::Symbol;
 use super::dense::DenseMatrix;
 use super::err::InvalidSymbol;
 use super::pwm::ScoringMatrix;
+
+// --- EncodedSequence ---------------------------------------------------------
 
 /// A biological sequence encoded with an alphabet.
 #[derive(Clone, Debug)]
 pub struct EncodedSequence<A: Alphabet> {
     alphabet: std::marker::PhantomData<A>,
-    pub data: Vec<A::Symbol>,
+    data: Vec<A::Symbol>,
 }
 
 impl<A: Alphabet> EncodedSequence<A> {
@@ -22,20 +26,22 @@ impl<A: Alphabet> EncodedSequence<A> {
     }
 
     /// Create a new encoded sequence from a textual representation.
-    pub fn encode(sequence: &str) -> Result<Self, InvalidSymbol>
-    where
-        InvalidSymbol: From<<A::Symbol as TryFrom<char>>::Error>,
-    {
-        let data = sequence
+    pub fn encode(sequence: &str) -> Result<Self, InvalidSymbol> {
+        sequence
             .chars()
-            .map(|c| A::Symbol::try_from(c))
-            .collect::<Result<_, _>>()?;
-        Ok(Self::new(data))
+            .map(A::Symbol::from_char)
+            .collect::<Result<_, _>>()
+            .map(Self::new)
     }
 
     /// Return the number of symbols in the sequence.
     pub fn len(&self) -> usize {
         self.data.len()
+    }
+
+    /// Iterate over the symbols in the sequence.
+    pub fn iter(&self) -> impl IntoIterator<Item = &A::Symbol> {
+        self.data.iter()
     }
 
     /// Convert the encoded sequence to a striped matrix.
@@ -53,6 +59,15 @@ impl<A: Alphabet> EncodedSequence<A> {
             wrap: 0,
         }
     }
+
+    /// Convert the encoded sequence back to its textual representation.
+    pub fn to_string(&self) -> String {
+        let mut s = String::with_capacity(self.len());
+        for c in self.data.iter() {
+            s.push(c.as_char());
+        }
+        s
+    }
 }
 
 impl<A: Alphabet> AsRef<EncodedSequence<A>> for EncodedSequence<A> {
@@ -61,15 +76,35 @@ impl<A: Alphabet> AsRef<EncodedSequence<A>> for EncodedSequence<A> {
     }
 }
 
-impl<A: Alphabet> FromStr for EncodedSequence<A>
-where
-    InvalidSymbol: From<<A::Symbol as TryFrom<char>>::Error>,
-{
+impl<A: Alphabet> AsRef<[<A as Alphabet>::Symbol]> for EncodedSequence<A> {
+    fn as_ref(&self) -> &[<A as Alphabet>::Symbol] {
+        self.data.as_slice()
+    }
+}
+
+impl<A: Alphabet> FromStr for EncodedSequence<A> {
     type Err = InvalidSymbol;
     fn from_str(seq: &str) -> Result<Self, Self::Err> {
         Self::encode(seq)
     }
 }
+
+impl<'a, A: Alphabet> IntoIterator for &'a EncodedSequence<A> {
+    type Item = &'a A::Symbol;
+    type IntoIter = std::slice::Iter<'a, A::Symbol>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.iter()
+    }
+}
+
+impl<A: Alphabet> ToString for EncodedSequence<A> {
+    fn to_string(&self) -> String {
+        self.to_string()
+    }
+}
+
+// --- StripedSequence ---------------------------------------------------------
 
 /// An encoded sequence stored in a striped matrix with a fixed column count.
 #[derive(Clone, Debug)]

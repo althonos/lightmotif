@@ -53,7 +53,7 @@ fn parse_species(input: &str) -> IResult<&str, &str> {
 
 fn parse_symbol<S: Symbol>(input: &str) -> IResult<&str, S> {
     if let Some(c) = input.chars().nth(0) {
-        match S::try_from(c) {
+        match S::from_char(c) {
             Ok(s) => Ok((&input[1..], s)),
             Err(_) => Err(nom::Err::Failure(Error::new(input, ErrorKind::MapRes))),
         }

@@ -1,4 +1,3 @@
-use std::convert::TryFrom;
 use std::fmt::Debug;
 
 use super::err::InvalidSymbol;
@@ -6,8 +5,13 @@ use super::err::InvalidSymbol;
 // --- Symbol ------------------------------------------------------------------
 
 /// Common traits for a biological symbol.
-pub trait Symbol: Default + Sized + Copy + TryFrom<char> {
+pub trait Symbol: Default + Sized + Copy {
+    /// View this symbol as a zero-based index.
     fn as_index(&self) -> usize;
+    /// View this symbol as a string character.
+    fn as_char(&self) -> char;
+    /// Parse a string character into a symbol.
+    fn from_char(c: char) -> Result<Self, InvalidSymbol>;
 }
 
 /// A deoxyribonucleotide.
@@ -30,11 +34,18 @@ impl Symbol for Nucleotide {
     fn as_index(&self) -> usize {
         *self as usize
     }
-}
 
-impl TryFrom<char> for Nucleotide {
-    type Error = InvalidSymbol;
-    fn try_from(c: char) -> Result<Self, Self::Error> {
+    fn as_char(&self) -> char {
+        match self {
+            Nucleotide::A => 'A',
+            Nucleotide::C => 'C',
+            Nucleotide::T => 'T',
+            Nucleotide::G => 'G',
+            Nucleotide::N => 'N',
+        }
+    }
+
+    fn from_char(c: char) -> Result<Self, InvalidSymbol> {
         match c {
             'A' => Ok(Nucleotide::A),
             'C' => Ok(Nucleotide::C),
@@ -43,6 +54,12 @@ impl TryFrom<char> for Nucleotide {
             'N' => Ok(Nucleotide::N),
             _ => Err(InvalidSymbol(c)),
         }
+    }
+}
+
+impl From<Nucleotide> for char {
+    fn from(n: Nucleotide) -> char {
+        n.as_char()
     }
 }
 
