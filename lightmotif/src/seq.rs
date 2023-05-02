@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use super::abc::Alphabet;
-use super::abc::InvalidSymbol;
 use super::dense::DenseMatrix;
+use super::err::InvalidSymbol;
 use super::pwm::WeightMatrix;
 
 /// A biological sequence encoded with an alphabet.

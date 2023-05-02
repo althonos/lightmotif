@@ -2,18 +2,21 @@
 
 mod abc;
 mod dense;
+mod err;
 mod pli;
 mod pwm;
 mod seq;
 
 pub use abc::Alphabet;
+pub use abc::Background;
 pub use abc::Dna;
 pub use abc::Nucleotide;
+pub use abc::Pseudocounts;
 pub use abc::Symbol;
 pub use dense::DenseMatrix;
+pub use err::InvalidSymbol;
 pub use pli::Pipeline;
 pub use pli::StripedScores;
-pub use pwm::Background;
 pub use pwm::CountMatrix;
 pub use pwm::ProbabilityMatrix;
 pub use pwm::WeightMatrix;
