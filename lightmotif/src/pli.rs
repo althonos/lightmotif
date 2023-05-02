@@ -1,6 +1,8 @@
 #[cfg(target_feature = "ssse3")]
 use std::arch::x86_64::*;
 
+use std::ops::Index;
+
 use self::seal::Vector;
 use super::abc::Alphabet;
 use super::abc::Dna;
@@ -475,5 +477,14 @@ impl<const C: usize> StripedScores<__m256, C> {
             }
         }
         best_pos
+    }
+}
+
+impl<V: Vector, const C: usize> Index<usize> for StripedScores<V, C> {
+    type Output = f32;
+    fn index(&self, index: usize) -> &f32 {
+        let col = index / self.data.rows();
+        let row = index % self.data.rows();
+        &self.data[row][col]
     }
 }
