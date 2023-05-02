@@ -361,11 +361,13 @@ impl<V: Vector, const C: usize> StripedScores<V, C> {
         Self::new(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap)
     }
 
+    /// Resize the striped scores storage to the given length and number of rows.
     pub fn resize(&mut self, length: usize, rows: usize) {
         self.length = length;
         self.data.resize(rows);
     }
 
+    /// Resize the striped scores storage to store the scores of `pssm` applied to `seq`.
     pub fn resize_for<S, M, A, const K: usize>(&mut self, seq: S, pssm: M)
     where
         A: Alphabet,
@@ -376,9 +378,7 @@ impl<V: Vector, const C: usize> StripedScores<V, C> {
         let pssm = pssm.as_ref();
         self.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
     }
-}
 
-impl<const C: usize> StripedScores<f32, C> {
     /// Convert the striped scores to a vector of scores.
     pub fn to_vec(&self) -> Vec<f32> {
         let mut vec = Vec::with_capacity(self.length);
@@ -400,77 +400,6 @@ impl<const C: usize> StripedScores<f32, C> {
         for i in 0..self.length {
             let col = i / self.data.rows();
             let row = i % self.data.rows();
-            if self.data[row][col] > best_score {
-                best_pos = i;
-                best_score = self.data[row][col];
-            }
-        }
-        best_pos
-    }
-}
-
-#[cfg(target_feature = "ssse3")]
-impl<const C: usize> StripedScores<__m128, C> {
-    /// Convert the striped scores to a vector of scores.
-    pub fn to_vec(&self) -> Vec<f32> {
-        let mut vec = Vec::with_capacity(self.length);
-        for i in 0..self.length {
-            let col = i / self.data.rows();
-            let row = i % self.data.rows();
-            vec.push(self.data[row][col]);
-        }
-        vec
-    }
-
-    /// Get the index of the highest scoring position.
-    ///
-    /// ## Panic
-    /// Panics if the data buffer is empty.
-    pub fn argmax(&self) -> usize {
-        let mut best_pos = 0;
-        let mut best_score = self.data[0][0];
-        let mut col = 0;
-        let mut row = 0;
-        for i in 0..self.length {
-            if self.data[row][col] > best_score {
-                best_pos = i;
-                best_score = self.data[row][col];
-            }
-            row += 1;
-            if row == self.data.rows() {
-                row = 0;
-                col += 1;
-            }
-        }
-        best_pos
-    }
-}
-
-#[cfg(target_feature = "avx2")]
-impl<const C: usize> StripedScores<__m256, C> {
-    /// Convert the striped scores to a vector of scores.
-    pub fn to_vec(&self) -> Vec<f32> {
-        let rows = self.data.rows();
-        let mut vec = Vec::with_capacity(self.length);
-        for i in 0..self.length {
-            let col = i / rows;
-            let row = i % rows;
-            vec.push(self.data[row][col]);
-        }
-        vec
-    }
-
-    /// Get the index of the highest scoring position.
-    ///
-    /// ## Panic
-    /// Panics if the data buffer is empty.
-    pub fn argmax(&self) -> usize {
-        let rows = self.data.rows();
-        let mut best_pos = 0;
-        let mut best_score = self.data[0][0];
-        for i in 0..self.length {
-            let col = i / rows;
-            let row = i % rows;
             if self.data[row][col] > best_score {
                 best_pos = i;
                 best_score = self.data[row][col];
@@ -486,5 +415,18 @@ impl<V: Vector, const C: usize> Index<usize> for StripedScores<V, C> {
         let col = index / self.data.rows();
         let row = index % self.data.rows();
         &self.data[row][col]
+    }
+}
+
+impl<V: Vector, const C: usize> From<StripedScores<V, C>> for Vec<f32> {
+    fn from(scores: StripedScores<V, C>) -> Self {
+        let rows = scores.data.rows();
+        let mut vec = Vec::with_capacity(scores.length);
+        for i in 0..scores.length {
+            let col = i / rows;
+            let row = i % rows;
+            vec.push(scores.data[row][col]);
+        }
+        vec
     }
 }
