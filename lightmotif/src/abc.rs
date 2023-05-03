@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use super::err::InvalidData;
 use super::err::InvalidSymbol;
 
 // --- Symbol ------------------------------------------------------------------
@@ -93,7 +94,7 @@ impl Alphabet for Dna {
 
 // --- Background --------------------------------------------------------------
 
-/// A structure for storing background frequencies for an alphabet.
+/// The background frequencies for an alphabet.
 #[derive(Clone, Debug)]
 pub struct Background<A: Alphabet, const K: usize> {
     frequencies: [f32; K],
@@ -101,11 +102,42 @@ pub struct Background<A: Alphabet, const K: usize> {
 }
 
 impl<A: Alphabet, const K: usize> Background<A, K> {
-    // Create a new background with uniform frequencies.
-    //
-    // The non-default symbols from the alphabet `A` will be initialized
-    // with a frequency of `1/(K-1)`, while the default symbol will remain
-    // with a zero frequency.
+    /// Create a new background with the given frequencies.
+    ///
+    /// The array must contain valid frequencies, i.e. real numbers between
+    /// zero and one that sum to one.
+    pub fn new(frequencies: [f32; K]) -> Result<Self, InvalidData> {
+        let mut sum = 0.0;
+        for &f in frequencies.iter() {
+            if f < 0.0 || f > 1.0 {
+                return Err(InvalidData);
+            }
+            sum += f;
+        }
+        if sum != 1.0 {
+            return Err(InvalidData);
+        }
+        Ok(Self {
+            frequencies,
+            alphabet: std::marker::PhantomData,
+        })
+    }
+
+    /// Create a new background with uniform frequencies.
+    ///
+    /// The non-default symbols from the alphabet `A` will be initialized
+    /// with a frequency of `1/(K-1)`, while the default symbol will remain
+    /// with a zero frequency.
+    ///
+    /// # Note
+    /// The `Default` implementation for `Background` uses uniform frequencies.
+    ///
+    /// # Example
+    /// ```
+    /// # use lightmotif::*;
+    /// let bg = Background::<Dna, { Dna::K }>::uniform();
+    /// assert_eq!(bg.frequencies(), &[0.25, 0.25, 0.25, 0.25, 0.0]);
+    /// ```
     pub fn uniform() -> Self {
         let mut frequencies = [0.0; K];
         for i in 0..K {
@@ -119,7 +151,7 @@ impl<A: Alphabet, const K: usize> Background<A, K> {
         }
     }
 
-    /// The background frequencies.
+    /// A reference to the raw background frequencies.
     pub fn frequencies(&self) -> &[f32; K] {
         &self.frequencies
     }
@@ -131,12 +163,9 @@ impl<A: Alphabet, const K: usize> AsRef<[f32; K]> for Background<A, K> {
     }
 }
 
-impl<A: Alphabet, const K: usize> From<[f32; K]> for Background<A, K> {
-    fn from(frequencies: [f32; K]) -> Self {
-        Self {
-            frequencies,
-            alphabet: std::marker::PhantomData,
-        }
+impl<A: Alphabet, const K: usize> Default for Background<A, K> {
+    fn default() -> Self {
+        Self::uniform()
     }
 }
 
@@ -194,5 +223,16 @@ impl<A: Alphabet, const K: usize> AsRef<[f32; K]> for Pseudocounts<A, K> {
 impl<A: Alphabet, const K: usize> AsMut<[f32; K]> for Pseudocounts<A, K> {
     fn as_mut(&mut self) -> &mut [f32; K] {
         &mut self.counts
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_background_new() {
+        assert!(Background::<Dna, { Dna::K }>::new([0.3, 0.2, 0.2, 0.3, 0.0]).is_ok());
+        assert!(Background::<Dna, { Dna::K }>::new([0.1, 0.1, 0.1, 0.1, 0.0]).is_err());
     }
 }

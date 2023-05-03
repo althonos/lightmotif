@@ -12,20 +12,20 @@
 
 ## 🗺️ Overview
 
-Motif scanning with position weight matrices (also known as position-specific 
+Motif scanning with position weight matrices (also known as position-specific
 scoring matrices) is a robust method for identifying motifs of fixed length
-inside a biological sequence. They can be used to identify transcription 
+inside a biological sequence. They can be used to identify transcription
 factor binding sites in DNA, or protease cleavage site in polypeptides.
 
-The `lightmotif` library provides a Rust crate to run very efficient 
-searches for a motif encoded in a position weight matrix. The position 
-scanning combines several techniques to allow high-throughput processing 
-of sequences: 
+The `lightmotif` library provides a Rust crate to run very efficient
+searches for a motif encoded in a position weight matrix. The position
+scanning combines several techniques to allow high-throughput processing
+of sequences:
 
 - Compile-time definition of alphabets and matrix dimensions.
-- Sequence symbol encoding for fast easy table look-ups, as implemented in 
+- Sequence symbol encoding for fast easy table look-ups, as implemented in
   HMMER[\[1\]](#ref1) or MEME[\[2\]](#ref2)
-- Striped sequence matrices to process several positions in parallel, 
+- Striped sequence matrices to process several positions in parallel,
   inspired by Farrar[\[3\]](#ref3).
 - Vectorized matrix row look-up using `permute` instructions of [AVX2](https://fr.wikipedia.org/wiki/Advanced_Vector_Extensions).
 
@@ -35,12 +35,14 @@ of sequences:
 ```rust
 use lightmotif::*;
 
-// Create a position weight matrix from a collection of motif sequences
+// Create a count matrix from an iterable of motif sequences
 let counts = CountMatrix::from_sequences(&[
     EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
     EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
 ]).unwrap();
-let pssm = counts.to_freq(0.1).to_scoring(Background::uniform());
+
+// Create a PSSM with 0.1 pseudocounts and uniform background frequencies.
+let pssm = counts.to_freq(0.1).to_scoring(None);
 
 // Encode the target sequence into a striped matrix
 let seq = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
@@ -52,7 +54,7 @@ striped.configure(&pssm);
 let pli = Pipeline::<_, f32>::new();
 let scores = pli.score(&striped, &pssm);
 
-// Scores can be extracted into a Vec<f32>
+// Scores can be extracted into a Vec<f32>, or indexed directly.
 let v = scores.to_vec();
 ```
 
@@ -65,8 +67,8 @@ with the `avx2` target feature, but it can be easily configured with Rust's
 
 *Benchmarks were run on a [i7-10710U CPU](https://ark.intel.com/content/www/us/en/ark/products/196448/intel-core-i7-10710u-processor-12m-cache-up-to-4-70-ghz.html) running @1.10GHz, compiled with `--target-cpu=native`*.
 
-Both benchmarks use the [MX000001](https://www.prodoric.de/matrix/MX000001.html) 
-motif from [PRODORIC](https://www.prodoric.de/), and the 
+Both benchmarks use the [MX000001](https://www.prodoric.de/matrix/MX000001.html)
+motif from [PRODORIC](https://www.prodoric.de/), and the
 [complete genome](https://www.ncbi.nlm.nih.gov/nuccore/U00096) of an
 *Escherichia coli K12* strain.
 
@@ -78,8 +80,8 @@ motif from [PRODORIC](https://www.prodoric.de/), and the
   test bench_generic ... bench: 314,682,807 ns/iter (+/- 1,072,174) = 14 MB/s
   ```
 
-- Find the highest-scoring position for a motif in a 10kb sequence 
-  (compared to the PSSM algorithm implemented in 
+- Find the highest-scoring position for a motif in a 10kb sequence
+  (compared to the PSSM algorithm implemented in
   [`bio::pattern_matching::pssm`](https://docs.rs/bio/1.1.0/bio/pattern_matching/pssm/index.html)):
   ```console
   test bench_avx2    ... bench:      46,390 ns/iter (+/- 115) = 215 MB/s
@@ -109,8 +111,8 @@ Contributions are more than welcome! See [`CONTRIBUTING.md`](https://github.com/
 This library is provided under the open-source
 [MIT license](https://choosealicense.com/licenses/mit/).
 
-*This project was developed by [Martin Larralde](https://github.com/althonos/) 
-during his PhD project at the [European Molecular Biology Laboratory](https://www.embl.de/) 
+*This project was developed by [Martin Larralde](https://github.com/althonos/)
+during his PhD project at the [European Molecular Biology Laboratory](https://www.embl.de/)
 in the [Zeller team](https://github.com/zellerlab).*
 
 

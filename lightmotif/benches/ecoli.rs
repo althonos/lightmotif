@@ -24,14 +24,13 @@ fn bench_generic(bencher: &mut test::Bencher) {
     let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped::<32>();
 
-    let bg = Background::<Dna, { Dna::K }>::uniform();
     let cm = CountMatrix::<Dna, { Dna::K }>::from_sequences(&[
         EncodedSequence::from_str("GTTGACCTTATCAAC").unwrap(),
         EncodedSequence::from_str("GTTGATCCAGTCAAC").unwrap(),
     ])
     .unwrap();
     let pbm = cm.to_freq(0.1);
-    let pssm = pbm.to_scoring(bg);
+    let pssm = pbm.to_scoring(None);
 
     striped.configure(&pssm);
     let pli = Pipeline::<_, f32>::new();
@@ -46,14 +45,13 @@ fn bench_ssse3(bencher: &mut test::Bencher) {
     let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped();
 
-    let bg = Background::uniform();
     let cm = CountMatrix::from_sequences(&[
         EncodedSequence::from_str("GTTGACCTTATCAAC").unwrap(),
         EncodedSequence::from_str("GTTGATCCAGTCAAC").unwrap(),
     ])
     .unwrap();
     let pbm = cm.to_freq(0.1);
-    let pssm = pbm.to_scoring(bg);
+    let pssm = pbm.to_scoring(None);
 
     striped.configure(&pssm);
     let pli = Pipeline::<_, __m128>::new();
@@ -69,14 +67,13 @@ fn bench_avx2(bencher: &mut test::Bencher) {
     let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped();
 
-    let bg = Background::uniform();
     let cm = CountMatrix::from_sequences(&[
         EncodedSequence::from_str("GTTGACCTTATCAAC").unwrap(),
         EncodedSequence::from_str("GTTGATCCAGTCAAC").unwrap(),
     ])
     .unwrap();
     let pbm = cm.to_freq(0.1);
-    let pssm = pbm.to_scoring(bg);
+    let pssm = pbm.to_scoring(None);
 
     striped.configure(&pssm);
     let pli = Pipeline::<_, __m256>::new();

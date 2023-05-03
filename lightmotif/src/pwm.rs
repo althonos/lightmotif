@@ -136,9 +136,9 @@ impl<A: Alphabet, const K: usize> FrequencyMatrix<A, K> {
     /// Convert to a weight matrix using the given background frequencies.
     pub fn to_weight<B>(&self, background: B) -> WeightMatrix<A, K>
     where
-        B: Into<Background<A, K>>,
+        B: Into<Option<Background<A, K>>>,
     {
-        let bg = background.into();
+        let bg = background.into().unwrap_or_default();
         let mut weight = DenseMatrix::new(self.data.rows());
         for (src, dst) in self.data.iter().zip(weight.iter_mut()) {
             for (j, (&x, &f)) in src.iter().zip(bg.frequencies()).enumerate() {
@@ -155,9 +155,9 @@ impl<A: Alphabet, const K: usize> FrequencyMatrix<A, K> {
     /// Convert to a scoring matrix using the given background frequencies.
     pub fn to_scoring<B>(&self, background: B) -> ScoringMatrix<A, K>
     where
-        B: Into<Background<A, K>>,
+        B: Into<Option<Background<A, K>>>,
     {
-        let bg = background.into();
+        let bg = background.into().unwrap_or_default();
         let mut weight = DenseMatrix::new(self.data.rows());
         for (src, dst) in self.data.iter().zip(weight.iter_mut()) {
             for (j, (&x, &f)) in src.iter().zip(bg.frequencies()).enumerate() {

@@ -7,6 +7,7 @@ use std::arch::x86_64::__m256;
 use std::str::FromStr;
 
 use lightmotif::Alphabet;
+use lightmotif::Background;
 use lightmotif::CountMatrix;
 use lightmotif::Dna;
 use lightmotif::EncodedSequence;
@@ -45,7 +46,7 @@ fn test_score_generic() {
     )
     .unwrap();
     let pbm = cm.to_freq([0.1, 0.1, 0.1, 0.1, 0.0]);
-    let pwm = pbm.to_weight([0.25, 0.25, 0.25, 0.25, 0.0]);
+    let pwm = pbm.to_weight(None);
     let pssm = pwm.into();
 
     striped.configure(&pssm);
@@ -78,7 +79,7 @@ fn test_score_ssse3() {
     )
     .unwrap();
     let pbm = cm.to_freq([0.1, 0.1, 0.1, 0.1, 0.0]);
-    let pwm = pbm.to_weight([0.25, 0.25, 0.25, 0.25, 0.0]);
+    let pwm = pbm.to_weight(None);
     let pssm = pwm.into();
 
     striped.configure(&pssm);
@@ -115,7 +116,7 @@ fn test_score_avx2() {
     )
     .unwrap();
     let pbm = cm.to_freq([0.1, 0.1, 0.1, 0.1, 0.0]);
-    let pwm = pbm.to_weight([0.25, 0.25, 0.25, 0.25, 0.0]);
+    let pwm = pbm.to_weight(None);
     let pssm = pwm.into();
 
     striped.configure(&pssm);
