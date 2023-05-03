@@ -118,6 +118,7 @@ jobs:
   wheel-macos-aarch64:
     name: Build MacOS wheels (Aarch64)
     runs-on: macOS-11
+    if: "startsWith(github.ref, 'refs/tags/v')"
     strategy:
       matrix:
         python-tag:
