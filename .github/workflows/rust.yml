@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
       - name: Setup Rust stable
         uses: actions-rs/toolchain@v1
         with:
@@ -37,7 +37,7 @@ jobs:
           - "x86-64"
     steps:
     - name: Checkout code
-      uses: actions/checkout@v1
+      uses: actions/checkout@v3
     - name: Setup Rust ${{ matrix.rust-toolchain }}
       uses: actions-rs/toolchain@v1
       with:
@@ -66,7 +66,7 @@ jobs:
           - "x86-64"
     steps:
     - name: Checkout code
-      uses: actions/checkout@v1
+      uses: actions/checkout@v3
     - name: Setup Rust stable
       uses: actions-rs/toolchain@v1
       with:
@@ -102,7 +102,7 @@ jobs:
     name: Publish crates
     steps:
     - name: Checkout code
-      uses: actions/checkout@v1
+      uses: actions/checkout@v3
     - name: Setup Rust ${{ matrix.rust-toolchain }}
       uses: actions-rs/toolchain@v1
       with:
@@ -135,7 +135,7 @@ jobs:
       pull-requests: read
     steps:
     - name: Checkout code
-      uses: actions/checkout@v1
+      uses: actions/checkout@v3
     - name: Release a Changelog
       uses: rasmus-saks/release-a-changelog-action@v1.0.1
       with:
