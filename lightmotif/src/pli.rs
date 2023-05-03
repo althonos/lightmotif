@@ -334,8 +334,8 @@ impl Pipeline<Dna, __m256> {
 
 #[derive(Clone, Debug)]
 pub struct StripedScores<V: Vector, const C: usize = 32> {
-    pub length: usize,
-    pub data: DenseMatrix<f32, C>,
+    data: DenseMatrix<f32, C>,
+    length: usize,
     marker: std::marker::PhantomData<V>,
 }
 
@@ -347,6 +347,21 @@ impl<V: Vector, const C: usize> StripedScores<V, C> {
             data: DenseMatrix::new(rows),
             marker: std::marker::PhantomData,
         }
+    }
+
+    /// Return the number of scored positions.
+    pub fn len(&self) -> usize {
+        self.length
+    }
+
+    /// Return a reference to the striped matrix storing the scores.
+    pub fn matrix(&self) -> &DenseMatrix<f32, C> {
+        &self.data
+    }
+
+    /// Return a mutable reference to the striped matrix storing the scores.
+    pub fn matrix_mut(&mut self) -> &mut DenseMatrix<f32, C> {
+        &mut self.data
     }
 
     /// Create a new matrix large enough to store the scores of `pssm` applied to `seq`.
@@ -390,22 +405,35 @@ impl<V: Vector, const C: usize> StripedScores<V, C> {
         vec
     }
 
-    /// Get the index of the highest scoring position.
-    ///
-    /// ## Panic
-    /// Panics if the data buffer is empty.
-    pub fn argmax(&self) -> usize {
-        let mut best_pos = 0;
-        let mut best_score = self.data[0][0];
-        for i in 0..self.length {
-            let col = i / self.data.rows();
-            let row = i % self.data.rows();
-            if self.data[row][col] > best_score {
-                best_pos = i;
-                best_score = self.data[row][col];
+    /// Get the index of the highest scoring position, if any.
+    pub fn argmax(&self) -> Option<usize> {
+        if self.len() > 0 {
+            let mut best_pos = 0;
+            let mut best_score = self.data[0][0];
+            for i in 0..self.length {
+                let col = i / self.data.rows();
+                let row = i % self.data.rows();
+                if self.data[row][col] > best_score {
+                    best_pos = i;
+                    best_score = self.data[row][col];
+                }
             }
+            Some(best_pos)
+        } else {
+            None
         }
-        best_pos
+    }
+}
+
+impl<V: Vector, const C: usize> AsRef<DenseMatrix<f32, C>> for StripedScores<V, C> {
+    fn as_ref(&self) -> &DenseMatrix<f32, C> {
+        self.matrix()
+    }
+}
+
+impl<V: Vector, const C: usize> AsMut<DenseMatrix<f32, C>> for StripedScores<V, C> {
+    fn as_mut(&mut self) -> &mut DenseMatrix<f32, C> {
+        self.matrix_mut()
     }
 }
 

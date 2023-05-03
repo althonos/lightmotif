@@ -146,7 +146,8 @@ impl FrequencyMatrix {
             if let Some(obj) = background {
                 if let Ok(d) = obj.extract::<&PyDict>(py) {
                     let p = dict_to_alphabet_array::<lm::Dna, { lm::Dna::K }>(d)?;
-                    Ok(lm::Background::from(p))
+                    lm::Background::new(p)
+                        .map_err(|_| PyValueError::new_err("Invalid background frequencies"))
                 } else {
                     Err(PyTypeError::new_err("Invalid type for pseudocount"))
                 }
@@ -195,11 +196,11 @@ pub struct StripedScores {
 #[pymethods]
 impl StripedScores {
     fn __len__(&self) -> usize {
-        self.scores.length
+        self.scores.len()
     }
 
     fn __getitem__(&self, index: isize) -> PyResult<f32> {
-        if index < self.scores.length as isize && index >= 0 {
+        if index < self.scores.len() as isize && index >= 0 {
             Ok(self.scores[index as usize])
         } else {
             Err(PyIndexError::new_err("list index out of range"))
@@ -220,10 +221,10 @@ impl StripedScores {
 
         (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
 
-        let data = slf.scores.data[0].as_ptr();
+        let data = slf.scores.matrix()[0].as_ptr();
 
         (*view).buf = data as *mut std::os::raw::c_void;
-        (*view).len = slf.scores.length as isize;
+        (*view).len = slf.scores.len() as isize;
         (*view).readonly = 1;
         (*view).itemsize = std::mem::size_of::<f32>() as isize;
 
@@ -244,8 +245,8 @@ impl StripedScores {
 impl From<lm::StripedScores<Vector, C>> for StripedScores {
     fn from(mut scores: lm::StripedScores<Vector, C>) -> Self {
         // extract the matrix shape
-        let cols = scores.data.columns();
-        let rows = scores.data.rows();
+        let cols = scores.matrix().columns();
+        let rows = scores.matrix().rows();
         // record the matrix shape as a Fortran buffer
         let shape = [cols as Py_ssize_t, rows as Py_ssize_t];
         let strides = [
@@ -253,10 +254,12 @@ impl From<lm::StripedScores<Vector, C>> for StripedScores {
             (cols.next_power_of_two() * std::mem::size_of::<f32>()) as Py_ssize_t,
         ];
         // mask the remaining positions that are outside the sequence length
-        for i in scores.length..scores.data.rows() * cols {
+        let length = scores.len();
+        let data = scores.matrix_mut();
+        for i in length..rows * cols {
             let row = i % rows;
             let col = i / rows;
-            scores.data[row][col] = -f32::INFINITY;
+            data[row][col] = -f32::INFINITY;
         }
         // return a Python object implementing the buffer protocol
         Self {
