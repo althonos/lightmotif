@@ -25,11 +25,13 @@ impl<T: Default + Copy, const C: usize> DenseMatrix<T, C> {
     }
 
     /// The number of columns of the matrix.
+    #[inline]
     pub const fn columns(&self) -> usize {
         C
     }
 
     /// The number of rows of the matrix.
+    #[inline]
     pub fn rows(&self) -> usize {
         self.indices.len()
     }
@@ -68,11 +70,13 @@ impl<T: Default + Copy, const C: usize> DenseMatrix<T, C> {
     }
 
     /// Iterate over the rows of the matrix.
+    #[inline]
     pub fn iter(&self) -> Iter<'_, T, C> {
         Iter::new(self)
     }
 
     /// Returns an iterator that allows modifying each row.
+    #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_, T, C> {
         IterMut::new(self)
     }
@@ -80,6 +84,7 @@ impl<T: Default + Copy, const C: usize> DenseMatrix<T, C> {
 
 impl<T: Default + Copy, const C: usize> Index<usize> for DenseMatrix<T, C> {
     type Output = [T];
+    #[inline]
     fn index(&self, index: usize) -> &Self::Output {
         let row = self.indices[index];
         &self.data[row..row + C]
@@ -87,6 +92,7 @@ impl<T: Default + Copy, const C: usize> Index<usize> for DenseMatrix<T, C> {
 }
 
 impl<T: Default + Copy, const C: usize> IndexMut<usize> for DenseMatrix<T, C> {
+    #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         let row = self.indices[index];
         &mut self.data[row..row + C]
