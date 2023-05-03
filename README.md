@@ -36,7 +36,7 @@ of sequences:
 use lightmotif::*;
 
 // Create a count matrix from an iterable of motif sequences
-let counts = CountMatrix::from_sequences(&[
+let counts = CountMatrix::<Dna, {Dna::K}>::from_sequences(&[
     EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
     EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
 ]).unwrap();
@@ -48,14 +48,15 @@ let pssm = counts.to_freq(0.1).to_scoring(None);
 let seq = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
 let encoded = EncodedSequence::<Dna>::encode(seq).unwrap();
 let mut striped = encoded.to_striped::<32>();
-
-// Create a pipeline and compute scores for every position of the matrix
 striped.configure(&pssm);
-let pli = Pipeline::<_, f32>::new();
-let scores = pli.score(&striped, &pssm);
+
+// Use a pipeline to compute scores for every position of the matrix
+let scores = Pipeline::<Dna, f32>::score(&striped, &pssm);
 
 // Scores can be extracted into a Vec<f32>, or indexed directly.
 let v = scores.to_vec();
+assert_eq!(scores[0], -23.07094);
+assert_eq!(v[0], -23.07094);
 ```
 
 To use the AVX2 implementation, simply create a `Pipeline<_, __m256>` instead

@@ -1,3 +1,4 @@
+#![feature(doc_cfg)]
 #![doc = include_str!("../README.md")]
 
 mod abc;
@@ -16,6 +17,7 @@ pub use abc::Symbol;
 pub use dense::DenseMatrix;
 pub use err::InvalidSymbol;
 pub use pli::Pipeline;
+pub use pli::Score;
 pub use pli::StripedScores;
 pub use pwm::CountMatrix;
 pub use pwm::FrequencyMatrix;

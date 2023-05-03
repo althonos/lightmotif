@@ -1,4 +1,4 @@
-#[cfg(target_feature = "ssse3")]
+#[cfg(any(target_feature = "ssse3", doc))]
 use std::arch::x86_64::*;
 
 use std::ops::Index;
@@ -11,7 +11,10 @@ use super::dense::DenseMatrix;
 use super::pwm::ScoringMatrix;
 use super::seq::StripedSequence;
 
+// --- Vector ------------------------------------------------------------------
+
 mod seal {
+    /// Sealed trait for concrete vector implementations.
     pub trait Vector {}
 
     impl Vector for f32 {}
@@ -23,29 +26,41 @@ mod seal {
     impl Vector for std::arch::x86_64::__m128 {}
 }
 
+// --- Score -------------------------------------------------------------------
+
+/// Generic trait for computing sequence scores with a PSSM.
+pub trait Score<A: Alphabet, const K: usize, V: Vector, const C: usize> {
+    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<V, C>)
+    where
+        S: AsRef<StripedSequence<A, C>>,
+        M: AsRef<ScoringMatrix<A, K>>;
+
+    fn score<S, M>(seq: S, pssm: M) -> StripedScores<V, C>
+    where
+        S: AsRef<StripedSequence<A, C>>,
+        M: AsRef<ScoringMatrix<A, K>>,
+    {
+        let mut scores = StripedScores::new_for(&seq, &pssm);
+        Self::score_into(seq, pssm, &mut scores);
+        scores
+    }
+}
+
+// --- Pipeline ----------------------------------------------------------------
+
+/// Wrapper implementing score computation for different platforms.
+#[derive(Debug, Default, Clone)]
 pub struct Pipeline<A: Alphabet, V: Vector> {
     alphabet: std::marker::PhantomData<A>,
     vector: std::marker::PhantomData<V>,
 }
 
-impl<A: Alphabet, V: Vector> Pipeline<A, V> {
-    pub fn new() -> Self {
-        Self {
-            alphabet: std::marker::PhantomData,
-            vector: std::marker::PhantomData,
-        }
-    }
-}
-
-impl Pipeline<Dna, f32> {
-    pub fn score_into<S, M, const C: usize>(
-        &self,
-        seq: S,
-        pssm: M,
-        scores: &mut StripedScores<f32, C>,
-    ) where
-        S: AsRef<StripedSequence<Dna, C>>,
-        M: AsRef<ScoringMatrix<Dna, { Dna::K }>>,
+/// Scalar scoring implementation, for any column width.
+impl<A: Alphabet, const K: usize, const C: usize> Score<A, K, f32, C> for Pipeline<A, f32> {
+    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<f32, C>)
+    where
+        S: AsRef<StripedSequence<A, C>>,
+        M: AsRef<ScoringMatrix<A, K>>,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
@@ -69,22 +84,12 @@ impl Pipeline<Dna, f32> {
             result[row][col] = score;
         }
     }
-
-    pub fn score<S, M, const C: usize>(&self, seq: S, pssm: M) -> StripedScores<f32, C>
-    where
-        S: AsRef<StripedSequence<Dna, C>>,
-        M: AsRef<ScoringMatrix<Dna, { Dna::K }>>,
-    {
-        let mut scores = StripedScores::new_for(&seq, &pssm);
-        self.score_into(seq, pssm, &mut scores);
-        scores
-    }
 }
 
-#[cfg(target_feature = "ssse3")]
-impl Pipeline<Dna, __m128> {
-    pub fn score_into<S, M>(
-        &self,
+/// Intel 128-bit vector implementation, for 16 elements column width.
+#[cfg(any(target_feature = "ssse3", doc))]
+impl Score<Dna, { Dna::K }, __m128, { std::mem::size_of::<__m128i>() }> for Pipeline<Dna, __m128> {
+    fn score_into<S, M>(
         seq: S,
         pssm: M,
         scores: &mut StripedScores<__m128, { std::mem::size_of::<__m128i>() }>,
@@ -174,26 +179,11 @@ impl Pipeline<Dna, __m128> {
             }
         }
     }
-
-    pub fn score<S, M>(
-        &self,
-        seq: S,
-        pssm: M,
-    ) -> StripedScores<__m128, { std::mem::size_of::<__m128i>() }>
-    where
-        S: AsRef<StripedSequence<Dna, { std::mem::size_of::<__m128i>() }>>,
-        M: AsRef<ScoringMatrix<Dna, { Dna::K }>>,
-    {
-        let mut scores = StripedScores::new_for(&seq, &pssm);
-        self.score_into(seq, pssm, &mut scores);
-        scores
-    }
 }
 
-#[cfg(target_feature = "avx2")]
-impl Pipeline<Dna, __m256> {
-    pub fn score_into<S, M>(
-        &self,
+#[cfg(any(target_feature = "avx2", doc))]
+impl Score<Dna, { Dna::K }, __m256, { std::mem::size_of::<__m256i>() }> for Pipeline<Dna, __m256> {
+    fn score_into<S, M>(
         seq: S,
         pssm: M,
         scores: &mut StripedScores<__m256, { std::mem::size_of::<__m256i>() }>,
@@ -316,21 +306,9 @@ impl Pipeline<Dna, __m256> {
             }
         }
     }
-
-    pub fn score<S, M>(
-        &self,
-        seq: S,
-        pssm: M,
-    ) -> StripedScores<__m256, { std::mem::size_of::<__m256i>() }>
-    where
-        S: AsRef<StripedSequence<Dna, { std::mem::size_of::<__m256i>() }>>,
-        M: AsRef<ScoringMatrix<Dna, { Dna::K }>>,
-    {
-        let mut scores = StripedScores::new_for(&seq, &pssm);
-        self.score_into(seq, pssm, &mut scores);
-        scores
-    }
 }
+
+// --- StripedScores -----------------------------------------------------------
 
 #[derive(Clone, Debug)]
 pub struct StripedScores<V: Vector, const C: usize = 32> {

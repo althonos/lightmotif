@@ -11,6 +11,7 @@ use lightmotif::CountMatrix;
 use lightmotif::Dna;
 use lightmotif::EncodedSequence;
 use lightmotif::Pipeline;
+use lightmotif::Score;
 
 const SEQUENCE: &'static str = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
 const PATTERNS: &[&'static str] = &["GTTGACCTTATCAAC", "GTTGATCCAGTCAAC"];
@@ -49,8 +50,7 @@ fn test_score_generic() {
     let pssm = pwm.into();
 
     striped.configure(&pssm);
-    let pli = Pipeline::<_, f32>::new();
-    let result = pli.score(&striped, &pssm);
+    let result = Pipeline::<Dna, f32>::score(&striped, &pssm);
     let scores = result.to_vec();
 
     assert_eq!(scores.len(), EXPECTED.len());
@@ -82,8 +82,7 @@ fn test_score_ssse3() {
     let pssm = pwm.into();
 
     striped.configure(&pssm);
-    let pli = Pipeline::<_, __m128>::new();
-    let result = pli.score(&striped, &pssm);
+    let result = Pipeline::<_, __m128>::score(&striped, &pssm);
 
     // for i in 0..result.data.rows() {
     //     println!("i={} {:?}", i, &result.data[i]);
@@ -119,8 +118,7 @@ fn test_score_avx2() {
     let pssm = pwm.into();
 
     striped.configure(&pssm);
-    let pli = Pipeline::<_, __m256>::new();
-    let result = pli.score(&striped, &pssm);
+    let result = Pipeline::<_, __m256>::score(&striped, &pssm);
     let scores = result.to_vec();
 
     // for i in 0..result.data.rows() {

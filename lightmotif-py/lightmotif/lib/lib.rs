@@ -8,6 +8,8 @@ use std::arch::x86_64::{__m256, __m256i};
 
 use lightmotif as lm;
 use lightmotif::Alphabet;
+use lightmotif::Pipeline;
+use lightmotif::Score;
 use lightmotif::Symbol;
 
 use pyo3::exceptions::PyBufferError;
@@ -175,10 +177,11 @@ impl ScoringMatrix {
         slf: PyRef<'_, Self>,
         sequence: &mut StripedSequence,
     ) -> PyResult<StripedScores> {
-        let pli = lm::Pipeline::<lm::Dna, Vector>::new();
         let pssm = &slf.data;
         sequence.data.configure(pssm);
-        let scores = slf.py().allow_threads(|| pli.score(&sequence.data, pssm));
+        let scores = slf
+            .py()
+            .allow_threads(|| Pipeline::<lm::Dna, Vector>::score(&sequence.data, pssm));
         Ok(StripedScores::from(scores))
     }
 }
