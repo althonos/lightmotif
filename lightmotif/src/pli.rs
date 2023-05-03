@@ -30,12 +30,12 @@ mod seal {
 
 /// Generic trait for computing sequence scores with a PSSM.
 pub trait Score<A: Alphabet, const K: usize, V: Vector, const C: usize> {
-    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<V, C>)
+    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<C>)
     where
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A, K>>;
 
-    fn score<S, M>(seq: S, pssm: M) -> StripedScores<V, C>
+    fn score<S, M>(seq: S, pssm: M) -> StripedScores<C>
     where
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A, K>>,
@@ -57,7 +57,7 @@ pub struct Pipeline<A: Alphabet, V: Vector> {
 
 /// Scalar scoring implementation, for any column width.
 impl<A: Alphabet, const K: usize, const C: usize> Score<A, K, f32, C> for Pipeline<A, f32> {
-    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<f32, C>)
+    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<C>)
     where
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A, K>>,
@@ -92,7 +92,7 @@ impl Score<Dna, { Dna::K }, __m128, { std::mem::size_of::<__m128i>() }> for Pipe
     fn score_into<S, M>(
         seq: S,
         pssm: M,
-        scores: &mut StripedScores<__m128, { std::mem::size_of::<__m128i>() }>,
+        scores: &mut StripedScores<{ std::mem::size_of::<__m128i>() }>,
     ) where
         S: AsRef<StripedSequence<Dna, { std::mem::size_of::<__m128i>() }>>,
         M: AsRef<ScoringMatrix<Dna, { Dna::K }>>,
@@ -186,7 +186,7 @@ impl Score<Dna, { Dna::K }, __m256, { std::mem::size_of::<__m256i>() }> for Pipe
     fn score_into<S, M>(
         seq: S,
         pssm: M,
-        scores: &mut StripedScores<__m256, { std::mem::size_of::<__m256i>() }>,
+        scores: &mut StripedScores<{ std::mem::size_of::<__m256i>() }>,
     ) where
         S: AsRef<StripedSequence<Dna, { std::mem::size_of::<__m256i>() }>>,
         M: AsRef<ScoringMatrix<Dna, { Dna::K }>>,
@@ -311,19 +311,17 @@ impl Score<Dna, { Dna::K }, __m256, { std::mem::size_of::<__m256i>() }> for Pipe
 // --- StripedScores -----------------------------------------------------------
 
 #[derive(Clone, Debug)]
-pub struct StripedScores<V: Vector, const C: usize = 32> {
+pub struct StripedScores<const C: usize = 32> {
     data: DenseMatrix<f32, C>,
     length: usize,
-    marker: std::marker::PhantomData<V>,
 }
 
-impl<V: Vector, const C: usize> StripedScores<V, C> {
+impl<const C: usize> StripedScores<C> {
     /// Create a new striped score matrix with the given length and rows.
     pub fn new(length: usize, rows: usize) -> Self {
         Self {
             length,
             data: DenseMatrix::new(rows),
-            marker: std::marker::PhantomData,
         }
     }
 
@@ -403,19 +401,19 @@ impl<V: Vector, const C: usize> StripedScores<V, C> {
     }
 }
 
-impl<V: Vector, const C: usize> AsRef<DenseMatrix<f32, C>> for StripedScores<V, C> {
+impl<const C: usize> AsRef<DenseMatrix<f32, C>> for StripedScores<C> {
     fn as_ref(&self) -> &DenseMatrix<f32, C> {
         self.matrix()
     }
 }
 
-impl<V: Vector, const C: usize> AsMut<DenseMatrix<f32, C>> for StripedScores<V, C> {
+impl<const C: usize> AsMut<DenseMatrix<f32, C>> for StripedScores<C> {
     fn as_mut(&mut self) -> &mut DenseMatrix<f32, C> {
         self.matrix_mut()
     }
 }
 
-impl<V: Vector, const C: usize> Index<usize> for StripedScores<V, C> {
+impl<const C: usize> Index<usize> for StripedScores<C> {
     type Output = f32;
     fn index(&self, index: usize) -> &f32 {
         let col = index / self.data.rows();
@@ -424,8 +422,8 @@ impl<V: Vector, const C: usize> Index<usize> for StripedScores<V, C> {
     }
 }
 
-impl<V: Vector, const C: usize> From<StripedScores<V, C>> for Vec<f32> {
-    fn from(scores: StripedScores<V, C>) -> Self {
+impl<const C: usize> From<StripedScores<C>> for Vec<f32> {
+    fn from(scores: StripedScores<C>) -> Self {
         let rows = scores.data.rows();
         let mut vec = Vec::with_capacity(scores.length);
         for i in 0..scores.length {
