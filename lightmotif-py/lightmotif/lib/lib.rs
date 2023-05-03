@@ -1,10 +1,12 @@
-extern crate pyo3;
 #[macro_use]
 extern crate pyo3_built;
 extern crate lightmotif;
+extern crate pyo3;
 
 #[cfg(target_feature = "avx2")]
-use std::arch::x86_64::{__m256, __m256i};
+use std::arch::x86_64::__m256;
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+use std::arch::x86_64::__m256i;
 
 use lightmotif as lm;
 use lightmotif::Alphabet;
@@ -29,15 +31,10 @@ mod build {
 
 // --- Compile-time constants --------------------------------------------------
 
-#[cfg(target_feature = "avx2")]
-type Vector = __m256;
-#[cfg(target_feature = "avx2")]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 const C: usize = std::mem::size_of::<__m256i>();
-
-#[cfg(not(target_feature = "avx2"))]
-type Vector = f32;
-#[cfg(not(target_feature = "avx2"))]
-const C: usize = std::mem::size_of::<f32>();
+#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+const C: usize = 1;
 
 // --- Helpers -----------------------------------------------------------------
 
@@ -113,7 +110,7 @@ pub struct CountMatrix {
 
 #[pymethods]
 impl CountMatrix {
-    pub fn normalize(&self, pseudocount: Option<PyObject>) -> PyResult<FrequencyMatrix> {
+    pub fn normalize(&self, pseudocount: Option<PyObject>) -> PyResult<WeightMatrix> {
         let pseudo = Python::with_gil(|py| {
             if let Some(obj) = pseudocount {
                 if let Ok(x) = obj.extract::<f32>(py) {
@@ -128,8 +125,14 @@ impl CountMatrix {
                 Ok(lm::Pseudocounts::default())
             }
         })?;
-        let data = self.data.to_freq(pseudo);
-        Ok(FrequencyMatrix { data })
+        let data = self.data.to_freq(pseudo).to_weight(None);
+        Ok(WeightMatrix { data })
+    }
+}
+
+impl From<lm::CountMatrix<lm::Dna, { lm::Dna::K }>> for CountMatrix {
+    fn from(data: lm::CountMatrix<lm::Dna, { lm::Dna::K }>) -> Self {
+        Self { data }
     }
 }
 
@@ -137,13 +140,14 @@ impl CountMatrix {
 
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
-pub struct FrequencyMatrix {
-    data: lm::FrequencyMatrix<lm::Dna, { lm::Dna::K }>,
+pub struct WeightMatrix {
+    data: lm::WeightMatrix<lm::Dna, { lm::Dna::K }>,
 }
 
 #[pymethods]
-impl FrequencyMatrix {
+impl WeightMatrix {
     pub fn log_odds(&self, background: Option<PyObject>) -> PyResult<ScoringMatrix> {
+        // extract the background from the method argument
         let bg = Python::with_gil(|py| {
             if let Some(obj) = background {
                 if let Ok(d) = obj.extract::<&PyDict>(py) {
@@ -157,8 +161,18 @@ impl FrequencyMatrix {
                 Ok(lm::Background::uniform())
             }
         })?;
-        let data = self.data.to_scoring(bg);
-        Ok(ScoringMatrix { data })
+        // rescale if backgrounds do not match
+        let pwm = match bg.frequencies() != self.data.background().frequencies() {
+            false => self.data.rescale(bg),
+            true => self.data.clone(),
+        };
+        Ok(ScoringMatrix { data: pwm.into() })
+    }
+}
+
+impl From<lm::WeightMatrix<lm::Dna, { lm::Dna::K }>> for WeightMatrix {
+    fn from(data: lm::WeightMatrix<lm::Dna, { lm::Dna::K }>) -> Self {
+        Self { data }
     }
 }
 
@@ -179,10 +193,22 @@ impl ScoringMatrix {
     ) -> PyResult<StripedScores> {
         let pssm = &slf.data;
         sequence.data.configure(pssm);
-        let scores = slf
-            .py()
-            .allow_threads(|| Pipeline::<lm::Dna, Vector>::score(&sequence.data, pssm));
+
+        let scores = slf.py().allow_threads(|| {
+            #[cfg(target_feature = "avx2")]
+            if std::is_x86_feature_detected!("avx2") {
+                return Pipeline::<lm::Dna, __m256>::score(&sequence.data, pssm);
+            }
+            Pipeline::<lm::Dna, f32>::score(&sequence.data, pssm)
+        });
+
         Ok(StripedScores::from(scores))
+    }
+}
+
+impl From<lm::ScoringMatrix<lm::Dna, { lm::Dna::K }>> for ScoringMatrix {
+    fn from(data: lm::ScoringMatrix<lm::Dna, { lm::Dna::K }>) -> Self {
+        Self { data }
     }
 }
 
@@ -191,7 +217,7 @@ impl ScoringMatrix {
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct StripedScores {
-    scores: lm::StripedScores<Vector, C>,
+    scores: lm::StripedScores<C>,
     shape: [Py_ssize_t; 2],
     strides: [Py_ssize_t; 2],
 }
@@ -245,8 +271,8 @@ impl StripedScores {
     }
 }
 
-impl From<lm::StripedScores<Vector, C>> for StripedScores {
-    fn from(mut scores: lm::StripedScores<Vector, C>) -> Self {
+impl From<lm::StripedScores<C>> for StripedScores {
+    fn from(mut scores: lm::StripedScores<C>) -> Self {
         // extract the matrix shape
         let cols = scores.matrix().columns();
         let rows = scores.matrix().rows();
@@ -273,10 +299,23 @@ impl From<lm::StripedScores<Vector, C>> for StripedScores {
     }
 }
 
+// --- Motif -------------------------------------------------------------------
+
+#[pyclass(module = "lightmotif.lib")]
+#[derive(Clone, Debug)]
+pub struct Motif {
+    #[pyo3(get)]
+    counts: Py<CountMatrix>,
+    #[pyo3(get)]
+    pwm: Py<WeightMatrix>,
+    #[pyo3(get)]
+    pssm: Py<ScoringMatrix>,
+}
+
 // --- Module ------------------------------------------------------------------
 
 #[pyfunction]
-fn create<'py>(sequences: &'py PyAny) -> PyResult<CountMatrix> {
+fn create<'py>(sequences: &'py PyAny) -> PyResult<Motif> {
     let py = sequences.py();
 
     let mut encoded = Vec::new();
@@ -290,7 +329,14 @@ fn create<'py>(sequences: &'py PyAny) -> PyResult<CountMatrix> {
 
     let data = lm::CountMatrix::from_sequences(encoded)
         .map_err(|_| PyValueError::new_err("Inconsistent sequence length"))?;
-    Ok(CountMatrix { data })
+    let weights = data.to_freq(0.0).to_weight(None);
+    let scoring = weights.to_scoring();
+
+    Ok(Motif {
+        counts: Py::new(py, CountMatrix::from(data))?,
+        pwm: Py::new(py, WeightMatrix::from(weights))?,
+        pssm: Py::new(py, ScoringMatrix::from(scoring))?,
+    })
 }
 
 /// PyO3 bindings to ``lightmotif``, a library for fast PWM motif scanning.
@@ -308,7 +354,7 @@ pub fn init(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<StripedSequence>()?;
 
     m.add_class::<CountMatrix>()?;
-    m.add_class::<FrequencyMatrix>()?;
+    m.add_class::<WeightMatrix>()?;
     m.add_class::<ScoringMatrix>()?;
 
     m.add_function(wrap_pyfunction!(create, m)?)?;
