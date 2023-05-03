@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import contextlib
 import configparser
 import os
 import shutil
@@ -20,14 +21,32 @@ except ImportError:
     from setuptools_rust.utils import get_rust_version
 
 
-class sdist(_sdist):
+# --- Utils ------------------------------------------------------------------
 
+
+@contextlib.contextmanager
+def patch_env(var, value):
+    try:
+        original = os.getenv(var)
+        os.environ[var] = value
+        yield
+    finally:
+        if original is None:
+            del os.environ[var]
+        else:
+            os.environ[var] = original
+
+
+# --- Commands ------------------------------------------------------------------
+
+
+class sdist(_sdist):
     def run(self):
         # build `pyproject.toml` from `setup.cfg`
         c = configparser.ConfigParser()
         c.add_section("build-system")
         c.set("build-system", "requires", str(self.distribution.setup_requires))
-        c.set("build-system", 'build-backend', '"setuptools.build_meta"')
+        c.set("build-system", "build-backend", '"setuptools.build_meta"')
         with open("pyproject.toml", "w") as pyproject:
             c.write(pyproject)
 
@@ -36,7 +55,6 @@ class sdist(_sdist):
 
 
 class build_rust(_build_rust):
-
     def run(self):
         rustc = get_rust_version()
         if rustc is not None:
@@ -65,24 +83,34 @@ class build_rust(_build_rust):
             with open(rustup_sh, "wb") as dst:
                 shutil.copyfileobj(res, dst)
 
-        self.announce("installing Rust compiler to {}".format(self.build_temp), level=INFO)
-        proc = subprocess.run([
-            "sh",
-            rustup_sh,
-            "-y",
-            "--default-toolchain",
-            toolchain,
-            "--profile",
-            profile,
-            "--no-modify-path"
-        ])
+        self.announce(
+            "installing Rust compiler to {}".format(self.build_temp), level=INFO
+        )
+        proc = subprocess.run(
+            [
+                "sh",
+                rustup_sh,
+                "-y",
+                "--default-toolchain",
+                toolchain,
+                "--profile",
+                profile,
+                "--no-modify-path",
+            ]
+        )
         proc.check_returncode()
 
         self.announce("updating $PATH variable to use local Rust compiler", level=INFO)
-        os.environ["PATH"] = ":".join([
-            os.path.abspath(os.path.join(os.environ["CARGO_HOME"], "bin")),
-            os.environ["PATH"]
-        ])
+        os.environ["PATH"] = ":".join(
+            [
+                os.path.abspath(os.path.join(os.environ["CARGO_HOME"], "bin")),
+                os.environ["PATH"],
+            ]
+        )
+
+    def build_extension(self, ext, target):
+        with patch_env("RUSTFLAGS", " ".join(ext.rustc_flags)):
+            return _build_rust.build_extension(self, ext, target)
 
     def get_dylib_ext_path(self, ext, module_name):
         ext_path = _build_rust.get_dylib_ext_path(self, ext, module_name)
@@ -94,22 +122,28 @@ class build_rust(_build_rust):
         return ext_path
 
 
-# HACK: Use the `configparser` from Python to read the `Cargo.toml`
-#       manifest file (this... works) so that the package version
-#       can be extracted from there and synchronized everywhere.
-parser = configparser.ConfigParser()
-parser.read(os.path.join(os.path.dirname(__file__), "lightmotif-py", "Cargo.toml"))
-version = parser.get("package", "version").strip('"')
+# --- Setup ---------------------------------------------------------------------
 
 setuptools.setup(
-    version=version,
     setup_requires=["setuptools", "setuptools_rust"],
     cmdclass=dict(sdist=sdist, build_rust=build_rust),
-    rust_extensions=[rust.RustExtension(
-        "lightmotif.lib",
-        path=os.path.join("lightmotif-py", "Cargo.toml"),
-        binding=rust.Binding.PyO3,
-        strip=rust.Strip.Debug,
-        features=["extension-module"],
-    )],
+    package_dir={"": "lightmotif-py"},
+    rust_extensions=[
+        rust.RustExtension(
+            "lightmotif.lib",
+            path=os.path.join("lightmotif-py", "Cargo.toml"),
+            binding=rust.Binding.PyO3,
+            strip=rust.Strip.Debug,
+            features=["extension-module"],
+        ),
+        rust.RustExtension(
+            "lightmotif.avx2.lib",
+            path=os.path.join("lightmotif-py", "Cargo.toml"),
+            binding=rust.Binding.PyO3,
+            strip=rust.Strip.Debug,
+            features=["extension-module"],
+            rustc_flags=["-Ctarget-feature=+avx2"],
+            optional=True,
+        ),
+    ],
 )

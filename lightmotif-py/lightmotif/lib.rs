@@ -16,6 +16,7 @@ use lightmotif::Symbol;
 
 use pyo3::exceptions::PyBufferError;
 use pyo3::exceptions::PyIndexError;
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::exceptions::PyTypeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::ffi::Py_ssize_t;
@@ -345,7 +346,7 @@ fn create<'py>(sequences: &'py PyAny) -> PyResult<Motif> {
 #[pymodule]
 #[pyo3(name = "lib")]
 pub fn init(py: Python, m: &PyModule) -> PyResult<()> {
-    m.add("__package__", "pyskani")?;
+    m.add("__package__", "lightmotif")?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add("__author__", env!("CARGO_PKG_AUTHORS").replace(':', "\n"))?;
     m.add("__build__", pyo3_built!(py, build))?;
@@ -358,6 +359,14 @@ pub fn init(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<ScoringMatrix>()?;
 
     m.add_function(wrap_pyfunction!(create, m)?)?;
+
+    // If compiled in AVX2 mode, check that AVX2 is supported by the CPU
+    #[cfg(target_feature = "avx2")]
+    if !std::is_x86_feature_detected!("avx2") {
+        return Err(PyRuntimeError::new_err(
+            "Importing AVX2 extension on machine without AVX2 support",
+        ));
+    }
 
     Ok(())
 }

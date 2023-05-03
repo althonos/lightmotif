@@ -19,10 +19,10 @@ mod seal {
 
     impl Vector for f32 {}
 
-    #[cfg(target_feature = "avx2")]
+    // #[cfg(target_feature = "avx2")]
     impl Vector for std::arch::x86_64::__m256 {}
 
-    #[cfg(target_feature = "ssse3")]
+    // #[cfg(target_feature = "ssse3")]
     impl Vector for std::arch::x86_64::__m128 {}
 }
 
