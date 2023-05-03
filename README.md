@@ -5,6 +5,7 @@
 [![Actions](https://img.shields.io/github/actions/workflow/status/althonos/lightmotif/rust.yml?branch=main&logo=github&style=flat-square&maxAge=300)](https://github.com/althonos/lightmotif/actions)
 [![Coverage](https://img.shields.io/codecov/c/gh/althonos/lightmotif?logo=codecov&style=flat-square&maxAge=3600)](https://codecov.io/gh/althonos/lightmotif/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square&maxAge=2678400)](https://choosealicense.com/licenses/mit/)
+[![Crate](https://img.shields.io/crates/v/lightmotif.svg?maxAge=600&style=flat-square)](https://crates.io/crates/lightmotif)
 [![Source](https://img.shields.io/badge/source-GitHub-303030.svg?maxAge=2678400&style=flat-square)](https://github.com/althonos/lightmotif/)
 [![Mirror](https://img.shields.io/badge/mirror-EMBL-009f4d?style=flat-square&maxAge=2678400)](https://git.embl.de/larralde/lightmotif/)
 [![GitHub issues](https://img.shields.io/github/issues/althonos/lightmotif.svg?style=flat-square&maxAge=600)](https://github.com/althonos/lightmotif/issues)
@@ -12,10 +13,17 @@
 
 ## 🗺️ Overview
 
-Motif scanning with position weight matrices (also known as position-specific
-scoring matrices) is a robust method for identifying motifs of fixed length
-inside a biological sequence. They can be used to identify transcription
-factor binding sites in DNA, or protease cleavage site in polypeptides.
+[Motif](https://en.wikipedia.org/wiki/Sequence_motif) scanning with 
+[position weight matrices](https://en.wikipedia.org/wiki/Position_weight_matrix)
+(also known as position-specific scoring matrices) is a robust method for 
+identifying motifs of fixed length inside a 
+[biological sequence](https://en.wikipedia.org/wiki/Sequence_(biology)). They can be 
+used to identify [transcription factor](https://en.wikipedia.org/wiki/Transcription_factor) 
+[binding sites in DNA](https://en.wikipedia.org/wiki/DNA_binding_site), 
+or [protease](https://en.wikipedia.org/wiki/Protease) [cleavage](https://en.wikipedia.org/wiki/Proteolysis) site in [polypeptides](https://en.wikipedia.org/wiki/Proteolysis). 
+Position weight matrices are often viewed as [sequence logos](https://en.wikipedia.org/wiki/Sequence_logo):
+
+[![MX000274.svg](https://raw.githubusercontent.com/althonos/lightmotif/main/docs/_static/prodoric_logo_mx000274.svg)](https://www.prodoric.de/matrix/MX000274.html)
 
 The `lightmotif` library provides a Rust crate to run very efficient
 searches for a motif encoded in a position weight matrix. The position
@@ -23,12 +31,11 @@ scanning combines several techniques to allow high-throughput processing
 of sequences:
 
 - Compile-time definition of alphabets and matrix dimensions.
-- Sequence symbol encoding for fast easy table look-ups, as implemented in
+- Sequence symbol encoding for fast table look-ups, as implemented in
   HMMER[\[1\]](#ref1) or MEME[\[2\]](#ref2)
 - Striped sequence matrices to process several positions in parallel,
-  inspired by Farrar[\[3\]](#ref3).
+  inspired by Michael Farrar[\[3\]](#ref3).
 - Vectorized matrix row look-up using `permute` instructions of [AVX2](https://fr.wikipedia.org/wiki/Advanced_Vector_Extensions).
-
 
 ## 💡 Example
 
@@ -66,12 +73,11 @@ with the `avx2` target feature, but it can be easily configured with Rust's
 
 ## ⏱️ Benchmarks
 
-*Benchmarks were run on a [i7-10710U CPU](https://ark.intel.com/content/www/us/en/ark/products/196448/intel-core-i7-10710u-processor-12m-cache-up-to-4-70-ghz.html) running @1.10GHz, compiled with `--target-cpu=native`*.
-
 Both benchmarks use the [MX000001](https://www.prodoric.de/matrix/MX000001.html)
-motif from [PRODORIC](https://www.prodoric.de/), and the
+motif from [PRODORIC](https://www.prodoric.de/)[\[4\]](#ref4), and the
 [complete genome](https://www.ncbi.nlm.nih.gov/nuccore/U00096) of an
-*Escherichia coli K12* strain.
+*Escherichia coli K12* strain. 
+*Benchmarks were run on a [i7-10710U CPU](https://ark.intel.com/content/www/us/en/ark/products/196448/intel-core-i7-10710u-processor-12m-cache-up-to-4-70-ghz.html) running @1.10GHz, compiled with `--target-cpu=native`*.
 
 - Score every position of the genome with the motif weight matrix:
   ```console
@@ -106,6 +112,11 @@ in a simple, easily reproducible situation.
 
 Contributions are more than welcome! See [`CONTRIBUTING.md`](https://github.com/althonos/lightmotif/blob/master/CONTRIBUTING.md) for more details. -->
 
+## 📋 Changelog
+
+This project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html)
+and provides a [changelog](https://github.com/althonos/lightmotif/blob/master/CHANGELOG.md)
+in the [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) format.
 
 ## ⚖️ License
 
@@ -116,9 +127,9 @@ This library is provided under the open-source
 during his PhD project at the [European Molecular Biology Laboratory](https://www.embl.de/)
 in the [Zeller team](https://github.com/zellerlab).*
 
-
 ## 📚 References
 
 - <a id="ref1">\[1\]</a> Eddy, Sean R. ‘Accelerated Profile HMM Searches’. PLOS Computational Biology 7, no. 10 (20 October 2011): e1002195. [doi:10.1371/journal.pcbi.1002195](https://doi.org/10.1371/journal.pcbi.1002195).
 - <a id="ref2">\[2\]</a> Grant, Charles E., Timothy L. Bailey, and William Stafford Noble. ‘FIMO: Scanning for Occurrences of a given Motif’. Bioinformatics 27, no. 7 (1 April 2011): 1017–18. [doi:10.1093/bioinformatics/btr064](https://doi.org/10.1093/bioinformatics/btr064).
 - <a id="ref3">\[3\]</a> Farrar, Michael. ‘Striped Smith–Waterman Speeds Database Searches Six Times over Other SIMD Implementations’. Bioinformatics 23, no. 2 (15 January 2007): 156–61. [doi:10.1093/bioinformatics/btl582](https://doi.org/10.1093/bioinformatics/btl582).
+- <a id="ref4">\[4\]</a> Dudek, Christian-Alexander, and Dieter Jahn. ‘PRODORIC: State-of-the-Art Database of Prokaryotic Gene Regulation’. Nucleic Acids Research 50, no. D1 (7 January 2022): D295–302. [doi:10.1093/nar/gkab1110](https://doi.org/10.1093/nar/gkab1110).

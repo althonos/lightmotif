@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 use std::str::FromStr;
 
 use nom::bytes::complete::is_a;

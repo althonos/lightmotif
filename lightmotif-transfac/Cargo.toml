@@ -1,13 +1,18 @@
 [package]
 name = "lightmotif-transfac"
 version = "0.1.0"
+authors = ["Martin Larralde <martin.larralde@embl.de>"]
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-nom = "7"
+license = "MIT"
+description = "TRANSFAC parser implementation for the lightmotif crate."
+repository = "https://github.com/althonos/lightmotif"
+homepage = "https://github.com/althonos/lightmotif"
+readme = "README.md"
+categories = ["science", "parser-implementations"]
+keywords = ["bioinformatics", "motif", "parser", "transfac"]
 
 [dependencies.lightmotif]
 path = "../lightmotif"
 version = "0.1.0"
+[dependencies]
+nom = "7"

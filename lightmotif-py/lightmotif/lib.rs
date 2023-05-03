@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 #[macro_use]
 extern crate pyo3_built;
 extern crate lightmotif;
