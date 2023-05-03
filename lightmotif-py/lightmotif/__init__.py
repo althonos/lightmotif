@@ -1,20 +1,12 @@
 __version__ = "0.1.0"
 
-
-import contextlib
-import archspec.cpu
-
-
-_host = archspec.cpu.host()
-
-
-if "avx2" in _host.features:
-    try:
-        from .avx2 import lib
-        from .avx2.lib import *
-    except ImportError:
-        from . import lib
-        from .lib import *
-else:
+try:
+    from .avx2 import lib
+    from .avx2.lib import *
+except ImportError:
     from . import lib
     from .lib import *
+
+__build__ = lib.__build__
+__doc__ = lib.__doc__
+__author__ = lib.__author__
