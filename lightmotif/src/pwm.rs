@@ -147,7 +147,6 @@ impl<A: Alphabet, const K: usize> FrequencyMatrix<A, K> {
         }
         WeightMatrix {
             background: bg,
-            alphabet: std::marker::PhantomData,
             data: weight,
         }
     }
@@ -166,7 +165,6 @@ impl<A: Alphabet, const K: usize> FrequencyMatrix<A, K> {
         }
         ScoringMatrix {
             background: bg,
-            alphabet: std::marker::PhantomData,
             data: weight,
         }
     }
@@ -183,7 +181,6 @@ impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<f32, K>> for FrequencyMatrix
 /// A matrix storing odds ratio of symbol occurences at each position.
 #[derive(Clone, Debug)]
 pub struct WeightMatrix<A: Alphabet, const K: usize> {
-    alphabet: std::marker::PhantomData<A>,
     background: Background<A, K>,
     data: DenseMatrix<f32, K>,
 }
@@ -206,6 +203,30 @@ impl<A: Alphabet, const K: usize> WeightMatrix<A, K> {
     pub fn background(&self) -> &Background<A, K> {
         &self.background
     }
+
+    /// Rescale this weight matrix with a different background.
+    pub fn rescale<B>(&self, background: B) -> Self
+    where
+        B: Into<Option<Background<A, K>>>,
+    {
+        let b = background.into().unwrap_or_default();
+        if b.frequencies() != self.background.frequencies() {
+            let old_freqs = self.background.frequencies();
+            let new_freqs = b.frequencies();
+            let mut data = self.data.clone();
+            for row in data.iter_mut() {
+                for j in 0..K {
+                    row[j] *= old_freqs[j] / new_freqs[j];
+                }
+            }
+            Self {
+                data,
+                background: b,
+            }
+        } else {
+            self.clone()
+        }
+    }
 }
 
 impl<A: Alphabet, const K: usize> AsRef<WeightMatrix<A, K>> for WeightMatrix<A, K> {
@@ -222,7 +243,6 @@ impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<f32, K>> for WeightMatrix<A,
 
 impl<A: Alphabet, const K: usize> From<ScoringMatrix<A, K>> for WeightMatrix<A, K> {
     fn from(pwm: ScoringMatrix<A, K>) -> Self {
-        let alphabet = pwm.alphabet;
         let background = pwm.background;
         let mut data = pwm.data;
         for row in data.iter_mut() {
@@ -230,11 +250,7 @@ impl<A: Alphabet, const K: usize> From<ScoringMatrix<A, K>> for WeightMatrix<A, 
                 *item = 2f32.powf(*item);
             }
         }
-        WeightMatrix {
-            alphabet,
-            background,
-            data,
-        }
+        WeightMatrix { background, data }
     }
 }
 
@@ -243,7 +259,6 @@ impl<A: Alphabet, const K: usize> From<ScoringMatrix<A, K>> for WeightMatrix<A, 
 /// A matrix storing odds ratio of symbol occurences at each position.
 #[derive(Clone, Debug)]
 pub struct ScoringMatrix<A: Alphabet, const K: usize> {
-    alphabet: std::marker::PhantomData<A>,
     background: Background<A, K>,
     data: DenseMatrix<f32, K>,
 }
@@ -282,7 +297,6 @@ impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<f32, K>> for ScoringMatrix<A
 
 impl<A: Alphabet, const K: usize> From<WeightMatrix<A, K>> for ScoringMatrix<A, K> {
     fn from(pwm: WeightMatrix<A, K>) -> Self {
-        let alphabet = pwm.alphabet;
         let background = pwm.background;
         let mut data = pwm.data;
         for row in data.iter_mut() {
@@ -290,10 +304,6 @@ impl<A: Alphabet, const K: usize> From<WeightMatrix<A, K>> for ScoringMatrix<A, 
                 *item = item.log2();
             }
         }
-        ScoringMatrix {
-            alphabet,
-            background,
-            data,
-        }
+        ScoringMatrix { background, data }
     }
 }
