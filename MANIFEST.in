@@ -1,0 +1,14 @@
+include setup.*
+include COPYING
+include CHANGELOG.md
+include README.md
+include pyproject.toml
+
+exclude Cargo.toml
+exclude Cargo.lock
+
+recursive-include lightmotif      *.rs Cargo.toml README.md
+recursive-include lightmotif-py*  *.rs Cargo.toml README.md *.py 
+
+include .cargo/config.toml
+recursive-include crates *

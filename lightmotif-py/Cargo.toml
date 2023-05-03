@@ -13,7 +13,7 @@ build = "build.rs"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-path = "lightmotif/lib/lib.rs"
+path = "lightmotif/lib.rs"
 
 [build-dependencies.built]
 version = "0.6"

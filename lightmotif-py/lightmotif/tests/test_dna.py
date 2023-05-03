@@ -25,8 +25,8 @@ EXPECTED = [
 class TestDNAMotif(unittest.TestCase):
 
     def test_calculate(self):
-        counts = lightmotif.create(["GTTGACCTTATCAAC", "GTTGATCCAGTCAAC"])
-        frequencies = counts.normalize(0.1)
+        motif = lightmotif.create(["GTTGACCTTATCAAC", "GTTGATCCAGTCAAC"])
+        frequencies = motif.counts.normalize(0.1)
         pssm = frequencies.log_odds()
 
         seq = lightmotif.EncodedSequence(SEQUENCE)

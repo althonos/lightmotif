@@ -86,11 +86,11 @@ class build_rust(_build_rust):
 
     def get_dylib_ext_path(self, ext, module_name):
         ext_path = _build_rust.get_dylib_ext_path(self, ext, module_name)
-        if self.inplace:
-            base = os.path.basename(ext_path)
-            folder = os.path.dirname(os.path.realpath(__file__))
-            prefix = os.path.sep.join(ext.name.split(".")[:-1])
-            ext_path = os.path.join(folder, prefix, base)
+        # if self.inplace:
+        #     base = os.path.basename(ext_path)
+        #     folder = os.path.dirname(os.path.realpath(__file__))
+        #     prefix = os.path.sep.join(ext.name.split(".")[:-1])
+        #     ext_path = os.path.join(folder, prefix, base)
         return ext_path
 
 
@@ -98,7 +98,7 @@ class build_rust(_build_rust):
 #       manifest file (this... works) so that the package version
 #       can be extracted from there and synchronized everywhere.
 parser = configparser.ConfigParser()
-parser.read(os.path.join(os.path.dirname(__file__), "Cargo.toml"))
+parser.read(os.path.join(os.path.dirname(__file__), "lightmotif-py", "Cargo.toml"))
 version = parser.get("package", "version").strip('"')
 
 setuptools.setup(
@@ -107,7 +107,7 @@ setuptools.setup(
     cmdclass=dict(sdist=sdist, build_rust=build_rust),
     rust_extensions=[rust.RustExtension(
         "lightmotif.lib",
-        path="Cargo.toml",
+        path=os.path.join("lightmotif-py", "Cargo.toml"),
         binding=rust.Binding.PyO3,
         strip=rust.Strip.Debug,
         features=["extension-module"],
