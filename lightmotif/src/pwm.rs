@@ -227,6 +227,18 @@ impl<A: Alphabet, const K: usize> WeightMatrix<A, K> {
             self.clone()
         }
     }
+
+    /// Get a position-specific scoring matrix from this position weight matrix.
+    pub fn to_scoring(&self) -> ScoringMatrix<A, K> {
+        let background = self.background.clone();
+        let mut data = self.data.clone();
+        for row in data.iter_mut() {
+            for item in row.iter_mut() {
+                *item = item.log2();
+            }
+        }
+        ScoringMatrix { background, data }
+    }
 }
 
 impl<A: Alphabet, const K: usize> AsRef<WeightMatrix<A, K>> for WeightMatrix<A, K> {
