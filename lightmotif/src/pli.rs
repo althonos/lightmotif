@@ -86,6 +86,80 @@ impl<A: Alphabet, const K: usize, const C: usize> Score<A, K, f32, C> for Pipeli
     }
 }
 
+// --- SSSE3 -------------------------------------------------------------------
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "ssse3")]
+unsafe fn score_ssse3(
+    seq: &StripedSequence<Dna, { std::mem::size_of::<__m128i>() }>,
+    pssm: &ScoringMatrix<Dna, { Dna::K }>,
+    scores: &mut StripedScores<{ std::mem::size_of::<__m128i>() }>,
+) {
+    // mask vectors for broadcasting uint8x16_t to uint32x4_t to floatx4_t
+    let m1 = _mm_set_epi32(
+        0xFFFFFF03u32 as i32,
+        0xFFFFFF02u32 as i32,
+        0xFFFFFF01u32 as i32,
+        0xFFFFFF00u32 as i32,
+    );
+    let m2 = _mm_set_epi32(
+        0xFFFFFF07u32 as i32,
+        0xFFFFFF06u32 as i32,
+        0xFFFFFF05u32 as i32,
+        0xFFFFFF04u32 as i32,
+    );
+    let m3 = _mm_set_epi32(
+        0xFFFFFF0Bu32 as i32,
+        0xFFFFFF0Au32 as i32,
+        0xFFFFFF09u32 as i32,
+        0xFFFFFF08u32 as i32,
+    );
+    let m4 = _mm_set_epi32(
+        0xFFFFFF0Fu32 as i32,
+        0xFFFFFF0Eu32 as i32,
+        0xFFFFFF0Du32 as i32,
+        0xFFFFFF0Cu32 as i32,
+    );
+    // process every position of the sequence data
+    for i in 0..seq.data.rows() - seq.wrap {
+        // reset sums for current position
+        let mut s1 = _mm_setzero_ps();
+        let mut s2 = _mm_setzero_ps();
+        let mut s3 = _mm_setzero_ps();
+        let mut s4 = _mm_setzero_ps();
+        // advance position in the position weight matrix
+        for j in 0..pssm.len() {
+            // load sequence row and broadcast to f32
+            let x = _mm_load_si128(seq.data[i + j].as_ptr() as *const __m128i);
+            let x1 = _mm_shuffle_epi8(x, m1);
+            let x2 = _mm_shuffle_epi8(x, m2);
+            let x3 = _mm_shuffle_epi8(x, m3);
+            let x4 = _mm_shuffle_epi8(x, m4);
+            // load row for current weight matrix position
+            let row = pssm.weights()[j].as_ptr();
+            // index lookup table with each bases incrementally
+            for i in 0..Dna::K {
+                let sym = _mm_set1_epi32(i as i32);
+                let lut = _mm_set1_ps(*row.add(i as usize));
+                let p1 = _mm_castsi128_ps(_mm_cmpeq_epi32(x1, sym));
+                let p2 = _mm_castsi128_ps(_mm_cmpeq_epi32(x2, sym));
+                let p3 = _mm_castsi128_ps(_mm_cmpeq_epi32(x3, sym));
+                let p4 = _mm_castsi128_ps(_mm_cmpeq_epi32(x4, sym));
+                s1 = _mm_add_ps(s1, _mm_and_ps(lut, p1));
+                s2 = _mm_add_ps(s2, _mm_and_ps(lut, p2));
+                s3 = _mm_add_ps(s3, _mm_and_ps(lut, p3));
+                s4 = _mm_add_ps(s4, _mm_and_ps(lut, p4));
+            }
+        }
+        // record the score for the current position
+        let row = &mut scores.data[i];
+        _mm_store_ps(row[0..].as_mut_ptr(), s1);
+        _mm_store_ps(row[4..].as_mut_ptr(), s2);
+        _mm_store_ps(row[8..].as_mut_ptr(), s3);
+        _mm_store_ps(row[12..].as_mut_ptr(), s4);
+    }
+}
+
 /// Intel 128-bit vector implementation, for 16 elements column width.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 impl Score<Dna, { Dna::K }, __m128, { std::mem::size_of::<__m128i>() }> for Pipeline<Dna, __m128> {
@@ -99,7 +173,6 @@ impl Score<Dna, { Dna::K }, __m128, { std::mem::size_of::<__m128i>() }> for Pipe
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
-        let result = &mut scores.data;
 
         if seq.wrap < pssm.len() - 1 {
             panic!(
@@ -107,77 +180,122 @@ impl Score<Dna, { Dna::K }, __m128, { std::mem::size_of::<__m128i>() }> for Pipe
                 pssm.len()
             );
         }
-        if result.rows() < (seq.data.rows() - seq.wrap) {
+        if scores.data.rows() < (seq.data.rows() - seq.wrap) {
             panic!("not enough rows for scores: {}", pssm.len());
         }
 
         scores.length = seq.length - pssm.len() + 1;
         unsafe {
-            // mask vectors for broadcasting uint8x16_t to uint32x4_t to floatx4_t
-            let m1 = _mm_set_epi32(
-                0xFFFFFF03u32 as i32,
-                0xFFFFFF02u32 as i32,
-                0xFFFFFF01u32 as i32,
-                0xFFFFFF00u32 as i32,
-            );
-            let m2 = _mm_set_epi32(
-                0xFFFFFF07u32 as i32,
-                0xFFFFFF06u32 as i32,
-                0xFFFFFF05u32 as i32,
-                0xFFFFFF04u32 as i32,
-            );
-            let m3 = _mm_set_epi32(
-                0xFFFFFF0Bu32 as i32,
-                0xFFFFFF0Au32 as i32,
-                0xFFFFFF09u32 as i32,
-                0xFFFFFF08u32 as i32,
-            );
-            let m4 = _mm_set_epi32(
-                0xFFFFFF0Fu32 as i32,
-                0xFFFFFF0Eu32 as i32,
-                0xFFFFFF0Du32 as i32,
-                0xFFFFFF0Cu32 as i32,
-            );
-            //
-            // process every position of the sequence data
-            for i in 0..seq.data.rows() - seq.wrap {
-                // reset sums for current position
-                let mut s1 = _mm_setzero_ps();
-                let mut s2 = _mm_setzero_ps();
-                let mut s3 = _mm_setzero_ps();
-                let mut s4 = _mm_setzero_ps();
-                // advance position in the position weight matrix
-                for j in 0..pssm.len() {
-                    // load sequence row and broadcast to f32
-                    let x = _mm_load_si128(seq.data[i + j].as_ptr() as *const __m128i);
-                    let x1 = _mm_shuffle_epi8(x, m1);
-                    let x2 = _mm_shuffle_epi8(x, m2);
-                    let x3 = _mm_shuffle_epi8(x, m3);
-                    let x4 = _mm_shuffle_epi8(x, m4);
-                    // load row for current weight matrix position
-                    let row = pssm.weights()[j].as_ptr();
-                    // index lookup table with each bases incrementally
-                    for i in 0..Dna::K {
-                        let sym = _mm_set1_epi32(i as i32);
-                        let lut = _mm_set1_ps(*row.add(i as usize));
-                        let p1 = _mm_castsi128_ps(_mm_cmpeq_epi32(x1, sym));
-                        let p2 = _mm_castsi128_ps(_mm_cmpeq_epi32(x2, sym));
-                        let p3 = _mm_castsi128_ps(_mm_cmpeq_epi32(x3, sym));
-                        let p4 = _mm_castsi128_ps(_mm_cmpeq_epi32(x4, sym));
-                        s1 = _mm_add_ps(s1, _mm_and_ps(lut, p1));
-                        s2 = _mm_add_ps(s2, _mm_and_ps(lut, p2));
-                        s3 = _mm_add_ps(s3, _mm_and_ps(lut, p3));
-                        s4 = _mm_add_ps(s4, _mm_and_ps(lut, p4));
-                    }
-                }
-                // record the score for the current position
-                let row = &mut result[i];
-                _mm_store_ps(row[0..].as_mut_ptr(), s1);
-                _mm_store_ps(row[4..].as_mut_ptr(), s2);
-                _mm_store_ps(row[8..].as_mut_ptr(), s3);
-                _mm_store_ps(row[12..].as_mut_ptr(), s4);
-            }
+            score_ssse3(seq, pssm, scores);
         }
+    }
+}
+
+// --- AVX2 --------------------------------------------------------------------
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx2")]
+unsafe fn score_avx2(
+    seq: &StripedSequence<Dna, { std::mem::size_of::<__m256i>() }>,
+    pssm: &ScoringMatrix<Dna, { Dna::K }>,
+    scores: &mut StripedScores<{ std::mem::size_of::<__m256i>() }>,
+) {
+    // constant vector for comparing unknown bases
+    let n = _mm256_set1_epi8(super::Nucleotide::N as i8);
+    // mask vectors for broadcasting uint8x32_t to uint32x8_t to floatx8_t
+    let m1 = _mm256_set_epi32(
+        0xFFFFFF03u32 as i32,
+        0xFFFFFF02u32 as i32,
+        0xFFFFFF01u32 as i32,
+        0xFFFFFF00u32 as i32,
+        0xFFFFFF03u32 as i32,
+        0xFFFFFF02u32 as i32,
+        0xFFFFFF01u32 as i32,
+        0xFFFFFF00u32 as i32,
+    );
+    let m2 = _mm256_set_epi32(
+        0xFFFFFF07u32 as i32,
+        0xFFFFFF06u32 as i32,
+        0xFFFFFF05u32 as i32,
+        0xFFFFFF04u32 as i32,
+        0xFFFFFF07u32 as i32,
+        0xFFFFFF06u32 as i32,
+        0xFFFFFF05u32 as i32,
+        0xFFFFFF04u32 as i32,
+    );
+    let m3 = _mm256_set_epi32(
+        0xFFFFFF0Bu32 as i32,
+        0xFFFFFF0Au32 as i32,
+        0xFFFFFF09u32 as i32,
+        0xFFFFFF08u32 as i32,
+        0xFFFFFF0Bu32 as i32,
+        0xFFFFFF0Au32 as i32,
+        0xFFFFFF09u32 as i32,
+        0xFFFFFF08u32 as i32,
+    );
+    let m4 = _mm256_set_epi32(
+        0xFFFFFF0Fu32 as i32,
+        0xFFFFFF0Eu32 as i32,
+        0xFFFFFF0Du32 as i32,
+        0xFFFFFF0Cu32 as i32,
+        0xFFFFFF0Fu32 as i32,
+        0xFFFFFF0Eu32 as i32,
+        0xFFFFFF0Du32 as i32,
+        0xFFFFFF0Cu32 as i32,
+    );
+    // process every position of the sequence data
+    for i in 0..seq.data.rows() - seq.wrap {
+        // reset sums for current position
+        let mut s1 = _mm256_setzero_ps();
+        let mut s2 = _mm256_setzero_ps();
+        let mut s3 = _mm256_setzero_ps();
+        let mut s4 = _mm256_setzero_ps();
+        // advance position in the position weight matrix
+        for j in 0..pssm.len() {
+            // load sequence row and broadcast to f32
+            let x = _mm256_load_si256(seq.data[i + j].as_ptr() as *const __m256i);
+            let x1 = _mm256_shuffle_epi8(x, m1);
+            let x2 = _mm256_shuffle_epi8(x, m2);
+            let x3 = _mm256_shuffle_epi8(x, m3);
+            let x4 = _mm256_shuffle_epi8(x, m4);
+            // load row for current weight matrix position
+            let row = pssm.weights()[j].as_ptr();
+            let c = _mm_load_ps(row);
+            let t = _mm256_set_m128(c, c);
+            let u = _mm256_set1_ps(*row.add(crate::abc::Nucleotide::N.as_index()));
+            // check which bases from the sequence are unknown
+            let mask = _mm256_cmpeq_epi8(x, n);
+            let unk1 = _mm256_castsi256_ps(_mm256_shuffle_epi8(mask, m1));
+            let unk2 = _mm256_castsi256_ps(_mm256_shuffle_epi8(mask, m2));
+            let unk3 = _mm256_castsi256_ps(_mm256_shuffle_epi8(mask, m3));
+            let unk4 = _mm256_castsi256_ps(_mm256_shuffle_epi8(mask, m4));
+            // index A/T/G/C lookup table with the bases
+            let p1 = _mm256_permutevar_ps(t, x1);
+            let p2 = _mm256_permutevar_ps(t, x2);
+            let p3 = _mm256_permutevar_ps(t, x3);
+            let p4 = _mm256_permutevar_ps(t, x4);
+            // blend together known and unknown scores
+            let b1 = _mm256_blendv_ps(p1, u, unk1);
+            let b2 = _mm256_blendv_ps(p2, u, unk2);
+            let b3 = _mm256_blendv_ps(p3, u, unk3);
+            let b4 = _mm256_blendv_ps(p4, u, unk4);
+            // add log odds to the running sum
+            s1 = _mm256_add_ps(s1, b1);
+            s2 = _mm256_add_ps(s2, b2);
+            s3 = _mm256_add_ps(s3, b3);
+            s4 = _mm256_add_ps(s4, b4);
+        }
+        // permute lanes so that scores are in the right order
+        let r1 = _mm256_permute2f128_ps(s1, s2, 0x20);
+        let r2 = _mm256_permute2f128_ps(s3, s4, 0x20);
+        let r3 = _mm256_permute2f128_ps(s1, s2, 0x31);
+        let r4 = _mm256_permute2f128_ps(s3, s4, 0x31);
+        // record the score for the current position
+        let row = &mut scores.data[i];
+        _mm256_store_ps(row[0x00..].as_mut_ptr(), r1);
+        _mm256_store_ps(row[0x08..].as_mut_ptr(), r2);
+        _mm256_store_ps(row[0x10..].as_mut_ptr(), r3);
+        _mm256_store_ps(row[0x18..].as_mut_ptr(), r4);
     }
 }
 
@@ -208,103 +326,7 @@ impl Score<Dna, { Dna::K }, __m256, { std::mem::size_of::<__m256i>() }> for Pipe
 
         scores.length = seq.length - pssm.len() + 1;
         unsafe {
-            // constant vector for comparing unknown bases
-            let n = _mm256_set1_epi8(super::Nucleotide::N as i8);
-            // mask vectors for broadcasting uint8x32_t to uint32x8_t to floatx8_t
-            let m1 = _mm256_set_epi32(
-                0xFFFFFF03u32 as i32,
-                0xFFFFFF02u32 as i32,
-                0xFFFFFF01u32 as i32,
-                0xFFFFFF00u32 as i32,
-                0xFFFFFF03u32 as i32,
-                0xFFFFFF02u32 as i32,
-                0xFFFFFF01u32 as i32,
-                0xFFFFFF00u32 as i32,
-            );
-            let m2 = _mm256_set_epi32(
-                0xFFFFFF07u32 as i32,
-                0xFFFFFF06u32 as i32,
-                0xFFFFFF05u32 as i32,
-                0xFFFFFF04u32 as i32,
-                0xFFFFFF07u32 as i32,
-                0xFFFFFF06u32 as i32,
-                0xFFFFFF05u32 as i32,
-                0xFFFFFF04u32 as i32,
-            );
-            let m3 = _mm256_set_epi32(
-                0xFFFFFF0Bu32 as i32,
-                0xFFFFFF0Au32 as i32,
-                0xFFFFFF09u32 as i32,
-                0xFFFFFF08u32 as i32,
-                0xFFFFFF0Bu32 as i32,
-                0xFFFFFF0Au32 as i32,
-                0xFFFFFF09u32 as i32,
-                0xFFFFFF08u32 as i32,
-            );
-            let m4 = _mm256_set_epi32(
-                0xFFFFFF0Fu32 as i32,
-                0xFFFFFF0Eu32 as i32,
-                0xFFFFFF0Du32 as i32,
-                0xFFFFFF0Cu32 as i32,
-                0xFFFFFF0Fu32 as i32,
-                0xFFFFFF0Eu32 as i32,
-                0xFFFFFF0Du32 as i32,
-                0xFFFFFF0Cu32 as i32,
-            );
-            // process every position of the sequence data
-            for i in 0..seq.data.rows() - seq.wrap {
-                // reset sums for current position
-                let mut s1 = _mm256_setzero_ps();
-                let mut s2 = _mm256_setzero_ps();
-                let mut s3 = _mm256_setzero_ps();
-                let mut s4 = _mm256_setzero_ps();
-                // advance position in the position weight matrix
-                for j in 0..pssm.len() {
-                    // load sequence row and broadcast to f32
-                    let x = _mm256_load_si256(seq.data[i + j].as_ptr() as *const __m256i);
-                    let x1 = _mm256_shuffle_epi8(x, m1);
-                    let x2 = _mm256_shuffle_epi8(x, m2);
-                    let x3 = _mm256_shuffle_epi8(x, m3);
-                    let x4 = _mm256_shuffle_epi8(x, m4);
-                    // load row for current weight matrix position
-                    let row = pssm.weights()[j].as_ptr();
-                    let c = _mm_load_ps(row);
-                    let t = _mm256_set_m128(c, c);
-                    let u = _mm256_set1_ps(*row.add(crate::abc::Nucleotide::N.as_index()));
-                    // check which bases from the sequence are unknown
-                    let mask = _mm256_cmpeq_epi8(x, n);
-                    let unk1 = _mm256_castsi256_ps(_mm256_shuffle_epi8(mask, m1));
-                    let unk2 = _mm256_castsi256_ps(_mm256_shuffle_epi8(mask, m2));
-                    let unk3 = _mm256_castsi256_ps(_mm256_shuffle_epi8(mask, m3));
-                    let unk4 = _mm256_castsi256_ps(_mm256_shuffle_epi8(mask, m4));
-                    // index A/T/G/C lookup table with the bases
-                    let p1 = _mm256_permutevar_ps(t, x1);
-                    let p2 = _mm256_permutevar_ps(t, x2);
-                    let p3 = _mm256_permutevar_ps(t, x3);
-                    let p4 = _mm256_permutevar_ps(t, x4);
-                    // blend together known and unknown scores
-                    let b1 = _mm256_blendv_ps(p1, u, unk1);
-                    let b2 = _mm256_blendv_ps(p2, u, unk2);
-                    let b3 = _mm256_blendv_ps(p3, u, unk3);
-                    let b4 = _mm256_blendv_ps(p4, u, unk4);
-                    // add log odds to the running sum
-                    s1 = _mm256_add_ps(s1, b1);
-                    s2 = _mm256_add_ps(s2, b2);
-                    s3 = _mm256_add_ps(s3, b3);
-                    s4 = _mm256_add_ps(s4, b4);
-                }
-                // permute lanes so that scores are in the right order
-                let r1 = _mm256_permute2f128_ps(s1, s2, 0x20);
-                let r2 = _mm256_permute2f128_ps(s3, s4, 0x20);
-                let r3 = _mm256_permute2f128_ps(s1, s2, 0x31);
-                let r4 = _mm256_permute2f128_ps(s3, s4, 0x31);
-                // record the score for the current position
-                let row = &mut result[i];
-                _mm256_store_ps(row[0x00..].as_mut_ptr(), r1);
-                _mm256_store_ps(row[0x08..].as_mut_ptr(), r2);
-                _mm256_store_ps(row[0x10..].as_mut_ptr(), r3);
-                _mm256_store_ps(row[0x18..].as_mut_ptr(), r4);
-            }
+            score_avx2(seq, pssm, scores);
         }
     }
 }
