@@ -38,6 +38,13 @@ pub fn main() -> PyResult<()> {
             .downcast::<PyDict>()?
             .set_item("lightmotif.lib", module)?;
 
+        // create a Python module from our rust code with debug symbols
+        let arch = PyModule::new(py, "lightmotif.arch")?;
+        arch.add("AVX2_SUPPORTED", false)?;
+        sys.getattr("modules")?
+            .downcast::<PyDict>()?
+            .set_item("lightmotif.arch", arch)?;
+
         // run unittest on the tests
         let kwargs = PyDict::new(py);
         kwargs.set_item("exit", false).unwrap();
