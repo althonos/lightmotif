@@ -6,6 +6,7 @@
 [![Coverage](https://img.shields.io/codecov/c/gh/althonos/lightmotif?logo=codecov&style=flat-square&maxAge=3600)](https://codecov.io/gh/althonos/lightmotif/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square&maxAge=2678400)](https://choosealicense.com/licenses/mit/)
 [![Crate](https://img.shields.io/crates/v/lightmotif-transfac.svg?maxAge=600&style=flat-square)](https://crates.io/crates/lightmotif-transfac)
+[![Docs](https://img.shields.io/docsrs/lightmotif-transfac?maxAge=600&style=flat-square)](https://docs.rs/lightmotif-transfac)
 [![Source](https://img.shields.io/badge/source-GitHub-303030.svg?maxAge=2678400&style=flat-square)](https://github.com/althonos/lightmotif/tree/main/lightmotif-transfac)
 [![Mirror](https://img.shields.io/badge/mirror-EMBL-009f4d?style=flat-square&maxAge=2678400)](https://git.embl.de/larralde/lightmotif/)
 [![GitHub issues](https://img.shields.io/github/issues/althonos/lightmotif.svg?style=flat-square&maxAge=600)](https://github.com/althonos/lightmotif/issues)
