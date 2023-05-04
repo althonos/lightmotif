@@ -1,0 +1,19 @@
+[workspace]
+
+[package]
+name = "arch"
+version = "0.0.1"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "lib.rs"
+
+[dependencies]
+pyo3 = "*"
+
+[features]
+default = []
+built = []
+extension-module = ["pyo3/extension-module"]
+nightly = ["pyo3/nightly"]

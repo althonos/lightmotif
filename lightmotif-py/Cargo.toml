@@ -24,7 +24,7 @@ pyo3 = "0.18.3"
 [features]
 default = []
 built = []
-extension-module = ["pyo3/extension-module", "built"]
+extension-module = ["pyo3/extension-module"]
 nightly = ["pyo3/nightly"]
 
 [[test]]

@@ -131,12 +131,19 @@ class build_rust(_build_rust):
 
 RUST_EXTENSIONS = [
     rust.RustExtension(
+        "lightmotif.arch",
+        path=os.path.join("lightmotif-py", "lightmotif", "arch", "Cargo.toml"),
+        binding=rust.Binding.PyO3,
+        strip=rust.Strip.Debug,
+        features=["extension-module"],
+    ),
+    rust.RustExtension(
         "lightmotif.lib",
         path=os.path.join("lightmotif-py", "Cargo.toml"),
         binding=rust.Binding.PyO3,
         strip=rust.Strip.Debug,
         features=["extension-module"],
-    )
+    ),
 ]
 
 if re.match("(x86_64)|(x86)|(AMD64|amd64)|(^i.86$)", MACHINE):

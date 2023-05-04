@@ -1,11 +1,22 @@
 __version__ = "0.1.0"
 
-try:
-    from .avx2 import lib
-    from .avx2.lib import *
-except ImportError:
-    from . import lib
-    from .lib import *
+from . import arch
+from .lib import __doc__, __author__
+from .lib import (
+    EncodedSequence,
+    StripedSequence,
+    CountMatrix,
+    WeightMatrix,
+    ScoringMatrix,
+    create,
+)
 
-__doc__ = lib.__doc__
-__author__ = lib.__author__
+if arch.AVX2_SUPPORTED:
+    from .avx2.lib import (
+        EncodedSequence,
+        StripedSequence,
+        CountMatrix,
+        WeightMatrix,
+        ScoringMatrix,
+        create,
+    )
