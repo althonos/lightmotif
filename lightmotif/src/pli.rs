@@ -1,4 +1,4 @@
-#[cfg(any(target_feature = "ssse3", doc))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use std::arch::x86_64::*;
 
 use std::ops::Index;
@@ -19,10 +19,10 @@ mod seal {
 
     impl Vector for f32 {}
 
-    #[cfg(target_feature = "avx2")]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     impl Vector for std::arch::x86_64::__m256 {}
 
-    #[cfg(target_feature = "ssse3")]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     impl Vector for std::arch::x86_64::__m128 {}
 }
 
@@ -87,7 +87,7 @@ impl<A: Alphabet, const K: usize, const C: usize> Score<A, K, f32, C> for Pipeli
 }
 
 /// Intel 128-bit vector implementation, for 16 elements column width.
-#[cfg(any(target_feature = "ssse3", doc))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 impl Score<Dna, { Dna::K }, __m128, { std::mem::size_of::<__m128i>() }> for Pipeline<Dna, __m128> {
     fn score_into<S, M>(
         seq: S,
@@ -181,7 +181,8 @@ impl Score<Dna, { Dna::K }, __m128, { std::mem::size_of::<__m128i>() }> for Pipe
     }
 }
 
-#[cfg(any(target_feature = "avx2", doc))]
+/// Intel 256-bit vector implementation, for 32 elements column width.
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 impl Score<Dna, { Dna::K }, __m256, { std::mem::size_of::<__m256i>() }> for Pipeline<Dna, __m256> {
     fn score_into<S, M>(
         seq: S,
