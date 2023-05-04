@@ -3,10 +3,10 @@
 extern crate lightmotif;
 extern crate pyo3;
 
-#[cfg(target_feature = "avx2")]
+#[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::__m256;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use std::arch::x86_64::__m256i;
+#[cfg(target_arch = "x86")]
+use std::arch::x86_64::__m256;
 
 use lightmotif as lm;
 use lightmotif::Alphabet;
@@ -16,7 +16,6 @@ use lightmotif::Symbol;
 
 use pyo3::exceptions::PyBufferError;
 use pyo3::exceptions::PyIndexError;
-use pyo3::exceptions::PyRuntimeError;
 use pyo3::exceptions::PyTypeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::ffi::Py_ssize_t;
@@ -28,7 +27,7 @@ use pyo3::AsPyPointer;
 // --- Compile-time constants --------------------------------------------------
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-const C: usize = std::mem::size_of::<__m256i>();
+const C: usize = std::mem::size_of::<__m256>();
 #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
 const C: usize = 1;
 
@@ -174,6 +173,15 @@ impl From<lm::WeightMatrix<lm::Dna, { lm::Dna::K }>> for WeightMatrix {
 
 // --- ScoringMatrix -----------------------------------------------------------
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx2")]
+unsafe fn calculate_avx2(
+    seq: &lm::StripedSequence<lm::Dna, { std::mem::size_of::<__m256>() }>,
+    pssm: &lm::ScoringMatrix<lm::Dna, { lm::Dna::K }>,
+) -> lm::StripedScores<{ std::mem::size_of::<__m256>() }> {
+    Pipeline::<lm::Dna, __m256>::score(seq, pssm)
+}
+
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct ScoringMatrix {
@@ -191,9 +199,9 @@ impl ScoringMatrix {
         sequence.data.configure(pssm);
 
         let scores = slf.py().allow_threads(|| {
-            #[cfg(target_feature = "avx2")]
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             if std::is_x86_feature_detected!("avx2") {
-                return Pipeline::<lm::Dna, __m256>::score(&sequence.data, pssm);
+                return unsafe { calculate_avx2(&sequence.data, pssm) };
             }
             Pipeline::<lm::Dna, f32>::score(&sequence.data, pssm)
         });
@@ -340,10 +348,15 @@ fn create<'py>(sequences: &'py PyAny) -> PyResult<Motif> {
 /// The API is similar to the `Bio.motifs` module from Biopython on purpose.
 #[pymodule]
 #[pyo3(name = "lib")]
-pub fn init(py: Python, m: &PyModule) -> PyResult<()> {
+pub fn init(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add("__package__", "lightmotif")?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add("__author__", env!("CARGO_PKG_AUTHORS").replace(':', "\n"))?;
+
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    m.add("AVX2_SUPPORTED", std::is_x86_feature_detected!("avx2"))?;
+    #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+    m.add("AVX2_SUPPORTED", false)?;
 
     m.add_class::<EncodedSequence>()?;
     m.add_class::<StripedSequence>()?;
@@ -353,14 +366,6 @@ pub fn init(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<ScoringMatrix>()?;
 
     m.add_function(wrap_pyfunction!(create, m)?)?;
-
-    // If compiled in AVX2 mode, check that AVX2 is supported by the CPU
-    #[cfg(target_feature = "avx2")]
-    if !std::is_x86_feature_detected!("avx2") {
-        return Err(PyRuntimeError::new_err(
-            "Importing AVX2 extension on machine without AVX2 support",
-        ));
-    }
 
     Ok(())
 }

@@ -128,40 +128,17 @@ class build_rust(_build_rust):
 
 # --- Setup ---------------------------------------------------------------------
 
-
-RUST_EXTENSIONS = [
-    rust.RustExtension(
-        "lightmotif.arch",
-        path=os.path.join("lightmotif-py", "lightmotif", "arch", "Cargo.toml"),
-        binding=rust.Binding.PyO3,
-        strip=rust.Strip.Debug,
-        features=["extension-module"],
-    ),
-    rust.RustExtension(
-        "lightmotif.lib",
-        path=os.path.join("lightmotif-py", "Cargo.toml"),
-        binding=rust.Binding.PyO3,
-        strip=rust.Strip.Debug,
-        features=["extension-module"],
-    ),
-]
-
-if re.match("(x86_64)|(x86)|(AMD64|amd64)|(^i.86$)", MACHINE):
-    RUST_EXTENSIONS.append(
-        rust.RustExtension(
-            "lightmotif.avx2.lib",
-            path=os.path.join("lightmotif-py", "Cargo.toml"),
-            binding=rust.Binding.PyO3,
-            strip=rust.Strip.Debug,
-            features=["extension-module"],
-            rustc_flags=["-Ctarget-feature=+avx2"],
-            optional=True,
-        ),
-    )
-
 setuptools.setup(
     setup_requires=["setuptools", "setuptools_rust"],
     cmdclass=dict(sdist=sdist, build_rust=build_rust),
     package_dir={"": "lightmotif-py"},
-    rust_extensions=RUST_EXTENSIONS,
+    rust_extensions=[
+        rust.RustExtension(
+            "lightmotif.lib",
+            path=os.path.join("lightmotif-py", "Cargo.toml"),
+            binding=rust.Binding.PyO3,
+            strip=rust.Strip.Debug,
+            features=["extension-module"],
+        ),
+    ],
 )
