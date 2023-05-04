@@ -118,11 +118,12 @@ class build_rust(_build_rust):
 
     def get_dylib_ext_path(self, ext, module_name):
         ext_path = _build_rust.get_dylib_ext_path(self, ext, module_name)
-        # if self.inplace:
-        #     base = os.path.basename(ext_path)
-        #     folder = os.path.dirname(os.path.realpath(__file__))
-        #     prefix = os.path.sep.join(ext.name.split(".")[:-1])
-        #     ext_path = os.path.join(folder, prefix, base)
+        if self.inplace:
+            package_dir = self.distribution.package_dir['']
+            base = os.path.basename(ext_path)
+            folder = os.path.dirname(os.path.realpath(__file__))
+            prefix = os.path.sep.join(ext.name.split(".")[:-1])
+            ext_path = os.path.join(folder, package_dir, prefix, base)
         return ext_path
 
 

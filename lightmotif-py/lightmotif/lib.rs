@@ -173,15 +173,6 @@ impl From<lm::WeightMatrix<lm::Dna, { lm::Dna::K }>> for WeightMatrix {
 
 // --- ScoringMatrix -----------------------------------------------------------
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[target_feature(enable = "avx2")]
-unsafe fn calculate_avx2(
-    seq: &lm::StripedSequence<lm::Dna, { std::mem::size_of::<__m256>() }>,
-    pssm: &lm::ScoringMatrix<lm::Dna, { lm::Dna::K }>,
-) -> lm::StripedScores<{ std::mem::size_of::<__m256>() }> {
-    Pipeline::<lm::Dna, __m256>::score(seq, pssm)
-}
-
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct ScoringMatrix {
@@ -196,14 +187,15 @@ impl ScoringMatrix {
         sequence: &mut StripedSequence,
     ) -> PyResult<StripedScores> {
         let pssm = &slf.data;
-        sequence.data.configure(pssm);
+        let seq = &mut sequence.data;
+        seq.configure(pssm);
 
         let scores = slf.py().allow_threads(|| {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             if std::is_x86_feature_detected!("avx2") {
-                return unsafe { calculate_avx2(&sequence.data, pssm) };
+                return Pipeline::<lm::Dna, __m256>::score(seq, pssm);
             }
-            Pipeline::<lm::Dna, f32>::score(&sequence.data, pssm)
+            Pipeline::<lm::Dna, f32>::score(seq, pssm)
         });
 
         Ok(StripedScores::from(scores))
