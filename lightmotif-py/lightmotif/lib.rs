@@ -1,7 +1,5 @@
 #![doc = include_str!("../README.md")]
 
-#[macro_use]
-extern crate pyo3_built;
 extern crate lightmotif;
 extern crate pyo3;
 
@@ -26,11 +24,6 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::types::PyString;
 use pyo3::AsPyPointer;
-
-#[allow(dead_code)]
-mod build {
-    include!(concat!(env!("OUT_DIR"), "/built.rs"));
-}
 
 // --- Compile-time constants --------------------------------------------------
 
@@ -351,7 +344,6 @@ pub fn init(py: Python, m: &PyModule) -> PyResult<()> {
     m.add("__package__", "lightmotif")?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add("__author__", env!("CARGO_PKG_AUTHORS").replace(':', "\n"))?;
-    m.add("__build__", pyo3_built!(py, build))?;
 
     m.add_class::<EncodedSequence>()?;
     m.add_class::<StripedSequence>()?;

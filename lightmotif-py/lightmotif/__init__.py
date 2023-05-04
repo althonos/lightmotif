@@ -7,6 +7,5 @@ except ImportError:
     from . import lib
     from .lib import *
 
-__build__ = lib.__build__
 __doc__ = lib.__doc__
 __author__ = lib.__author__
