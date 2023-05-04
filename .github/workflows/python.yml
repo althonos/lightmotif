@@ -36,6 +36,7 @@ jobs:
         CIBW_BEFORE_BUILD: "pip install setuptools-rust"
         CIBW_BUILD_VERBOSITY: 2
         CIBW_ENVIRONMENT: CARGO_NET_GIT_FETCH_WITH_CLI=true
+        CIBW_TEST_COMMAND: python -m unittest lightmotif.tests
       with:
         output-dir: dist
     - uses: actions/upload-artifact@v3
@@ -72,6 +73,7 @@ jobs:
         CIBW_BEFORE_BUILD: "pip install setuptools-rust"
         CIBW_BUILD_VERBOSITY: 2
         CIBW_ENVIRONMENT: CARGO_NET_GIT_FETCH_WITH_CLI=true
+        CIBW_TEST_COMMAND: python -m unittest lightmotif.tests
       with:
         output-dir: dist
     - uses: actions/upload-artifact@v3
@@ -108,6 +110,7 @@ jobs:
         CIBW_BEFORE_BUILD: "pip install setuptools-rust"
         CIBW_BUILD_VERBOSITY: 2
         CIBW_ENVIRONMENT: CARGO_NET_GIT_FETCH_WITH_CLI=true
+        CIBW_TEST_COMMAND: python -m unittest lightmotif.tests
       with:
         output-dir: dist
     - uses: actions/upload-artifact@v3
@@ -142,6 +145,7 @@ jobs:
         CIBW_BEFORE_BUILD: "pip install setuptools-rust"
         CIBW_BUILD_VERBOSITY: 2
         CIBW_ENVIRONMENT: CARGO_NET_GIT_FETCH_WITH_CLI=true
+        CIBW_TEST_COMMAND: python -m unittest lightmotif.tests
       with:
         output-dir: dist
     - uses: actions/upload-artifact@v3
@@ -176,6 +180,7 @@ jobs:
         CIBW_BUILD: ${{ matrix.python-tag }}
         CIBW_BEFORE_BUILD: "pip install setuptools-rust"
         CIBW_BUILD_VERBOSITY: 2
+        CIBW_TEST_COMMAND: python -m unittest lightmotif.tests
       with:
         output-dir: dist
     - uses: actions/upload-artifact@v3
