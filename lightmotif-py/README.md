@@ -98,9 +98,8 @@ motif from [PRODORIC](https://www.prodoric.de/)[\[4\]](#ref4), and the
 *Benchmarks were run on a [i7-10710U CPU](https://ark.intel.com/content/www/us/en/ark/products/196448/intel-core-i7-10710u-processor-12m-cache-up-to-4-70-ghz.html) running @1.10GHz, compiled with `--target-cpu=native`*.
 
 ```console
-lightmotif (avx2):      26,528,740 ns/iter (+/- 14,817,953) = 166.9 MiB/s
-lightmotif (generic):  654,599,309 ns/iter (+/- 81,292,868) =   6.8 MiB/s
-Bio.motifs:            526,309,061 ns/iter (+/- 45,603,991) =   8.4 MiB/s
+lightmotif (avx2):      9,125,495 ns/iter    (+/- 6,392,241) = 485.1 MiB/s
+Bio.motifs:           284,696,651 ns/iter    (+/- 6,454,945) =  15.5 MiB/s
 ```
 
 

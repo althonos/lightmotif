@@ -17,6 +17,7 @@ use lightmotif::CountMatrix;
 use lightmotif::Dna;
 use lightmotif::EncodedSequence;
 use lightmotif::Pipeline;
+use lightmotif::Score;
 use lightmotif::StripedScores;
 
 const SEQUENCE: &'static str = include_str!("../lightmotif/benches/ecoli.txt");
@@ -37,11 +38,10 @@ fn bench_generic(bencher: &mut test::Bencher) {
     let pssm = pbm.to_scoring(bg);
 
     striped.configure(&pssm);
-    let pli = Pipeline::<_, f32>::new();
     let mut scores = StripedScores::new_for(&striped, &pssm);
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
-        pli.score_into(&striped, &pssm, &mut scores);
+        Pipeline::<_, f32>::score_into(&striped, &pssm, &mut scores);
         test::black_box(scores.argmax());
     });
 }
@@ -63,12 +63,10 @@ fn bench_sse2(bencher: &mut test::Bencher) {
     let pssm = pbm.to_scoring(bg);
 
     striped.configure(&pssm);
-    let pli = Pipeline::<_, __m128>::new();
-
     let mut scores = StripedScores::new_for(&striped, &pssm);
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
-        pli.score_into(&striped, &pssm, &mut scores);
+        Pipeline::<_, __m128>::score_into(&striped, &pssm, &mut scores);
         test::black_box(scores.argmax());
     });
 }
@@ -90,12 +88,10 @@ fn bench_avx2(bencher: &mut test::Bencher) {
     let pssm = pbm.to_scoring(bg);
 
     striped.configure(&pssm);
-    let pli = Pipeline::<_, __m256>::new();
-
     let mut scores = StripedScores::new_for(&striped, &pssm);
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
-        pli.score_into(&striped, &pssm, &mut scores);
+        Pipeline::<_, __m256>::score_into(&striped, &pssm, &mut scores);
         test::black_box(scores.argmax());
     });
 }
