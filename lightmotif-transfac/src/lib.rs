@@ -1,6 +1,8 @@
 #![doc = include_str!("../README.md")]
 #![allow(unused)]
 
+extern crate memchr;
+
 use nom::branch::alt;
 use nom::bytes::complete::is_a;
 use nom::bytes::complete::tag;
@@ -35,25 +37,15 @@ pub struct TransfacMatrix<A: Alphabet, const K: usize> {
     counts: CountMatrix<A, K>,
 }
 
-mod utils {
-    use nom::branch::alt;
-    use nom::character::complete::line_ending;
-    use nom::character::complete::not_line_ending;
-    use nom::combinator::eof;
-    use nom::combinator::map_res;
-    use nom::sequence::delimited;
-    use nom::sequence::terminated;
-    use nom::IResult;
-
-    use std::str::FromStr;
-
-    pub fn is_newline(c: char) -> bool {
-        c == '\r' || c == '\n'
-    }
-}
-
 fn parse_line(input: &str) -> IResult<&str, &str> {
-    terminated(take_till(utils::is_newline), line_ending)(input)
+    match memchr::memchr(b'\n', input.as_bytes()) {
+        None => Err(nom::Err::Error(Error::new(input, ErrorKind::Verify))),
+        Some(i) if i == input.len() => Ok(("", input)),
+        Some(i) => {
+            let (line, rest) = input.split_at(i + 1);
+            Ok((rest, line))
+        }
+    }
 }
 
 fn parse_ac(input: &str) -> IResult<&str, &str> {
@@ -92,9 +84,9 @@ fn parse_row(input: &str, k: usize) -> IResult<&str, Vec<u32>> {
 
 fn parse_tag(input: &str) -> IResult<&str, &str> {
     nom::branch::alt((
-        tag("XX"),
-        tag("ID"),
         tag("BF"),
+        tag("ID"),
+        tag("XX"),
         tag("P0"),
         tag("PO"),
         tag("//"),

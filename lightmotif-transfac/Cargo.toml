@@ -16,3 +16,4 @@ path = "../lightmotif"
 version = "0.1.1"
 [dependencies]
 nom = "7"
+memchr = "2"
