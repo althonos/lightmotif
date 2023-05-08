@@ -1,19 +1,29 @@
 #![doc = include_str!("../README.md")]
+#![allow(unused)]
 
-use std::str::FromStr;
-
+use nom::branch::alt;
 use nom::bytes::complete::is_a;
 use nom::bytes::complete::tag;
 use nom::bytes::complete::take_till;
+use nom::bytes::complete::take_until;
 use nom::bytes::complete::take_while;
 use nom::bytes::complete::take_while1;
+use nom::character::complete::anychar;
+use nom::character::complete::line_ending;
+use nom::character::complete::not_line_ending;
+use nom::character::complete::space0;
+use nom::character::streaming::space1;
 use nom::combinator::eof;
 use nom::combinator::map_res;
 use nom::error::Error;
 use nom::error::ErrorKind;
 use nom::multi::count;
+use nom::multi::many1;
 use nom::multi::many_till;
+use nom::multi::separated_list1;
 use nom::sequence::delimited;
+use nom::sequence::preceded;
+use nom::sequence::terminated;
 use nom::IResult;
 
 use lightmotif::Alphabet;
@@ -21,94 +31,122 @@ use lightmotif::CountMatrix;
 use lightmotif::DenseMatrix;
 use lightmotif::Symbol;
 
-fn is_newline(c: char) -> bool {
-    c == '\r' || c == '\n'
+pub struct TransfacMatrix<A: Alphabet, const K: usize> {
+    counts: CountMatrix<A, K>,
 }
 
-fn is_space(c: char) -> bool {
-    c == '\t' || c == ' '
+mod utils {
+    use nom::branch::alt;
+    use nom::character::complete::line_ending;
+    use nom::character::complete::not_line_ending;
+    use nom::combinator::eof;
+    use nom::combinator::map_res;
+    use nom::sequence::delimited;
+    use nom::sequence::terminated;
+    use nom::IResult;
+
+    use std::str::FromStr;
+
+    pub fn is_newline(c: char) -> bool {
+        c == '\r' || c == '\n'
+    }
 }
 
-fn is_digit(c: char) -> bool {
-    c.is_digit(10)
+fn parse_line(input: &str) -> IResult<&str, &str> {
+    terminated(take_till(utils::is_newline), line_ending)(input)
 }
 
-fn parse_integer<N: FromStr>(input: &str) -> IResult<&str, N> {
-    map_res(take_while1(is_digit), N::from_str)(input)
+fn parse_ac(input: &str) -> IResult<&str, &str> {
+    let (input, line) = preceded(tag("AC"), parse_line)(input)?;
+    Ok((input, line.trim()))
 }
 
 fn parse_id(input: &str) -> IResult<&str, &str> {
-    let (input, _) = tag("ID")(input)?;
-    let (input, _) = take_while1(is_space)(input)?;
-    let (input, id) = take_till(is_newline)(input)?;
-    let (input, _) = take_while1(is_newline)(input)?;
-    Ok((input, id))
+    let (input, line) = preceded(tag("ID"), parse_line)(input)?;
+    Ok((input, line.trim()))
 }
 
-fn parse_species(input: &str) -> IResult<&str, &str> {
-    let (input, _) = tag("BF")(input)?;
-    let (input, _) = take_while1(is_space)(input)?;
-    let (input, species) = take_till(is_newline)(input)?;
-    let (input, _) = take_while1(is_newline)(input)?;
-    Ok((input, species))
-}
-
-fn parse_symbol<S: Symbol>(input: &str) -> IResult<&str, S> {
-    if let Some(c) = input.chars().nth(0) {
-        match S::from_char(c) {
-            Ok(s) => Ok((&input[1..], s)),
-            Err(_) => Err(nom::Err::Failure(Error::new(input, ErrorKind::MapRes))),
-        }
-    } else {
-        Err(nom::Err::Error(Error::new(input, ErrorKind::Eof)))
-    }
+fn parse_bf(input: &str) -> IResult<&str, &str> {
+    let (input, line) = preceded(tag("BF"), parse_line)(input)?;
+    Ok((input, line.trim()))
 }
 
 fn parse_alphabet<S: Symbol>(input: &str) -> IResult<&str, Vec<S>> {
-    let (input, _) = tag("P0")(input)?;
-    let (input, _) = take_while1(is_space)(input)?;
-    let (input, (symbols, _)) = many_till(
-        delimited(take_while(is_space), parse_symbol, take_while(is_space)),
-        is_a("\n\r"),
-    )(input)?;
-    let (input, _) = take_while(is_newline)(input)?;
-    Ok((input, symbols))
+    delimited(
+        alt((tag("PO"), tag("P0"))),
+        preceded(
+            space1,
+            separated_list1(space1, map_res(anychar, S::from_char)),
+        ),
+        line_ending,
+    )(input)
 }
 
 fn parse_row(input: &str, k: usize) -> IResult<&str, Vec<u32>> {
-    let (input, _) = take_while1(char::is_numeric)(input)?;
-    let (input, _) = take_while1(char::is_whitespace)(input)?;
-    let (input, counts) = count(
-        delimited(
-            take_while(is_space),
-            parse_integer::<u32>,
-            take_while(is_space),
-        ),
-        k,
-    )(input)?;
-    let (input, _) = take_till(is_newline)(input)?;
-    let (input, _) = take_while1(is_newline)(input)?;
-    Ok((input, counts))
+    delimited(
+        nom::character::complete::u32,
+        count(delimited(space0, nom::character::complete::u32, space0), k),
+        parse_line,
+    )(input)
 }
 
-pub fn parse_matrix<A: Alphabet, const K: usize>(input: &str) -> IResult<&str, CountMatrix<A, K>> {
-    let (input, _id) = parse_id(input)?;
-    let (input, _) = parse_species(input)?;
-    let (input, symbols) = parse_alphabet::<A::Symbol>(input)?;
-    let (input, (counts, _)) = many_till(|i| parse_row(i, symbols.len()), tag("XX"))(input)?;
+fn parse_tag(input: &str) -> IResult<&str, &str> {
+    nom::branch::alt((
+        tag("XX"),
+        tag("ID"),
+        tag("BF"),
+        tag("P0"),
+        tag("PO"),
+        tag("//"),
+    ))(input)
+}
 
-    let (input, _) = take_while1(char::is_whitespace)(input)?;
-    let (input, _) = tag("//")(input)?;
-    let (input, _) = take_while1(char::is_whitespace)(input)?;
+pub fn parse_matrix<A: Alphabet, const K: usize>(
+    mut input: &str,
+) -> IResult<&str, CountMatrix<A, K>> {
+    let mut id = None;
+    let mut bf = None;
+    let mut countmatrix = None;
 
-    let mut data = DenseMatrix::<u32, K>::new(counts.len());
-    for (i, count) in counts.iter().enumerate() {
-        for (s, &c) in symbols.iter().zip(count.iter()) {
-            data[i][s.as_index()] = c;
+    loop {
+        match parse_tag(input)?.1 {
+            "XX" => {
+                let (rest, _) = parse_line(input)?;
+                input = rest;
+            }
+            "ID" => {
+                let (rest, line) = parse_id(input)?;
+                id = Some(line.trim());
+                input = rest;
+            }
+            "BF" => {
+                let (rest, line) = parse_bf(input)?;
+                bf = Some(line.trim());
+                input = rest;
+            }
+            "P0" | "PO" => {
+                // parse alphabet and count lines
+                let (rest, symbols) = parse_alphabet::<A::Symbol>(input)?;
+                let (rest, counts) = many1(|l| parse_row(l, symbols.len()))(rest)?;
+                input = rest;
+                // parse
+                let mut data = DenseMatrix::<u32, K>::new(counts.len());
+                for (i, count) in counts.iter().enumerate() {
+                    for (s, &c) in symbols.iter().zip(count.iter()) {
+                        data[i][s.as_index()] = c;
+                    }
+                }
+                countmatrix = Some(data);
+            }
+            "//" => {
+                input = preceded(tag("//"), parse_line)(input)?.0;
+                break;
+            }
+            _ => unreachable!(),
         }
     }
 
-    let matrix = CountMatrix::new(data).unwrap(); // FIXME
+    let matrix = CountMatrix::new(countmatrix.unwrap()).unwrap();
     Ok((input, matrix))
 }
 
@@ -136,9 +174,9 @@ mod test {
     }
 
     #[test]
-    fn test_parse_species() {
+    fn test_parse_bf() {
         let line = "BF Pseudomonas aeruginosa\n";
-        let res = super::parse_species(line).unwrap();
+        let res = super::parse_bf(line).unwrap();
         assert_eq!(res.0, "");
         assert_eq!(res.1, "Pseudomonas aeruginosa");
     }
