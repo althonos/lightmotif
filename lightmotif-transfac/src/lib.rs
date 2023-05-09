@@ -11,12 +11,14 @@ use nom::bytes::complete::take_until;
 use nom::bytes::complete::take_while;
 use nom::bytes::complete::take_while1;
 use nom::character::complete::anychar;
+use nom::character::complete::char;
 use nom::character::complete::line_ending;
 use nom::character::complete::not_line_ending;
 use nom::character::complete::space0;
 use nom::character::streaming::space1;
 use nom::combinator::eof;
 use nom::combinator::map_res;
+use nom::combinator::opt;
 use nom::error::Error;
 use nom::error::ErrorKind;
 use nom::multi::count;
@@ -33,34 +35,72 @@ use lightmotif::CountMatrix;
 use lightmotif::DenseMatrix;
 use lightmotif::Symbol;
 
-pub struct TransfacMatrix<A: Alphabet, const K: usize> {
+#[derive(Clone, Debug)]
+pub struct Matrix<A: Alphabet, const K: usize> {
+    id: Option<String>,
+    accession: Option<String>,
+    name: Option<String>,
     counts: CountMatrix<A, K>,
+    dates: Vec<Date>,
+    references: Vec<Reference>,
+    sites: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DateKind {
+    Created,
+    Updated,
+}
+
+#[derive(Debug, Clone)]
+pub struct Date {
+    kind: DateKind,
+    author: String,
+    day: u8,
+    month: u8,
+    year: u16,
+}
+
+#[derive(Clone, Debug)]
+pub struct ReferenceNumber {
+    local: u32,
+    xref: Option<String>,
+}
+
+impl ReferenceNumber {
+    pub fn new(local: u32) -> Self {
+        Self { local, xref: None }
+    }
+
+    pub fn with_xref<X>(local: u32, xref: X) -> Self
+    where
+        X: Into<Option<String>>,
+    {
+        Self {
+            local,
+            xref: xref.into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Reference {
+    number: ReferenceNumber,
+    // authors: String,
+    title: Option<String>,
+    link: Option<String>,
+    pmid: Option<String>,
 }
 
 fn parse_line(input: &str) -> IResult<&str, &str> {
     match memchr::memchr(b'\n', input.as_bytes()) {
-        None => Err(nom::Err::Error(Error::new(input, ErrorKind::Verify))),
-        Some(i) if i == input.len() => Ok(("", input)),
+        None => Err(nom::Err::Error(Error::new(input, ErrorKind::Char))),
+        Some(i) if i == input.len() - 1 => Ok(("", input)),
         Some(i) => {
             let (line, rest) = input.split_at(i + 1);
             Ok((rest, line))
         }
     }
-}
-
-fn parse_ac(input: &str) -> IResult<&str, &str> {
-    let (input, line) = preceded(tag("AC"), parse_line)(input)?;
-    Ok((input, line.trim()))
-}
-
-fn parse_id(input: &str) -> IResult<&str, &str> {
-    let (input, line) = preceded(tag("ID"), parse_line)(input)?;
-    Ok((input, line.trim()))
-}
-
-fn parse_bf(input: &str) -> IResult<&str, &str> {
-    let (input, line) = preceded(tag("BF"), parse_line)(input)?;
-    Ok((input, line.trim()))
 }
 
 fn parse_alphabet<S: Symbol>(input: &str) -> IResult<&str, Vec<S>> {
@@ -83,37 +123,180 @@ fn parse_row(input: &str, k: usize) -> IResult<&str, Vec<u32>> {
 }
 
 fn parse_tag(input: &str) -> IResult<&str, &str> {
-    nom::branch::alt((
-        tag("BF"),
-        tag("ID"),
-        tag("XX"),
-        tag("P0"),
-        tag("PO"),
-        tag("//"),
-    ))(input)
+    let (rest, tag) = nom::bytes::complete::take(2usize)(input)?;
+    match tag {
+        "AC" | "BA" | "BS" | "BF" | "CC" | "CO" | "DT" | "ID" | "NA" | "P0" | "PO" | "RN"
+        | "XX" | "//" => Ok((rest, tag)),
+        _ => Err(nom::Err::Error(Error::new(input, ErrorKind::Alt))),
+    }
 }
 
-pub fn parse_matrix<A: Alphabet, const K: usize>(
-    mut input: &str,
-) -> IResult<&str, CountMatrix<A, K>> {
+fn parse_reference_number(input: &str) -> IResult<&str, ReferenceNumber> {
+    let (rest, number) = preceded(
+        terminated(tag("RN"), space0),
+        delimited(char('['), nom::character::complete::u32, char(']')),
+    )(input)?;
+    match opt(anychar)(rest)?.1 {
+        Some(';') => {
+            let (rest, xref) = delimited(char(';'), take_till(|c| c == '.'), char('.'))(rest)?;
+            let (rest, _) = parse_line(rest)?;
+            Ok((
+                rest,
+                ReferenceNumber::with_xref(number, xref.trim().to_string()),
+            ))
+        }
+        _ => {
+            let (rest, _) = parse_line(input)?;
+            Ok((rest, ReferenceNumber::new(number)))
+        }
+    }
+}
+
+fn parse_datekind(input: &str) -> IResult<&str, DateKind> {
+    match alt((tag("created"), tag("updated")))(input)? {
+        (rest, "created") => Ok((rest, DateKind::Created)),
+        (rest, "updated") => Ok((rest, DateKind::Updated)),
+        _ => unreachable!(),
+    }
+}
+
+fn parse_date(input: &str) -> IResult<&str, Date> {
+    let (rest, _) = terminated(tag("DT"), space0)(input)?;
+
+    let (rest, day) = terminated(nom::character::complete::u8, char('.'))(rest)?;
+    let (rest, month) = terminated(nom::character::complete::u8, char('.'))(rest)?;
+    let (rest, year) = nom::character::complete::u16(rest)?;
+    let (rest, _) = space0(rest)?;
+
+    let (rest, kind) = delimited(char('('), parse_datekind, char(')'))(rest)?;
+    let (rest, author) = delimited(
+        char(';'),
+        preceded(space0, take_till(|c| c == '.')),
+        char('.'),
+    )(rest)?;
+    let (rest, _) = parse_line(rest)?;
+
+    Ok((
+        rest,
+        Date {
+            author: author.to_string(),
+            kind,
+            year,
+            month,
+            day,
+        },
+    ))
+}
+
+fn parse_reference(mut input: &str) -> IResult<&str, Reference> {
+    let mut pmid = None;
+    let mut link = None;
+    let mut title = None;
+
+    let (rest, number) = parse_reference_number(input)?;
+    input = rest;
+    loop {
+        match nom::bytes::complete::take(2usize)(input)?.1 {
+            "RX" => {
+                let (rest, line) = preceded(
+                    preceded(
+                        terminated(tag("RX"), space0),
+                        terminated(tag("PUBMED:"), space0),
+                    ),
+                    terminated(take_till(|c| c == '.'), char('.')),
+                )(input)?;
+                let (rest, _) = parse_line(rest)?;
+                pmid = Some(line.to_string());
+                input = rest;
+            }
+            "RA" => {
+                let (rest, line) = preceded(tag("RA"), parse_line)(input)?;
+                // ra = Some(line.trim());
+                input = rest;
+            }
+            "RL" => {
+                let (rest, line) = preceded(tag("RL"), parse_line)(input)?;
+                link = Some(line.trim().to_string());
+                input = rest;
+            }
+            "RT" => {
+                let (rest, line) = preceded(tag("RT"), parse_line)(input)?;
+                title = Some(line.trim().to_string());
+                input = rest;
+            }
+            _ => break,
+        }
+    }
+
+    Ok((
+        input,
+        Reference {
+            number,
+            pmid,
+            link,
+            title,
+        },
+    ))
+}
+
+pub fn parse_matrix<A: Alphabet, const K: usize>(mut input: &str) -> IResult<&str, Matrix<A, K>> {
+    let mut accession = None;
+    let mut ba = None;
+    let mut name = None;
     let mut id = None;
-    let mut bf = None;
+    let mut copyright = None;
+    let mut dates = Vec::new();
+    let mut references = Vec::new();
+    let mut comments = Vec::new();
+    let mut sites = Vec::new();
+    let mut factors = Vec::new();
     let mut countmatrix = None;
 
     loop {
         match parse_tag(input)?.1 {
-            "XX" => {
-                let (rest, _) = parse_line(input)?;
+            "AC" => {
+                let (rest, line) = preceded(tag("AC"), parse_line)(input)?;
+                accession = Some(line.trim().to_string());
                 input = rest;
             }
-            "ID" => {
-                let (rest, line) = parse_id(input)?;
-                id = Some(line.trim());
+            "BA" => {
+                let (rest, line) = preceded(tag("BA"), parse_line)(input)?;
+                ba = Some(line.trim().to_string());
+                input = rest;
+            }
+            "BS" => {
+                let (rest, line) = preceded(tag("BS"), parse_line)(input)?;
+                sites.push(line.trim().to_string());
                 input = rest;
             }
             "BF" => {
-                let (rest, line) = parse_bf(input)?;
-                bf = Some(line.trim());
+                let (rest, line) = preceded(tag("BF"), parse_line)(input)?;
+                factors.push(line.trim().to_string());
+                input = rest;
+            }
+            "CC" => {
+                let (rest, lines) = many1(preceded(tag("CC"), parse_line))(input)?;
+                comments.push(lines.join(" "));
+                input = rest;
+            }
+            "CO" => {
+                let (rest, line) = preceded(tag("CO"), parse_line)(input)?;
+                copyright = Some(line.trim().to_string());
+                input = rest;
+            }
+            "DT" => {
+                let (rest, date) = parse_date(input)?;
+                dates.push(date);
+                input = rest;
+            }
+            "ID" => {
+                let (rest, line) = preceded(tag("ID"), parse_line)(input)?;
+                id = Some(line.trim().to_string());
+                input = rest;
+            }
+            "NA" => {
+                let (rest, line) = preceded(tag("NA"), parse_line)(input)?;
+                name = Some(line.trim().to_string());
                 input = rest;
             }
             "P0" | "PO" => {
@@ -121,7 +304,7 @@ pub fn parse_matrix<A: Alphabet, const K: usize>(
                 let (rest, symbols) = parse_alphabet::<A::Symbol>(input)?;
                 let (rest, counts) = many1(|l| parse_row(l, symbols.len()))(rest)?;
                 input = rest;
-                // parse
+                // read counts into a dense matrix
                 let mut data = DenseMatrix::<u32, K>::new(counts.len());
                 for (i, count) in counts.iter().enumerate() {
                     for (s, &c) in symbols.iter().zip(count.iter()) {
@@ -130,21 +313,36 @@ pub fn parse_matrix<A: Alphabet, const K: usize>(
                 }
                 countmatrix = Some(data);
             }
+            "RN" => {
+                let (rest, reference) = parse_reference(input)?;
+                references.push(reference);
+                input = rest;
+            }
             "//" => {
                 input = preceded(tag("//"), parse_line)(input)?.0;
                 break;
             }
+            "XX" => input = parse_line(input)?.0,
             _ => unreachable!(),
         }
     }
 
-    let matrix = CountMatrix::new(countmatrix.unwrap()).unwrap();
+    let counts = CountMatrix::new(countmatrix.unwrap()).unwrap();
+    let matrix = Matrix {
+        accession,
+        id,
+        name,
+        counts,
+        dates,
+        references,
+        sites,
+    };
     Ok((input, matrix))
 }
 
 pub fn parse_matrices<A: Alphabet, const K: usize>(
     input: &str,
-) -> IResult<&str, Vec<CountMatrix<A, K>>> {
+) -> IResult<&str, Vec<Matrix<A, K>>> {
     let (input, (matrices, _)) = many_till(parse_matrix, eof)(input)?;
     Ok((input, matrices))
 }
@@ -156,22 +354,6 @@ mod test {
     use lightmotif::Dna;
     use lightmotif::Nucleotide;
     use lightmotif::Symbol;
-
-    #[test]
-    fn test_parse_id() {
-        let line = "ID prodoric_MX000001\n";
-        let res = super::parse_id(line).unwrap();
-        assert_eq!(res.0, "");
-        assert_eq!(res.1, "prodoric_MX000001")
-    }
-
-    #[test]
-    fn test_parse_bf() {
-        let line = "BF Pseudomonas aeruginosa\n";
-        let res = super::parse_bf(line).unwrap();
-        assert_eq!(res.0, "");
-        assert_eq!(res.1, "Pseudomonas aeruginosa");
-    }
 
     #[test]
     fn test_parse_alphabet() {
@@ -202,7 +384,7 @@ mod test {
     }
 
     #[test]
-    fn test_parse_matrix() {
+    fn test_parse_prodoric() {
         let text = concat!(
             "ID prodoric_MX000001\n",
             "BF Pseudomonas aeruginosa\n",
@@ -221,17 +403,181 @@ mod test {
         assert_eq!(res.0, "");
 
         let matrix = res.1;
-        // assert_eq!(matrix.name, "prodoric_MX000001");
-        assert_eq!(matrix.counts().rows(), 7);
-        assert_eq!(matrix.counts()[0][Nucleotide::A.as_index()], 0);
-        assert_eq!(matrix.counts()[0][Nucleotide::T.as_index()], 0);
-        assert_eq!(matrix.counts()[0][Nucleotide::G.as_index()], 2);
-        assert_eq!(matrix.counts()[0][Nucleotide::C.as_index()], 0);
-        assert_eq!(matrix.counts()[0][Nucleotide::N.as_index()], 0);
-        assert_eq!(matrix.counts()[5][Nucleotide::A.as_index()], 0);
-        assert_eq!(matrix.counts()[5][Nucleotide::T.as_index()], 1);
-        assert_eq!(matrix.counts()[5][Nucleotide::G.as_index()], 0);
-        assert_eq!(matrix.counts()[5][Nucleotide::C.as_index()], 1);
-        assert_eq!(matrix.counts()[5][Nucleotide::N.as_index()], 0);
+        assert_eq!(matrix.id, Some(String::from("prodoric_MX000001")));
+        assert_eq!(matrix.counts.counts().rows(), 7);
+        assert_eq!(matrix.counts.counts()[0][Nucleotide::A.as_index()], 0);
+        assert_eq!(matrix.counts.counts()[0][Nucleotide::T.as_index()], 0);
+        assert_eq!(matrix.counts.counts()[0][Nucleotide::G.as_index()], 2);
+        assert_eq!(matrix.counts.counts()[0][Nucleotide::C.as_index()], 0);
+        assert_eq!(matrix.counts.counts()[0][Nucleotide::N.as_index()], 0);
+        assert_eq!(matrix.counts.counts()[5][Nucleotide::A.as_index()], 0);
+        assert_eq!(matrix.counts.counts()[5][Nucleotide::T.as_index()], 1);
+        assert_eq!(matrix.counts.counts()[5][Nucleotide::G.as_index()], 0);
+        assert_eq!(matrix.counts.counts()[5][Nucleotide::C.as_index()], 1);
+        assert_eq!(matrix.counts.counts()[5][Nucleotide::N.as_index()], 0);
+    }
+
+    #[test]
+    fn test_parse_reference_number() {
+        let res = super::parse_reference_number("RN  [1]\n").unwrap().1;
+        assert_eq!(res.local, 1);
+        assert!(res.xref.is_none());
+
+        let res = super::parse_reference_number("RN  [2]; RE0000531.\n")
+            .unwrap()
+            .1;
+        assert_eq!(res.local, 2);
+        assert_eq!(res.xref, Some(String::from("RE0000531")));
+    }
+
+    #[test]
+    fn test_parse_reference() {
+        let text = concat!(
+            "RN  [1]; RE0000231.\n",
+            "RX  PUBMED: 1846322.\n",
+            "RA  Sun X.-H., Baltimore D.\n",
+            "RT  An inhibitory domain of E12 transcription factor prevents DNA binding in E12 homodimers but not in E12 heterodimers\n",
+            "RL  Cell 64:459-470 (1991).\n",
+            "XX\n",
+        );
+        let res = super::parse_reference(text).unwrap().1;
+        assert_eq!(res.number.local, 1);
+        assert_eq!(res.number.xref, Some(String::from("RE0000231")));
+        assert_eq!(res.link, Some(String::from("Cell 64:459-470 (1991).")));
+        assert_eq!(res.pmid, Some(String::from("1846322")));
+
+        let text = concat!(
+            "RN  [1]\n",
+            "RA  Biedenkapp H., Borgmeyer U., Sippel A., Klempnauer K.-H.;\n",
+            "RT  Viral myb oncogene encodes a sequence-specific DNA-binding activity;\n",
+            "RL  Nature 335:835-837 (1988).\n",
+            "XX\n",
+        );
+        let res = super::parse_reference(text).unwrap().1;
+        assert_eq!(res.number.local, 1);
+        assert_eq!(res.number.xref, None);
+        assert_eq!(res.pmid, None);
+        assert_eq!(
+            res.title,
+            Some(String::from(
+                "Viral myb oncogene encodes a sequence-specific DNA-binding activity;"
+            ))
+        );
+        assert_eq!(res.link, Some(String::from("Nature 335:835-837 (1988).")));
+    }
+
+    #[test]
+    fn test_parse_transfac_v2() {
+        let text = concat!(
+            "AC  M00001\n",
+            "XX\n",
+            "DT  19.10.1992 (created); EWI.\n",
+            "XX\n",
+            "PO        A      C      G      T\n",
+            "01        1      2      2      0\n",
+            "02        2      1      2      0\n",
+            "03        3      0      1      1\n",
+            "04        0      5      0      0\n",
+            "05        5      0      0      0\n",
+            "06        0      0      4      1\n",
+            "07        0      1      4      0\n",
+            "08        0      0      0      5\n",
+            "09        0      0      5      0\n",
+            "10        0      1      2      2\n",
+            "11        0      2      0      3\n",
+            "12        1      0      3      1\n",
+            "XX\n",
+            "BF  MyoD\n",
+            "XX\n",
+            "BA  5 functional elements in 3 genes\n",
+            "XX\n",
+            "CC Test comment.\n",
+            "XX\n",
+            "//\n",
+        );
+        let res = super::parse_matrix::<Dna, { Dna::K }>(text).unwrap();
+        assert_eq!(res.0, "");
+
+        let matrix = res.1;
+        assert_eq!(matrix.accession, Some(String::from("M00001")));
+        assert_eq!(matrix.counts.counts().rows(), 12);
+        assert_eq!(matrix.counts.counts()[0][Nucleotide::A.as_index()], 1);
+        assert_eq!(matrix.counts.counts()[0][Nucleotide::T.as_index()], 0);
+        assert_eq!(matrix.counts.counts()[0][Nucleotide::G.as_index()], 2);
+        assert_eq!(matrix.counts.counts()[0][Nucleotide::C.as_index()], 2);
+        assert_eq!(matrix.counts.counts()[0][Nucleotide::N.as_index()], 0);
+        assert_eq!(matrix.counts.counts()[5][Nucleotide::A.as_index()], 0);
+        assert_eq!(matrix.counts.counts()[5][Nucleotide::T.as_index()], 1);
+        assert_eq!(matrix.counts.counts()[5][Nucleotide::G.as_index()], 4);
+        assert_eq!(matrix.counts.counts()[5][Nucleotide::C.as_index()], 0);
+        assert_eq!(matrix.counts.counts()[5][Nucleotide::N.as_index()], 0);
+    }
+
+    #[test]
+    fn test_parse_transfac_v9() {
+        let text = concat!(
+            "AC  M00030\n",
+            "XX\n",
+            "ID  F$MATA1_01\n",
+            "XX\n",
+            "DT  18.10.1994 (created); ewi.\n",
+            "DT  16.10.1995 (updated); ewi.\n",
+            "CO  Copyright (C), Biobase GmbH.\n",
+            "XX\n",
+            "NA  MATa1\n",
+            "XX\n",
+            // "DE  mating factor a1\n",
+            "XX\n",
+            "BF  T00488; MATa1; Species: yeast, Saccharomyces cerevisiae.\n",
+            "XX\n",
+            "P0      A      C      G      T\n",
+            "01      0      1      1     12      T\n",
+            "02      0      0     14      0      G\n",
+            "03     14      0      0      0      A\n",
+            "04      0      0      0     14      T\n",
+            "05      0      0     14      0      G\n",
+            "06      1      2      0     11      T\n",
+            "07     10      0      3      1      A\n",
+            "08      6      2      4      2      N\n",
+            "09      5      4      1      4      N\n",
+            "10      2      1      1     10      T\n",
+            "XX\n",
+            "BA  a1 half-sites of 14 hsg operators of 4 genes\n",
+            "XX\n",
+            "BS  TGATGTACTT; R05553; 1; 10;; p.\n",
+            "BS  TGATGTAATC; R05554; 1; 10;; p.\n",
+            "BS  TGATGTGTAA; R05555; 1; 10;; p.\n",
+            "BS  TGATGCAGAA; R05556; 1; 10;; p.\n",
+            "BS  TGATGAAGCG; R05557; 1; 10;; p.\n",
+            "BS  TGATGTTAAT; R05558; 1; 10;; p.\n",
+            "BS  TGATGTAAAT; R05559; 1; 10;; p.\n",
+            "BS  TGATGTAACT; R05560; 1; 10;; p.\n",
+            "BS  TGATGCAGTT; R05561; 1; 10;; p.\n",
+            "BS  TGATGTGAAT; R05562; 1; 10;; p.\n",
+            "BS  CGATGTGCTT; R05563; 1; 10;; p.\n",
+            "BS  TGATGTATCT; R05564; 1; 10;; p.\n",
+            "BS  GGATGTAACT; R05565; 1; 10;; p.\n",
+            "BS  TGATGTAGGT; R05566; 1; 10;; p.\n",
+            "XX\n",
+            "CC  compiled sequences\n",
+            "XX\n",
+            "RN  [1]; RE0000546.\n",
+            "RX  PUBMED: 7907979.\n",
+            "RA  Goutte C., Johnson A. D.\n",
+            "RT  Recognition of a DNA operator by a dimer composed of two different homeodomain proteins\n",
+            "RL  EMBO J. 13:1434-1442 (1994).\n",
+            "XX\n",
+            "//\n",
+        );
+        let res = super::parse_matrix::<Dna, { Dna::K }>(text).unwrap();
+        let matrix = res.1;
+        assert_eq!(res.0, "");
+        assert_eq!(matrix.name, Some(String::from("MATa1")));
+        assert_eq!(matrix.dates.len(), 2);
+        assert_eq!(matrix.dates[0].author, "ewi");
+        assert_eq!(matrix.dates[1].author, "ewi");
+        assert_eq!(matrix.dates[1].day, 16);
+        assert_eq!(matrix.dates[1].month, 10);
+        assert_eq!(matrix.dates[1].year, 1995);
     }
 }
