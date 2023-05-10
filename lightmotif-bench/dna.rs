@@ -48,9 +48,9 @@ fn bench_generic(bencher: &mut test::Bencher) {
     });
 }
 
-#[cfg(target_feature = "avx2")]
+#[cfg(target_feature = "ssse3")]
 #[bench]
-fn bench_sse2(bencher: &mut test::Bencher) {
+fn bench_ssse3(bencher: &mut test::Bencher) {
     let seq = &SEQUENCE[..10000];
     let encoded = EncodedSequence::<Dna>::from_str(seq).unwrap();
     let mut striped = encoded.to_striped();
@@ -69,7 +69,7 @@ fn bench_sse2(bencher: &mut test::Bencher) {
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
         Pipeline::<_, __m128>::score_into(&striped, &pssm, &mut scores);
-        test::black_box(Pipeline::<_, __m128>::best_position(&scores));
+        test::black_box(Pipeline::<_, __m128>::best_position(&scores).unwrap());
     });
 }
 

@@ -76,7 +76,7 @@ fn test_best_position_generic() {
             .map(|x| EncodedSequence::from_str(x).unwrap()),
     )
     .unwrap();
-    let pbm = cm.to_freq([0.1, 0.1, 0.1, 0.1, 0.0]);
+    let pbm = cm.to_freq(0.1);
     let pwm = pbm.to_weight(None);
     let pssm = pwm.into();
 
@@ -124,6 +124,27 @@ fn test_score_ssse3() {
     }
 }
 
+#[cfg(target_feature = "ssse3")]
+#[test]
+fn test_best_position_ssse3() {
+    let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
+    let mut striped = encoded.to_striped();
+
+    let cm = CountMatrix::<Dna, { Dna::K }>::from_sequences(
+        PATTERNS
+            .iter()
+            .map(|x| EncodedSequence::from_str(x).unwrap()),
+    )
+    .unwrap();
+    let pbm = cm.to_freq(0.1);
+    let pwm = pbm.to_weight(None);
+    let pssm = pwm.into();
+
+    striped.configure(&pssm);
+    let result = Pipeline::<Dna, __m128>::score(&striped, &pssm);
+    assert_eq!(Pipeline::<Dna, __m128>::best_position(&result), Some(18));
+}
+
 #[cfg(target_feature = "avx2")]
 #[test]
 fn test_score_avx2() {
@@ -136,17 +157,13 @@ fn test_score_avx2() {
             .map(|x| EncodedSequence::from_str(x).unwrap()),
     )
     .unwrap();
-    let pbm = cm.to_freq([0.1, 0.1, 0.1, 0.1, 0.0]);
+    let pbm = cm.to_freq(0.1);
     let pwm = pbm.to_weight(None);
     let pssm = pwm.into();
 
     striped.configure(&pssm);
     let result = Pipeline::<_, __m256>::score(&striped, &pssm);
     let scores = result.to_vec();
-
-    // for i in 0..result.data.rows() {
-    //     println!("{:?}", &result.data[i]);
-    // }
 
     assert_eq!(scores.len(), EXPECTED.len());
     for i in 0..EXPECTED.len() {
