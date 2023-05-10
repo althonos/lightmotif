@@ -25,6 +25,26 @@ pub struct Matrix<A: Alphabet, const K: usize> {
     sites: Vec<String>,
 }
 
+impl<A: Alphabet, const K: usize> Matrix<A, K> {
+    pub fn id(&self) -> Option<&str> {
+        self.id.as_ref().map(String::as_str)
+    }
+
+    pub fn accession(&self) -> Option<&str> {
+        self.accession.as_ref().map(String::as_str)
+    }
+
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_ref().map(String::as_str)
+    }
+}
+
+impl<A: Alphabet, const K: usize> AsRef<CountMatrix<A, K>> for Matrix<A, K> {
+    fn as_ref(&self) -> &CountMatrix<A, K> {
+        &self.counts
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DateKind {
     Created,
