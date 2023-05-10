@@ -65,6 +65,29 @@ fn test_score_generic() {
     }
 }
 
+#[test]
+fn test_best_position_generic() {
+    let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
+    let mut striped = encoded.to_striped::<2>();
+
+    let cm = CountMatrix::<Dna, { Dna::K }>::from_sequences(
+        PATTERNS
+            .iter()
+            .map(|x| EncodedSequence::from_str(x).unwrap()),
+    )
+    .unwrap();
+    let pbm = cm.to_freq([0.1, 0.1, 0.1, 0.1, 0.0]);
+    let pwm = pbm.to_weight(None);
+    let pssm = pwm.into();
+
+    striped.configure(&pssm);
+    let result = Pipeline::<Dna, f32>::score(&striped, &pssm);
+    assert_eq!(
+        <Pipeline::<Dna, f32> as Score<Dna, { Dna::K }, _, 2>>::best_position(&result),
+        Some(18)
+    );
+}
+
 #[cfg(target_feature = "ssse3")]
 #[test]
 fn test_score_ssse3() {
@@ -135,4 +158,25 @@ fn test_score_avx2() {
             i
         );
     }
+}
+
+#[cfg(target_feature = "avx2")]
+#[test]
+fn test_best_position_avx2() {
+    let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
+    let mut striped = encoded.to_striped();
+
+    let cm = CountMatrix::<Dna, { Dna::K }>::from_sequences(
+        PATTERNS
+            .iter()
+            .map(|x| EncodedSequence::from_str(x).unwrap()),
+    )
+    .unwrap();
+    let pbm = cm.to_freq([0.1, 0.1, 0.1, 0.1, 0.0]);
+    let pwm = pbm.to_weight(None);
+    let pssm = pwm.into();
+
+    striped.configure(&pssm);
+    let result = Pipeline::<Dna, __m256>::score(&striped, &pssm);
+    assert_eq!(Pipeline::<Dna, __m256>::best_position(&result), Some(18));
 }

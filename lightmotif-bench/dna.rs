@@ -42,7 +42,9 @@ fn bench_generic(bencher: &mut test::Bencher) {
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
         Pipeline::<_, f32>::score_into(&striped, &pssm, &mut scores);
-        test::black_box(scores.argmax());
+        test::black_box(
+            <Pipeline<_, f32> as Score<Dna, { Dna::K }, f32, 32>>::best_position(&scores),
+        );
     });
 }
 
@@ -67,7 +69,7 @@ fn bench_sse2(bencher: &mut test::Bencher) {
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
         Pipeline::<_, __m128>::score_into(&striped, &pssm, &mut scores);
-        test::black_box(scores.argmax());
+        test::black_box(Pipeline::<_, __m128>::best_position(&scores));
     });
 }
 
@@ -92,7 +94,7 @@ fn bench_avx2(bencher: &mut test::Bencher) {
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
         Pipeline::<_, __m256>::score_into(&striped, &pssm, &mut scores);
-        test::black_box(scores.argmax());
+        test::black_box(Pipeline::<_, __m256>::best_position(&scores).unwrap());
     });
 }
 
