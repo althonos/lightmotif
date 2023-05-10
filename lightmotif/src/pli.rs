@@ -199,19 +199,19 @@ unsafe fn best_position_ssse3(
             let mut p3 = _mm_setzero_ps();
             let mut p4 = _mm_setzero_ps();
             // store the best scores for each column
-            let mut s1 = _mm_loadu_ps(scores.data[0][0x00..].as_ptr());
-            let mut s2 = _mm_loadu_ps(scores.data[0][0x04..].as_ptr());
-            let mut s3 = _mm_loadu_ps(scores.data[0][0x08..].as_ptr());
-            let mut s4 = _mm_loadu_ps(scores.data[0][0x0c..].as_ptr());
+            let mut s1 = _mm_load_ps(scores.data[0][0x00..].as_ptr());
+            let mut s2 = _mm_load_ps(scores.data[0][0x04..].as_ptr());
+            let mut s3 = _mm_load_ps(scores.data[0][0x08..].as_ptr());
+            let mut s4 = _mm_load_ps(scores.data[0][0x0c..].as_ptr());
             // process all rows iteratively
             for (i, row) in scores.data.iter().enumerate() {
                 // record the current row index
                 let index = _mm_castsi128_ps(_mm_set1_epi32(i as i32));
                 // load scores for the current row
-                let r1 = _mm_loadu_ps(row[0x00..].as_ptr());
-                let r2 = _mm_loadu_ps(row[0x04..].as_ptr());
-                let r3 = _mm_loadu_ps(row[0x08..].as_ptr());
-                let r4 = _mm_loadu_ps(row[0x0c..].as_ptr());
+                let r1 = _mm_load_ps(row[0x00..].as_ptr());
+                let r2 = _mm_load_ps(row[0x04..].as_ptr());
+                let r3 = _mm_load_ps(row[0x08..].as_ptr());
+                let r4 = _mm_load_ps(row[0x0c..].as_ptr());
                 // compare scores to local maximums
                 let c1 = _mm_cmplt_ps(s1, r1);
                 let c2 = _mm_cmplt_ps(s2, r2);
