@@ -1,5 +1,6 @@
 use super::abc::Alphabet;
 use super::abc::Background;
+use super::abc::ComplementableAlphabet;
 use super::abc::Pseudocounts;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
@@ -93,16 +94,26 @@ impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
                 *x /= s;
             }
         }
-        FrequencyMatrix {
-            alphabet: std::marker::PhantomData,
-            data: probas,
-        }
+        FrequencyMatrix::new_unchecked(probas)
     }
 
     /// The raw counts from the count matrix.
     #[inline]
     pub fn counts(&self) -> &DenseMatrix<u32, K> {
         &self.data
+    }
+}
+
+impl<A: ComplementableAlphabet, const K: usize> CountMatrix<A, K> {
+    /// Get the reverse-complement of this count matrix.
+    pub fn reverse_complement(&self) -> Self {
+        let mut data = DenseMatrix::new(self.data.rows());
+        for (i, row) in self.data.iter().rev().enumerate() {
+            for &s in A::symbols() {
+                data[i][s.as_index()] = row[A::complement(s).as_index()];
+            }
+        }
+        Self::new_unchecked(data, self.n)
     }
 }
 
@@ -133,6 +144,14 @@ pub struct FrequencyMatrix<A: Alphabet, const K: usize> {
 }
 
 impl<A: Alphabet, const K: usize> FrequencyMatrix<A, K> {
+    /// Create a new frequency matrix without checking the contents.
+    fn new_unchecked(data: DenseMatrix<f32, K>) -> Self {
+        Self {
+            alphabet: std::marker::PhantomData,
+            data,
+        }
+    }
+
     /// Convert to a weight matrix using the given background frequencies.
     pub fn to_weight<B>(&self, background: B) -> WeightMatrix<A, K>
     where
@@ -145,10 +164,7 @@ impl<A: Alphabet, const K: usize> FrequencyMatrix<A, K> {
                 dst[j] = x / f;
             }
         }
-        WeightMatrix {
-            background: bg,
-            data: weight,
-        }
+        WeightMatrix::new_unchecked(bg, weight)
     }
 
     /// Convert to a scoring matrix using the given background frequencies.
@@ -157,22 +173,32 @@ impl<A: Alphabet, const K: usize> FrequencyMatrix<A, K> {
         B: Into<Option<Background<A, K>>>,
     {
         let bg = background.into().unwrap_or_default();
-        let mut weight = DenseMatrix::new(self.data.rows());
-        for (src, dst) in self.data.iter().zip(weight.iter_mut()) {
+        let mut scores = DenseMatrix::new(self.data.rows());
+        for (src, dst) in self.data.iter().zip(scores.iter_mut()) {
             for (j, (&x, &f)) in src.iter().zip(bg.frequencies()).enumerate() {
                 dst[j] = (x / f).log2();
             }
         }
-        ScoringMatrix {
-            background: bg,
-            data: weight,
-        }
+        ScoringMatrix::new_unchecked(bg, scores)
     }
 }
 
 impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<f32, K>> for FrequencyMatrix<A, K> {
     fn as_ref(&self) -> &DenseMatrix<f32, K> {
         &self.data
+    }
+}
+
+impl<A: ComplementableAlphabet, const K: usize> FrequencyMatrix<A, K> {
+    /// Get the reverse-complement of this count matrix.
+    pub fn reverse_complement(&self) -> Self {
+        let mut data = DenseMatrix::new(self.data.rows());
+        for (i, row) in self.data.iter().rev().enumerate() {
+            for &s in A::symbols() {
+                data[i][s.as_index()] = row[A::complement(s).as_index()];
+            }
+        }
+        Self::new_unchecked(data)
     }
 }
 
@@ -186,6 +212,11 @@ pub struct WeightMatrix<A: Alphabet, const K: usize> {
 }
 
 impl<A: Alphabet, const K: usize> WeightMatrix<A, K> {
+    /// Create a new weight matrix without checking the contents.
+    fn new_unchecked(background: Background<A, K>, data: DenseMatrix<f32, K>) -> Self {
+        Self { background, data }
+    }
+
     /// The length of the motif encoded in this weight matrix.
     #[inline]
     pub fn len(&self) -> usize {
@@ -237,7 +268,20 @@ impl<A: Alphabet, const K: usize> WeightMatrix<A, K> {
                 *item = item.log2();
             }
         }
-        ScoringMatrix { background, data }
+        ScoringMatrix::new_unchecked(background, data)
+    }
+}
+
+impl<A: ComplementableAlphabet, const K: usize> WeightMatrix<A, K> {
+    /// Get the reverse-complement of this count matrix.
+    pub fn reverse_complement(&self) -> Self {
+        let mut data = DenseMatrix::new(self.data.rows());
+        for (i, row) in self.data.iter().rev().enumerate() {
+            for &s in A::symbols() {
+                data[i][s.as_index()] = row[A::complement(s).as_index()];
+            }
+        }
+        Self::new_unchecked(self.background.clone(), data)
     }
 }
 
@@ -275,7 +319,25 @@ pub struct ScoringMatrix<A: Alphabet, const K: usize> {
     data: DenseMatrix<f32, K>,
 }
 
+impl<A: ComplementableAlphabet, const K: usize> ScoringMatrix<A, K> {
+    /// Get the reverse-complement of this count matrix.
+    pub fn reverse_complement(&self) -> Self {
+        let mut data = DenseMatrix::new(self.data.rows());
+        for (i, row) in self.data.iter().rev().enumerate() {
+            for &s in A::symbols() {
+                data[i][s.as_index()] = row[A::complement(s).as_index()];
+            }
+        }
+        Self::new_unchecked(self.background.clone(), data)
+    }
+}
+
 impl<A: Alphabet, const K: usize> ScoringMatrix<A, K> {
+    /// Create a new scoring matrix without checking the contents.
+    fn new_unchecked(background: Background<A, K>, data: DenseMatrix<f32, K>) -> Self {
+        Self { background, data }
+    }
+
     /// The length of the motif encoded in this scoring matrix.
     #[inline]
     pub fn len(&self) -> usize {

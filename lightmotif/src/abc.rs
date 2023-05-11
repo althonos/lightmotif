@@ -40,9 +40,19 @@ pub trait Alphabet: Debug + Copy + Default + 'static {
 // --- ComplementableAlphabet --------------------------------------------------
 
 /// An alphabet that defines the complement operation.
-pub trait ComplementableAlphabet: Alphabet {}
+pub trait ComplementableAlphabet: Alphabet {
+    /// Get the complement of this symbol.
+    fn complement(s: Self::Symbol) -> Self::Symbol;
+}
 
-impl<A: Alphabet> ComplementableAlphabet for A where <A as Alphabet>::Symbol: ComplementableSymbol {}
+impl<A: Alphabet> ComplementableAlphabet for A
+where
+    <A as Alphabet>::Symbol: ComplementableSymbol,
+{
+    fn complement(s: Self::Symbol) -> Self::Symbol {
+        s.complement()
+    }
+}
 
 // --- DNA ---------------------------------------------------------------------
 
