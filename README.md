@@ -38,6 +38,8 @@ of sequences:
   inspired by Michael Farrar[\[3\]](#ref3).
 - Vectorized matrix row look-up using `permute` instructions of [AVX2](https://fr.wikipedia.org/wiki/Advanced_Vector_Extensions).
 
+*This is the Rust version, there is a [Python package](https://pypi.org/project/lightmotif) available as well.*
+
 ## 💡 Example
 
 ```rust
