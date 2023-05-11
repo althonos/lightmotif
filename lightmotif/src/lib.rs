@@ -9,6 +9,8 @@ mod seq;
 
 pub use abc::Alphabet;
 pub use abc::Background;
+pub use abc::ComplementableAlphabet;
+pub use abc::ComplementableSymbol;
 pub use abc::Dna;
 pub use abc::Nucleotide;
 pub use abc::Pseudocounts;

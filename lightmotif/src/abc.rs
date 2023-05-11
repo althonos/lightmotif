@@ -5,7 +5,7 @@ use super::err::InvalidSymbol;
 
 // --- Symbol ------------------------------------------------------------------
 
-/// Common traits for a biological symbol.
+/// A symbol from a biological alphabet.
 pub trait Symbol: Default + Sized + Copy {
     /// View this symbol as a zero-based index.
     fn as_index(&self) -> usize;
@@ -15,20 +15,89 @@ pub trait Symbol: Default + Sized + Copy {
     fn from_char(c: char) -> Result<Self, InvalidSymbol>;
 }
 
+/// A symbol that can be complemented.
+pub trait ComplementableSymbol: Symbol {
+    /// Get the complement of this symbol.
+    fn complement(&self) -> Self;
+}
+
+// --- Alphabet ----------------------------------------------------------------
+
+/// A biological alphabet with associated metadata.
+pub trait Alphabet: Debug + Copy + Default + 'static {
+    type Symbol: Symbol;
+    const K: usize;
+
+    /// Get the default symbol for this alphabet.
+    fn default_symbol() -> Self::Symbol {
+        Default::default()
+    }
+}
+
+impl Alphabet for Dna {
+    type Symbol = Nucleotide;
+    const K: usize = 5;
+}
+
+// --- ComplementableAlphabet --------------------------------------------------
+
+/// An alphabet that defines the complement operation.
+pub trait ComplementableAlphabet: Alphabet {}
+
+impl<A: Alphabet> ComplementableAlphabet for A where <A as Alphabet>::Symbol: ComplementableSymbol {}
+
+// --- DNA ---------------------------------------------------------------------
+
+/// The standard DNA alphabet composed of 4 deoxyribonucleotides and a wildcard.
+#[derive(Default, Debug, Clone, Copy)]
+pub struct Dna;
+
 /// A deoxyribonucleotide.
 #[derive(Clone, Copy, PartialEq, Debug)]
 #[repr(u8)]
 pub enum Nucleotide {
     /// Adenine.
+    ///
+    /// ![adenine.png](https://www.ebi.ac.uk/chebi/displayImage.do?defaultImage=true&imageIndex=0&chebiId=16708)
     A = 0,
     /// Cytosine.
+    ///
+    /// ![cytosine.png](https://www.ebi.ac.uk/chebi/displayImage.do?defaultImage=true&imageIndex=0&chebiId=16040)
     C = 1,
     /// Thymine.
+    ///
+    /// ![thymine.png](https://www.ebi.ac.uk/chebi/displayImage.do?defaultImage=true&imageIndex=0&chebiId=17821)
     T = 2,
     /// Guanine.
+    ///
+    /// ![guanine.png](https://www.ebi.ac.uk/chebi/displayImage.do?defaultImage=true&imageIndex=0&chebiId=16235)
     G = 3,
     /// Unknown base.
     N = 4,
+}
+
+impl ComplementableSymbol for Nucleotide {
+    fn complement(&self) -> Self {
+        match *self {
+            Nucleotide::A => Nucleotide::T,
+            Nucleotide::T => Nucleotide::A,
+            Nucleotide::G => Nucleotide::C,
+            Nucleotide::C => Nucleotide::G,
+            Nucleotide::N => Nucleotide::N,
+        }
+    }
+}
+
+impl Default for Nucleotide {
+    fn default() -> Nucleotide {
+        Nucleotide::N
+    }
+}
+
+impl From<Nucleotide> for char {
+    fn from(n: Nucleotide) -> char {
+        n.as_char()
+    }
 }
 
 impl Symbol for Nucleotide {
@@ -56,40 +125,6 @@ impl Symbol for Nucleotide {
             _ => Err(InvalidSymbol(c)),
         }
     }
-}
-
-impl From<Nucleotide> for char {
-    fn from(n: Nucleotide) -> char {
-        n.as_char()
-    }
-}
-
-impl Default for Nucleotide {
-    fn default() -> Nucleotide {
-        Nucleotide::N
-    }
-}
-
-// --- Alphabet ----------------------------------------------------------------
-
-/// Common traits for a biological alphabet.
-pub trait Alphabet: Debug + Copy + Default + 'static {
-    type Symbol: Symbol;
-    const K: usize;
-
-    /// Get the default symbol for this alphabet.
-    fn default_symbol() -> Self::Symbol {
-        Default::default()
-    }
-}
-
-/// The standard DNA alphabet composed of 4 deoxyribonucleotides and a wildcard.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct Dna;
-
-impl Alphabet for Dna {
-    type Symbol = Nucleotide;
-    const K: usize = 5;
 }
 
 // --- Background --------------------------------------------------------------
