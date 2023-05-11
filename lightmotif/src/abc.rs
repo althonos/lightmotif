@@ -32,11 +32,9 @@ pub trait Alphabet: Debug + Copy + Default + 'static {
     fn default_symbol() -> Self::Symbol {
         Default::default()
     }
-}
 
-impl Alphabet for Dna {
-    type Symbol = Nucleotide;
-    const K: usize = 5;
+    /// Get all the symbols of this alphabet.
+    fn symbols() -> &'static [Self::Symbol];
 }
 
 // --- ComplementableAlphabet --------------------------------------------------
@@ -51,6 +49,21 @@ impl<A: Alphabet> ComplementableAlphabet for A where <A as Alphabet>::Symbol: Co
 /// The standard DNA alphabet composed of 4 deoxyribonucleotides and a wildcard.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Dna;
+
+impl Alphabet for Dna {
+    type Symbol = Nucleotide;
+    const K: usize = 5;
+
+    fn symbols() -> &'static [Nucleotide] {
+        &[
+            Nucleotide::A,
+            Nucleotide::C,
+            Nucleotide::T,
+            Nucleotide::G,
+            Nucleotide::N,
+        ]
+    }
+}
 
 /// A deoxyribonucleotide.
 #[derive(Clone, Copy, PartialEq, Debug)]
