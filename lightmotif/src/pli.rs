@@ -1,7 +1,9 @@
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use std::arch::x86_64::*;
 
+use std::iter::FusedIterator;
 use std::ops::Index;
+use std::ops::Range;
 
 use self::seal::Vector;
 use super::abc::Alphabet;
@@ -557,15 +559,14 @@ impl<const C: usize> StripedScores<C> {
         self.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
     }
 
+    /// Iterate over scores of individual sequence positions.
+    pub fn iter(&self) -> Iter<'_, C> {
+        Iter::new(&self)
+    }
+
     /// Convert the striped scores to a vector of scores.
     pub fn to_vec(&self) -> Vec<f32> {
-        let mut vec = Vec::with_capacity(self.length);
-        for i in 0..self.length {
-            let col = i / self.data.rows();
-            let row = i % self.data.rows();
-            vec.push(self.data[row][col]);
-        }
-        vec
+        self.iter().cloned().collect()
     }
 }
 
@@ -592,13 +593,49 @@ impl<const C: usize> Index<usize> for StripedScores<C> {
 
 impl<const C: usize> From<StripedScores<C>> for Vec<f32> {
     fn from(scores: StripedScores<C>) -> Self {
-        let rows = scores.data.rows();
-        let mut vec = Vec::with_capacity(scores.length);
-        for i in 0..scores.length {
-            let col = i / rows;
-            let row = i % rows;
-            vec.push(scores.data[row][col]);
+        scores.iter().cloned().collect()
+    }
+}
+
+// --- Iter --------------------------------------------------------------------
+
+pub struct Iter<'a, const C: usize> {
+    scores: &'a StripedScores<C>,
+    indices: Range<usize>,
+}
+
+impl<'a, const C: usize> Iter<'a, C> {
+    fn new(scores: &'a StripedScores<C>) -> Self {
+        Self {
+            scores,
+            indices: 0..scores.length,
         }
-        vec
+    }
+
+    fn get(&self, i: usize) -> &'a f32 {
+        let col = i / self.scores.data.rows();
+        let row = i % self.scores.data.rows();
+        &self.scores.data[row][col]
+    }
+}
+
+impl<'a, const C: usize> Iterator for Iter<'a, C> {
+    type Item = &'a f32;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.indices.next().map(|i| self.get(i))
+    }
+}
+
+impl<'a, const C: usize> ExactSizeIterator for Iter<'a, C> {
+    fn len(&self) -> usize {
+        self.indices.len()
+    }
+}
+
+impl<'a, const C: usize> FusedIterator for Iter<'a, C> {}
+
+impl<'a, const C: usize> DoubleEndedIterator for Iter<'a, C> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.indices.next_back().map(|i| self.get(i))
     }
 }
