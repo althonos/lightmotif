@@ -310,8 +310,9 @@ pub struct Motif {
 
 // --- Module ------------------------------------------------------------------
 
+/// Create a new motif from an iterable of sequences.
 #[pyfunction]
-fn create<'py>(sequences: &'py PyAny) -> PyResult<Motif> {
+pub fn create<'py>(sequences: &'py PyAny) -> PyResult<Motif> {
     let py = sequences.py();
 
     let mut encoded = Vec::new();
@@ -333,6 +334,16 @@ fn create<'py>(sequences: &'py PyAny) -> PyResult<Motif> {
         pwm: Py::new(py, WeightMatrix::from(weights))?,
         pssm: Py::new(py, ScoringMatrix::from(scoring))?,
     })
+}
+
+/// Encode and stripe a text sequence.
+#[pyfunction]
+pub fn stripe<'py>(sequence: &'py PyAny) -> PyResult<StripedSequence> {
+    let py = sequence.py();
+    let s = sequence.extract::<&PyString>()?;
+    let encoded = EncodedSequence::__init__(s).and_then(|e| Py::new(py, e))?;
+    let striped = encoded.borrow(py).stripe();
+    Ok(striped)
 }
 
 /// PyO3 bindings to ``lightmotif``, a library for fast PWM motif scanning.
@@ -358,6 +369,7 @@ pub fn init(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<ScoringMatrix>()?;
 
     m.add_function(wrap_pyfunction!(create, m)?)?;
+    m.add_function(wrap_pyfunction!(stripe, m)?)?;
 
     Ok(())
 }

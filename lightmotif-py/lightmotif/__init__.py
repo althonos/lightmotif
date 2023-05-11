@@ -8,6 +8,7 @@ from .lib import (
     WeightMatrix,
     ScoringMatrix,
     create,
+    stripe,
 )
 
 __author__ = lib.__author__

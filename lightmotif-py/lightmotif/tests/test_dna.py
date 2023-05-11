@@ -66,10 +66,8 @@ class TestDNAMotif(unittest.TestCase):
         frequencies = motif.counts.normalize(0.1)
         pssm = frequencies.log_odds()
 
-        seq = lightmotif.EncodedSequence(SEQUENCE)
-        striped = seq.stripe()
-
-        scores = pssm.calculate(striped)
+        seq = lightmotif.stripe(SEQUENCE)
+        scores = pssm.calculate(seq)
         self.assertEqual(len(scores), len(EXPECTED))
         for x, y in zip(scores, EXPECTED):
             self.assertAlmostEqual(x, y, places=5)
