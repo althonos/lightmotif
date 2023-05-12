@@ -8,11 +8,13 @@ mod pwm;
 mod seq;
 
 pub use abc::Alphabet;
+pub use abc::AminoAcid;
 pub use abc::Background;
 pub use abc::ComplementableAlphabet;
 pub use abc::ComplementableSymbol;
 pub use abc::Dna;
 pub use abc::Nucleotide;
+pub use abc::Protein;
 pub use abc::Pseudocounts;
 pub use abc::Symbol;
 pub use dense::DenseMatrix;

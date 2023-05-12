@@ -99,18 +99,6 @@ pub enum Nucleotide {
     N = 4,
 }
 
-impl ComplementableSymbol for Nucleotide {
-    fn complement(&self) -> Self {
-        match *self {
-            Nucleotide::A => Nucleotide::T,
-            Nucleotide::T => Nucleotide::A,
-            Nucleotide::G => Nucleotide::C,
-            Nucleotide::C => Nucleotide::G,
-            Nucleotide::N => Nucleotide::N,
-        }
-    }
-}
-
 impl Default for Nucleotide {
     fn default() -> Nucleotide {
         Nucleotide::N
@@ -145,6 +133,153 @@ impl Symbol for Nucleotide {
             'T' => Ok(Nucleotide::T),
             'G' => Ok(Nucleotide::G),
             'N' => Ok(Nucleotide::N),
+            _ => Err(InvalidSymbol(c)),
+        }
+    }
+}
+
+impl ComplementableSymbol for Nucleotide {
+    fn complement(&self) -> Self {
+        match *self {
+            Nucleotide::A => Nucleotide::T,
+            Nucleotide::T => Nucleotide::A,
+            Nucleotide::G => Nucleotide::C,
+            Nucleotide::C => Nucleotide::G,
+            Nucleotide::N => Nucleotide::N,
+        }
+    }
+}
+
+// --- Protein -----------------------------------------------------------------
+
+/// The standard protein alphabet composed of 20 residues and a wildcard.
+#[derive(Default, Debug, Clone, Copy)]
+pub struct Protein;
+
+impl Alphabet for Protein {
+    type Symbol = AminoAcid;
+    const K: usize = 21;
+
+    fn symbols() -> &'static [AminoAcid] {
+        &[
+            AminoAcid::A,
+            AminoAcid::C,
+            AminoAcid::D,
+            AminoAcid::E,
+            AminoAcid::F,
+            AminoAcid::G,
+            AminoAcid::H,
+            AminoAcid::I,
+            AminoAcid::K,
+            AminoAcid::L,
+            AminoAcid::M,
+            AminoAcid::N,
+            AminoAcid::P,
+            AminoAcid::Q,
+            AminoAcid::R,
+            AminoAcid::S,
+            AminoAcid::T,
+            AminoAcid::V,
+            AminoAcid::W,
+            AminoAcid::Y,
+            AminoAcid::X,
+        ]
+    }
+}
+
+/// A proteinogenic amino acid.
+#[derive(Clone, Copy, PartialEq, Debug)]
+#[repr(u8)]
+pub enum AminoAcid {
+    A = 0,
+    C = 1,
+    D = 2,
+    E = 3,
+    F = 4,
+    G = 5,
+    H = 6,
+    I = 7,
+    K = 8,
+    L = 9,
+    M = 10,
+    N = 11,
+    P = 12,
+    Q = 13,
+    R = 14,
+    S = 15,
+    T = 16,
+    V = 17,
+    W = 18,
+    Y = 19,
+    X = 20,
+}
+
+impl Default for AminoAcid {
+    fn default() -> Self {
+        AminoAcid::X
+    }
+}
+
+impl From<AminoAcid> for char {
+    fn from(aa: AminoAcid) -> char {
+        aa.as_char()
+    }
+}
+
+impl Symbol for AminoAcid {
+    fn as_index(&self) -> usize {
+        *self as usize
+    }
+
+    fn as_char(&self) -> char {
+        match self {
+            AminoAcid::A => 'A',
+            AminoAcid::C => 'C',
+            AminoAcid::D => 'D',
+            AminoAcid::E => 'E',
+            AminoAcid::F => 'F',
+            AminoAcid::G => 'G',
+            AminoAcid::H => 'H',
+            AminoAcid::I => 'I',
+            AminoAcid::K => 'K',
+            AminoAcid::L => 'L',
+            AminoAcid::M => 'M',
+            AminoAcid::N => 'N',
+            AminoAcid::P => 'P',
+            AminoAcid::Q => 'Q',
+            AminoAcid::R => 'R',
+            AminoAcid::S => 'S',
+            AminoAcid::T => 'T',
+            AminoAcid::V => 'V',
+            AminoAcid::W => 'W',
+            AminoAcid::Y => 'Y',
+            AminoAcid::X => 'X',
+        }
+    }
+
+    fn from_char(c: char) -> Result<Self, InvalidSymbol> {
+        match c {
+            'A' => Ok(AminoAcid::A),
+            'C' => Ok(AminoAcid::C),
+            'D' => Ok(AminoAcid::D),
+            'E' => Ok(AminoAcid::E),
+            'F' => Ok(AminoAcid::F),
+            'G' => Ok(AminoAcid::G),
+            'H' => Ok(AminoAcid::H),
+            'I' => Ok(AminoAcid::I),
+            'K' => Ok(AminoAcid::K),
+            'L' => Ok(AminoAcid::L),
+            'M' => Ok(AminoAcid::M),
+            'N' => Ok(AminoAcid::N),
+            'P' => Ok(AminoAcid::P),
+            'Q' => Ok(AminoAcid::Q),
+            'R' => Ok(AminoAcid::R),
+            'S' => Ok(AminoAcid::S),
+            'T' => Ok(AminoAcid::T),
+            'V' => Ok(AminoAcid::V),
+            'W' => Ok(AminoAcid::W),
+            'Y' => Ok(AminoAcid::Y),
+            'X' => Ok(AminoAcid::X),
             _ => Err(InvalidSymbol(c)),
         }
     }
