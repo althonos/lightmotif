@@ -114,9 +114,9 @@ impl<A: Alphabet, const K: usize, const C: usize> Score<A, K, f32, C> for Pipeli
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "ssse3")]
-unsafe fn score_ssse3(
-    seq: &StripedSequence<Dna, { std::mem::size_of::<__m128i>() }>,
-    pssm: &ScoringMatrix<Dna, { Dna::K }>,
+unsafe fn score_ssse3<A: Alphabet, const K: usize>(
+    seq: &StripedSequence<A, { std::mem::size_of::<__m128i>() }>,
+    pssm: &ScoringMatrix<A, K>,
     scores: &mut StripedScores<{ std::mem::size_of::<__m128i>() }>,
 ) {
     // mask vectors for broadcasting uint8x16_t to uint32x4_t to floatx4_t
@@ -162,7 +162,7 @@ unsafe fn score_ssse3(
             // load row for current weight matrix position
             let row = pssm.weights()[j].as_ptr();
             // index lookup table with each bases incrementally
-            for i in 0..Dna::K {
+            for i in 0..K {
                 let sym = _mm_set1_epi32(i as i32);
                 let lut = _mm_set1_ps(*row.add(i as usize));
                 let p1 = _mm_castsi128_ps(_mm_cmpeq_epi32(x1, sym));
@@ -255,14 +255,16 @@ unsafe fn best_position_ssse3(
 
 /// Intel 128-bit vector implementation, for 16 elements column width.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-impl Score<Dna, { Dna::K }, __m128, { std::mem::size_of::<__m128i>() }> for Pipeline<Dna, __m128> {
+impl<A: Alphabet, const K: usize> Score<A, K, __m128, { std::mem::size_of::<__m128i>() }>
+    for Pipeline<A, __m128>
+{
     fn score_into<S, M>(
         seq: S,
         pssm: M,
         scores: &mut StripedScores<{ std::mem::size_of::<__m128i>() }>,
     ) where
-        S: AsRef<StripedSequence<Dna, { std::mem::size_of::<__m128i>() }>>,
-        M: AsRef<ScoringMatrix<Dna, { Dna::K }>>,
+        S: AsRef<StripedSequence<A, { std::mem::size_of::<__m128i>() }>>,
+        M: AsRef<ScoringMatrix<A, K>>,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
