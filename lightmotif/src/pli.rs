@@ -85,7 +85,11 @@ pub trait Score<A: Alphabet, V: Vector, C: NonZero + Unsigned = <V as Vector>::L
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A>>,
     {
-        let mut scores = StripedScores::new_for(&seq, &pssm);
+        let seq = seq.as_ref();
+        let pssm = pssm.as_ref();
+        let data = unsafe { DenseMatrix::uninitialized(seq.data.rows() - seq.wrap) };
+        let length = seq.length - pssm.len() + 1;
+        let mut scores = StripedScores { length, data };
         Self::score_into(seq, pssm, &mut scores);
         scores
     }
