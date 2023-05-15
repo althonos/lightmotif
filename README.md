@@ -14,14 +14,14 @@
 
 ## 🗺️ Overview
 
-[Motif](https://en.wikipedia.org/wiki/Sequence_motif) scanning with 
+[Motif](https://en.wikipedia.org/wiki/Sequence_motif) scanning with
 [position weight matrices](https://en.wikipedia.org/wiki/Position_weight_matrix)
-(also known as position-specific scoring matrices) is a robust method for 
-identifying motifs of fixed length inside a 
-[biological sequence](https://en.wikipedia.org/wiki/Sequence_(biology)). They can be 
-used to identify [transcription factor](https://en.wikipedia.org/wiki/Transcription_factor) 
-[binding sites in DNA](https://en.wikipedia.org/wiki/DNA_binding_site), 
-or [protease](https://en.wikipedia.org/wiki/Protease) [cleavage](https://en.wikipedia.org/wiki/Proteolysis) site in [polypeptides](https://en.wikipedia.org/wiki/Proteolysis). 
+(also known as position-specific scoring matrices) is a robust method for
+identifying motifs of fixed length inside a
+[biological sequence](https://en.wikipedia.org/wiki/Sequence_(biology)). They can be
+used to identify [transcription factor](https://en.wikipedia.org/wiki/Transcription_factor)
+[binding sites in DNA](https://en.wikipedia.org/wiki/DNA_binding_site),
+or [protease](https://en.wikipedia.org/wiki/Protease) [cleavage](https://en.wikipedia.org/wiki/Proteolysis) site in [polypeptides](https://en.wikipedia.org/wiki/Proteolysis).
 Position weight matrices are often viewed as [sequence logos](https://en.wikipedia.org/wiki/Sequence_logo):
 
 [![MX000274.svg](https://raw.githubusercontent.com/althonos/lightmotif/main/docs/_static/prodoric_logo_mx000274.svg)](https://www.prodoric.de/matrix/MX000274.html)
@@ -61,7 +61,7 @@ let mut striped = encoded.to_striped();
 striped.configure(&pssm);
 
 // Use a pipeline to compute scores for every position of the matrix
-let scores = Pipeline::<Dna, u8>::score(&striped, &pssm);
+let scores = Pipeline::<Dna>::score(&striped, &pssm);
 
 // Scores can be extracted into a Vec<f32>, or indexed directly.
 let v = scores.to_vec();
@@ -69,17 +69,17 @@ assert_eq!(scores[0], -23.07094);
 assert_eq!(v[0], -23.07094);
 ```
 
-To use the AVX2 implementation, simply create a `Pipeline<Dna, __m256i>` 
-instead of the `Pipeline<Dna, u8>`. This is only supported when the library is 
-compiled with the `avx2` target feature, but it can be easily configured with 
-Rust's `#[cfg]` attribute.
+Not specifying a vector type will cause the `Pipeline` to use the best
+vector type available based on the selected target features. To explicitly
+use the AVX2, SSSE3, or generic implementation, use `Pipeline<Dna, __m256i>`,
+`Pipeline<Dna, __m128i>`, or `Pipeline<Dna, u8>` respectively.
 
 ## ⏱️ Benchmarks
 
 Both benchmarks use the [MX000001](https://www.prodoric.de/matrix/MX000001.html)
 motif from [PRODORIC](https://www.prodoric.de/)[\[4\]](#ref4), and the
 [complete genome](https://www.ncbi.nlm.nih.gov/nuccore/U00096) of an
-*Escherichia coli K12* strain. 
+*Escherichia coli K12* strain.
 *Benchmarks were run on a [i7-10710U CPU](https://ark.intel.com/content/www/us/en/ark/products/196448/intel-core-i7-10710u-processor-12m-cache-up-to-4-70-ghz.html) running @1.10GHz, compiled with `--target-cpu=native`*.
 
 - Score every position of the genome with the motif weight matrix:

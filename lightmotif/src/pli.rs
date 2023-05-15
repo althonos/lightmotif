@@ -47,6 +47,13 @@ mod vector {
     impl Vector for std::arch::x86_64::__m256i {
         type LANES = U32;
     }
+
+    #[cfg(target_feature = "avx2")]
+    pub type Best = std::arch::x86_64::__m256i;
+    #[cfg(all(not(target_feature = "avx2"), target_feature = "ssse3"))]
+    pub type Best = std::arch::x86_64::__m128i;
+    #[cfg(all(not(target_feature = "avx2"), not(target_feature = "ssse3")))]
+    pub type Best = u8;
 }
 
 // --- Score -------------------------------------------------------------------
@@ -95,7 +102,7 @@ pub trait Score<A: Alphabet, V: Vector> {
 
 /// Wrapper implementing score computation for different platforms.
 #[derive(Debug, Default, Clone)]
-pub struct Pipeline<A: Alphabet, V: Vector> {
+pub struct Pipeline<A: Alphabet, V: Vector = vector::Best> {
     alphabet: std::marker::PhantomData<A>,
     vector: std::marker::PhantomData<V>,
 }
