@@ -187,7 +187,7 @@ pub fn parse_reference(mut input: &str) -> IResult<&str, Reference> {
     ))
 }
 
-pub fn parse_matrix<A: Alphabet, const K: usize>(mut input: &str) -> IResult<&str, Matrix<A, K>> {
+pub fn parse_matrix<A: Alphabet>(mut input: &str) -> IResult<&str, Matrix<A>> {
     let mut accession = None;
     let mut ba = None;
     let mut name = None;
@@ -253,7 +253,7 @@ pub fn parse_matrix<A: Alphabet, const K: usize>(mut input: &str) -> IResult<&st
                 let (rest, counts) = many1(|l| parse_row(l, symbols.len()))(rest)?;
                 input = rest;
                 // read counts into a dense matrix
-                let mut data = DenseMatrix::<u32, K>::new(counts.len());
+                let mut data = DenseMatrix::<u32, A::K>::new(counts.len());
                 for (i, count) in counts.iter().enumerate() {
                     for (s, &c) in symbols.iter().zip(count.iter()) {
                         data[i][s.as_index()] = c;
@@ -340,7 +340,7 @@ mod test {
             "XX\n",
             "//\n",
         );
-        let res = super::parse_matrix::<Dna, { Dna::K }>(text).unwrap();
+        let res = super::parse_matrix::<Dna>(text).unwrap();
         assert_eq!(res.0, "");
 
         let matrix = res.1;
@@ -436,7 +436,7 @@ mod test {
             "XX\n",
             "//\n",
         );
-        let res = super::parse_matrix::<Dna, { Dna::K }>(text).unwrap();
+        let res = super::parse_matrix::<Dna>(text).unwrap();
         assert_eq!(res.0, "");
 
         let matrix = res.1;
@@ -510,7 +510,7 @@ mod test {
             "XX\n",
             "//\n",
         );
-        let res = super::parse_matrix::<Dna, { Dna::K }>(text).unwrap();
+        let res = super::parse_matrix::<Dna>(text).unwrap();
         let matrix = res.1;
         assert_eq!(res.0, "");
         assert_eq!(matrix.name, Some(String::from("MATa1")));

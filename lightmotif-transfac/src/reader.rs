@@ -5,7 +5,7 @@ use lightmotif::Alphabet;
 use super::error::Error;
 use super::Matrix;
 
-pub struct Reader<B: BufRead, A: Alphabet, const K: usize> {
+pub struct Reader<B: BufRead, A: Alphabet> {
     buffer: String,
     bufread: B,
     last: usize,
@@ -14,7 +14,7 @@ pub struct Reader<B: BufRead, A: Alphabet, const K: usize> {
     _alphabet: std::marker::PhantomData<A>,
 }
 
-impl<B: BufRead, A: Alphabet, const K: usize> Reader<B, A, K> {
+impl<B: BufRead, A: Alphabet> Reader<B, A> {
     pub fn new(reader: B) -> Self {
         let mut reader = Self {
             bufread: reader,
@@ -61,8 +61,8 @@ impl<B: BufRead, A: Alphabet, const K: usize> Reader<B, A, K> {
     }
 }
 
-impl<B: BufRead, A: Alphabet, const K: usize> Iterator for Reader<B, A, K> {
-    type Item = Result<Matrix<A, K>, Error>;
+impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
+    type Item = Result<Matrix<A>, Error>;
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(err) = self.error.take() {
             return Some(Err(err));
@@ -81,7 +81,7 @@ impl<B: BufRead, A: Alphabet, const K: usize> Iterator for Reader<B, A, K> {
         }
 
         if self.buffer.len() > 0 {
-            let matrix = super::parse::parse_matrix::<A, K>(&self.buffer).unwrap().1;
+            let matrix = super::parse::parse_matrix::<A>(&self.buffer).unwrap().1;
             self.buffer.clear();
             self.last = 0;
             Some(Ok(matrix))
@@ -122,7 +122,7 @@ mod test {
             "12      1      0      3      1      G\n",
             "//\n",
         );
-        let mut reader = super::Reader::<_, Dna, { Dna::K }>::new(std::io::Cursor::new(text));
+        let mut reader = super::Reader::<_, Dna>::new(std::io::Cursor::new(text));
         assert_eq!(
             reader.version,
             Some(String::from(
@@ -153,7 +153,7 @@ mod test {
             "//\n",
         );
 
-        let mut reader = super::Reader::<_, Dna, { Dna::K }>::new(std::io::Cursor::new(text));
+        let mut reader = super::Reader::<_, Dna>::new(std::io::Cursor::new(text));
         let matrix = reader.next().unwrap().unwrap();
         assert_eq!(reader.version, None);
         assert_eq!(matrix.accession, Some(String::from("M00030")));
@@ -199,7 +199,7 @@ mod test {
             "//\n",
         );
 
-        let mut reader = super::Reader::<_, Dna, { Dna::K }>::new(std::io::Cursor::new(text));
+        let mut reader = super::Reader::<_, Dna>::new(std::io::Cursor::new(text));
         let m1 = reader.next().unwrap().unwrap();
         assert_eq!(m1.id, Some(String::from("prodoric_MX000001")));
         let m2 = reader.next().unwrap().unwrap();
@@ -244,7 +244,7 @@ mod test {
             "//\n",
         );
 
-        let mut reader = super::Reader::<_, Dna, { Dna::K }>::new(std::io::Cursor::new(text));
+        let mut reader = super::Reader::<_, Dna>::new(std::io::Cursor::new(text));
         let m1 = reader.next().unwrap().unwrap();
         assert_eq!(m1.id, Some(String::from("prodoric_MX000001")));
         let m2 = reader.next().unwrap().unwrap();

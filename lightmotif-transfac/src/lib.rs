@@ -14,18 +14,18 @@ pub mod error;
 mod parse;
 pub mod reader;
 
-#[derive(Clone, Debug)]
-pub struct Matrix<A: Alphabet, const K: usize> {
+#[derive(Clone)]
+pub struct Matrix<A: Alphabet> {
     id: Option<String>,
     accession: Option<String>,
     name: Option<String>,
-    counts: CountMatrix<A, K>,
+    counts: CountMatrix<A>,
     dates: Vec<Date>,
     references: Vec<Reference>,
     sites: Vec<String>,
 }
 
-impl<A: Alphabet, const K: usize> Matrix<A, K> {
+impl<A: Alphabet> Matrix<A> {
     pub fn id(&self) -> Option<&str> {
         self.id.as_ref().map(String::as_str)
     }
@@ -39,8 +39,8 @@ impl<A: Alphabet, const K: usize> Matrix<A, K> {
     }
 }
 
-impl<A: Alphabet, const K: usize> AsRef<CountMatrix<A, K>> for Matrix<A, K> {
-    fn as_ref(&self) -> &CountMatrix<A, K> {
+impl<A: Alphabet> AsRef<CountMatrix<A>> for Matrix<A> {
+    fn as_ref(&self) -> &CountMatrix<A> {
         &self.counts
     }
 }
@@ -91,6 +91,6 @@ pub struct Reference {
     pmid: Option<String>,
 }
 
-pub fn read<B: BufRead, A: Alphabet, const K: usize>(reader: B) -> self::reader::Reader<B, A, K> {
+pub fn read<B: BufRead, A: Alphabet>(reader: B) -> self::reader::Reader<B, A> {
     self::reader::Reader::new(reader)
 }
