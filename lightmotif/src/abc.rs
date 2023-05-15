@@ -1,5 +1,12 @@
 use std::fmt::Debug;
 
+use generic_array::ArrayLength;
+use generic_array::GenericArray;
+use typenum::consts::U21;
+use typenum::consts::U5;
+use typenum::marker_traits::NonZero;
+use typenum::marker_traits::Unsigned;
+
 use super::err::InvalidData;
 use super::err::InvalidSymbol;
 
@@ -26,7 +33,7 @@ pub trait ComplementableSymbol: Symbol {
 /// A biological alphabet with associated metadata.
 pub trait Alphabet: Debug + Copy + Default + 'static {
     type Symbol: Symbol;
-    const K: usize;
+    type K: Unsigned + NonZero + ArrayLength<f32>;
 
     /// Get the default symbol for this alphabet.
     fn default_symbol() -> Self::Symbol {
@@ -62,7 +69,7 @@ pub struct Dna;
 
 impl Alphabet for Dna {
     type Symbol = Nucleotide;
-    const K: usize = 5;
+    type K = U5;
 
     fn symbols() -> &'static [Nucleotide] {
         &[
@@ -158,7 +165,7 @@ pub struct Protein;
 
 impl Alphabet for Protein {
     type Symbol = AminoAcid;
-    const K: usize = 21;
+    type K = U21;
 
     fn symbols() -> &'static [AminoAcid] {
         &[
@@ -289,17 +296,21 @@ impl Symbol for AminoAcid {
 
 /// The background frequencies for an alphabet.
 #[derive(Clone, Debug)]
-pub struct Background<A: Alphabet, const K: usize> {
-    frequencies: [f32; K],
+pub struct Background<A: Alphabet> {
+    frequencies: GenericArray<f32, A::K>,
     alphabet: std::marker::PhantomData<A>,
 }
 
-impl<A: Alphabet, const K: usize> Background<A, K> {
+impl<A: Alphabet> Background<A> {
     /// Create a new background with the given frequencies.
     ///
     /// The array must contain valid frequencies, i.e. real numbers between
     /// zero and one that sum to one.
-    pub fn new(frequencies: [f32; K]) -> Result<Self, InvalidData> {
+    pub fn new<F>(frequencies: F) -> Result<Self, InvalidData>
+    where
+        F: Into<GenericArray<f32, A::K>>,
+    {
+        let frequencies = frequencies.into();
         let mut sum = 0.0;
         for &f in frequencies.iter() {
             if f < 0.0 || f > 1.0 {
@@ -311,7 +322,7 @@ impl<A: Alphabet, const K: usize> Background<A, K> {
             return Err(InvalidData);
         }
         Ok(Self {
-            frequencies,
+            frequencies: frequencies.into(),
             alphabet: std::marker::PhantomData,
         })
     }
@@ -328,16 +339,20 @@ impl<A: Alphabet, const K: usize> Background<A, K> {
     /// # Example
     /// ```
     /// # use lightmotif::*;
-    /// let bg = Background::<Dna, { Dna::K }>::uniform();
+    /// let bg = Background::<Dna>::uniform();
     /// assert_eq!(bg.frequencies(), &[0.25, 0.25, 0.25, 0.25, 0.0]);
     /// ```
     pub fn uniform() -> Self {
-        let mut frequencies = [0.0; K];
-        for i in 0..K {
-            if i != A::default_symbol().as_index() {
-                frequencies[i] = 1.0 / ((K - 1) as f32);
-            }
-        }
+        let frequencies = (0..A::K::USIZE)
+            .into_iter()
+            .map(|i| {
+                if i != A::default_symbol().as_index() {
+                    1.0 / ((A::K::USIZE - 1) as f32)
+                } else {
+                    0.0
+                }
+            })
+            .collect();
         Self {
             frequencies,
             alphabet: std::marker::PhantomData,
@@ -345,18 +360,18 @@ impl<A: Alphabet, const K: usize> Background<A, K> {
     }
 
     /// A reference to the raw background frequencies.
-    pub fn frequencies(&self) -> &[f32; K] {
+    pub fn frequencies(&self) -> &[f32] {
         &self.frequencies
     }
 }
 
-impl<A: Alphabet, const K: usize> AsRef<[f32; K]> for Background<A, K> {
-    fn as_ref(&self) -> &[f32; K] {
+impl<A: Alphabet> AsRef<GenericArray<f32, A::K>> for Background<A> {
+    fn as_ref(&self) -> &GenericArray<f32, A::K> {
         &self.frequencies
     }
 }
 
-impl<A: Alphabet, const K: usize> Default for Background<A, K> {
+impl<A: Alphabet> Default for Background<A> {
     fn default() -> Self {
         Self::uniform()
     }
@@ -366,40 +381,44 @@ impl<A: Alphabet, const K: usize> Default for Background<A, K> {
 
 /// A structure for storing the pseudocounts over an alphabet.
 #[derive(Clone, Debug)]
-pub struct Pseudocounts<A: Alphabet, const K: usize> {
+pub struct Pseudocounts<A: Alphabet> {
+    counts: GenericArray<f32, A::K>,
     alphabet: std::marker::PhantomData<A>,
-    counts: [f32; K],
 }
 
-impl<A: Alphabet, const K: usize> Pseudocounts<A, K> {
-    pub fn counts(&self) -> &[f32; K] {
+impl<A: Alphabet> Pseudocounts<A> {
+    pub fn counts(&self) -> &[f32] {
         &self.counts
     }
 }
 
-impl<A: Alphabet, const K: usize> Default for Pseudocounts<A, K> {
+impl<A: Alphabet> Default for Pseudocounts<A> {
     fn default() -> Self {
-        Self::from([0.0; K])
+        Self::from(0.0)
     }
 }
 
-impl<A: Alphabet, const K: usize> From<[f32; K]> for Pseudocounts<A, K> {
-    fn from(counts: [f32; K]) -> Self {
+impl<A: Alphabet> From<GenericArray<f32, A::K>> for Pseudocounts<A> {
+    fn from(counts: GenericArray<f32, A::K>) -> Self {
         Self {
             alphabet: std::marker::PhantomData,
-            counts,
+            counts: counts.into(),
         }
     }
 }
 
-impl<A: Alphabet, const K: usize> From<f32> for Pseudocounts<A, K> {
+impl<A: Alphabet> From<f32> for Pseudocounts<A> {
     fn from(count: f32) -> Self {
-        let mut counts: [f32; K] = [0.0; K];
-        for i in 0..K {
-            if i != A::default_symbol().as_index() {
-                counts[i] = count;
-            }
-        }
+        let counts = (0..A::K::USIZE)
+            .into_iter()
+            .map(|i| {
+                if i != A::default_symbol().as_index() {
+                    count
+                } else {
+                    0.0
+                }
+            })
+            .collect();
         Self {
             counts,
             alphabet: std::marker::PhantomData,
@@ -407,14 +426,14 @@ impl<A: Alphabet, const K: usize> From<f32> for Pseudocounts<A, K> {
     }
 }
 
-impl<A: Alphabet, const K: usize> AsRef<[f32; K]> for Pseudocounts<A, K> {
-    fn as_ref(&self) -> &[f32; K] {
+impl<A: Alphabet> AsRef<[f32]> for Pseudocounts<A> {
+    fn as_ref(&self) -> &[f32] {
         &self.counts
     }
 }
 
-impl<A: Alphabet, const K: usize> AsMut<[f32; K]> for Pseudocounts<A, K> {
-    fn as_mut(&mut self) -> &mut [f32; K] {
+impl<A: Alphabet> AsMut<[f32]> for Pseudocounts<A> {
+    fn as_mut(&mut self) -> &mut [f32] {
         &mut self.counts
     }
 }
@@ -425,7 +444,7 @@ mod test {
 
     #[test]
     fn test_background_new() {
-        assert!(Background::<Dna, { Dna::K }>::new([0.3, 0.2, 0.2, 0.3, 0.0]).is_ok());
-        assert!(Background::<Dna, { Dna::K }>::new([0.1, 0.1, 0.1, 0.1, 0.0]).is_err());
+        assert!(Background::<Dna>::new([0.3, 0.2, 0.2, 0.3, 0.0]).is_ok());
+        assert!(Background::<Dna>::new([0.1, 0.1, 0.1, 0.1, 0.0]).is_err());
     }
 }

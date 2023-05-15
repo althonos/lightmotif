@@ -4,9 +4,9 @@ extern crate lightmotif;
 extern crate test;
 
 #[cfg(target_feature = "ssse3")]
-use std::arch::x86_64::__m128;
+use std::arch::x86_64::__m128i;
 #[cfg(target_feature = "avx2")]
-use std::arch::x86_64::__m256;
+use std::arch::x86_64::__m256i;
 use std::str::FromStr;
 
 use lightmotif::Alphabet;
@@ -23,9 +23,9 @@ const SEQUENCE: &'static str = include_str!("ecoli.txt");
 #[bench]
 fn bench_generic(bencher: &mut test::Bencher) {
     let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped::<32>();
+    let mut striped = encoded.to_striped();
 
-    let cm = CountMatrix::<Dna, { Dna::K }>::from_sequences(&[
+    let cm = CountMatrix::<Dna>::from_sequences(&[
         EncodedSequence::from_str("GTTGACCTTATCAAC").unwrap(),
         EncodedSequence::from_str("GTTGATCCAGTCAAC").unwrap(),
     ])
@@ -36,7 +36,7 @@ fn bench_generic(bencher: &mut test::Bencher) {
     striped.configure(&pssm);
     let mut scores = StripedScores::new_for(&striped, &pssm);
     bencher.bytes = SEQUENCE.len() as u64;
-    bencher.iter(|| test::black_box(Pipeline::<_, f32>::score_into(&striped, &pssm, &mut scores)));
+    bencher.iter(|| test::black_box(Pipeline::<_, u8>::score_into(&striped, &pssm, &mut scores)));
 }
 
 #[cfg(target_feature = "ssse3")]
@@ -57,7 +57,7 @@ fn bench_ssse3(bencher: &mut test::Bencher) {
     let mut scores = StripedScores::new_for(&striped, &pssm);
     bencher.bytes = SEQUENCE.len() as u64;
     bencher.iter(|| {
-        test::black_box(Pipeline::<_, __m128>::score_into(
+        test::black_box(Pipeline::<_, __m128i>::score_into(
             &striped,
             &pssm,
             &mut scores,
@@ -83,7 +83,7 @@ fn bench_avx2(bencher: &mut test::Bencher) {
     let mut scores = StripedScores::new_for(&striped, &pssm);
     bencher.bytes = SEQUENCE.len() as u64;
     bencher.iter(|| {
-        test::black_box(Pipeline::<_, __m256>::score_into(
+        test::black_box(Pipeline::<_, __m256i>::score_into(
             &striped,
             &pssm,
             &mut scores,

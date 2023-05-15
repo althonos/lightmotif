@@ -10,3 +10,7 @@ homepage = "https://github.com/althonos/lightmotif"
 readme = "README.md"
 categories = ["science"]
 keywords = ["bioinformatics", "genomics", "motif", "pssm", "matrix"]
+
+[dependencies]
+typenum = "1.16"
+generic-array = "0.14"

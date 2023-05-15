@@ -1,6 +1,9 @@
 use std::str::FromStr;
 use std::string::ToString;
 
+use typenum::marker_traits::NonZero;
+use typenum::marker_traits::Unsigned;
+
 use super::abc::Alphabet;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
@@ -45,9 +48,9 @@ impl<A: Alphabet> EncodedSequence<A> {
     }
 
     /// Convert the encoded sequence to a striped matrix.
-    pub fn to_striped<const C: usize>(&self) -> StripedSequence<A, C> {
+    pub fn to_striped<C: Unsigned + NonZero>(&self) -> StripedSequence<A, C> {
         let length = self.data.len();
-        let n = length / C + ((length % C) != 0) as usize;
+        let n = (length + (C::USIZE - 1)) / C::USIZE;
         let mut data = DenseMatrix::new(n);
         for (i, &x) in self.data.iter().enumerate() {
             data[i % n][i / n] = x;
@@ -108,16 +111,16 @@ impl<A: Alphabet> ToString for EncodedSequence<A> {
 
 /// An encoded sequence stored in a striped matrix with a fixed column count.
 #[derive(Clone, Debug)]
-pub struct StripedSequence<A: Alphabet, const C: usize = 32> {
+pub struct StripedSequence<A: Alphabet, C: Unsigned + NonZero> {
     alphabet: std::marker::PhantomData<A>,
     pub length: usize,
     pub wrap: usize,
     pub data: DenseMatrix<A::Symbol, C>,
 }
 
-impl<A: Alphabet, const C: usize> StripedSequence<A, C> {
+impl<A: Alphabet, C: Unsigned + NonZero> StripedSequence<A, C> {
     /// Reconfigure the striped sequence for searching with a motif.
-    pub fn configure<const K: usize>(&mut self, motif: &ScoringMatrix<A, K>) {
+    pub fn configure(&mut self, motif: &ScoringMatrix<A>) {
         if motif.len() > 0 {
             self.configure_wrap(motif.len() - 1);
         }
@@ -129,7 +132,7 @@ impl<A: Alphabet, const C: usize> StripedSequence<A, C> {
             let rows = self.data.rows() - self.wrap;
             self.data.resize(self.data.rows() + m - self.wrap);
             for i in 0..m {
-                for j in 0..C - 1 {
+                for j in 0..C::USIZE - 1 {
                     self.data[rows + i][j] = self.data[i][j + 1];
                 }
             }
@@ -138,13 +141,13 @@ impl<A: Alphabet, const C: usize> StripedSequence<A, C> {
     }
 }
 
-impl<A: Alphabet, const C: usize> AsRef<StripedSequence<A, C>> for StripedSequence<A, C> {
+impl<A: Alphabet, C: Unsigned + NonZero> AsRef<StripedSequence<A, C>> for StripedSequence<A, C> {
     fn as_ref(&self) -> &Self {
         &self
     }
 }
 
-impl<A: Alphabet, const C: usize> From<EncodedSequence<A>> for StripedSequence<A, C> {
+impl<A: Alphabet, C: Unsigned + NonZero> From<EncodedSequence<A>> for StripedSequence<A, C> {
     fn from(encoded: EncodedSequence<A>) -> Self {
         encoded.to_striped()
     }
@@ -152,19 +155,23 @@ impl<A: Alphabet, const C: usize> From<EncodedSequence<A>> for StripedSequence<A
 
 #[cfg(test)]
 mod test {
+    use typenum::consts::U2;
+    use typenum::consts::U4;
+
     use super::*;
+
     use crate::Dna;
     use crate::Nucleotide::*;
 
     #[test]
     fn test_stripe() {
         let seq = EncodedSequence::<Dna>::from_str("ATGCA").unwrap();
-        let striped = seq.to_striped::<4>();
+        let striped = seq.to_striped::<U4>();
         assert_eq!(striped.data.rows(), 2);
         assert_eq!(&striped.data[0], &[A, G, A, N]);
         assert_eq!(&striped.data[1], &[T, C, N, N]);
 
-        let striped = seq.to_striped::<2>();
+        let striped = seq.to_striped::<U2>();
         assert_eq!(striped.data.rows(), 3);
         assert_eq!(&striped.data[0], &[A, C,]);
         assert_eq!(&striped.data[1], &[T, A,]);
@@ -174,7 +181,7 @@ mod test {
     #[test]
     fn test_configure_wrap() {
         let seq = EncodedSequence::<Dna>::from_str("ATGCA").unwrap();
-        let mut striped = seq.to_striped::<4>();
+        let mut striped = seq.to_striped::<U4>();
 
         striped.configure_wrap(2);
         assert_eq!(striped.data.rows(), 4);

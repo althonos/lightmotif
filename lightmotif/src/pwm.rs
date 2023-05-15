@@ -1,3 +1,5 @@
+use typenum::marker_traits::Unsigned;
+
 use super::abc::Alphabet;
 use super::abc::Background;
 use super::abc::ComplementableAlphabet;
@@ -11,19 +13,19 @@ use super::seq::EncodedSequence;
 
 /// A matrix storing symbol occurences at each position.
 #[derive(Clone, Debug)]
-pub struct CountMatrix<A: Alphabet, const K: usize> {
+pub struct CountMatrix<A: Alphabet> {
     /// The alphabet of the count matrix.
     alphabet: std::marker::PhantomData<A>,
     /// The actual counts for each position of the motif.
-    data: DenseMatrix<u32, K>,
+    data: DenseMatrix<u32, A::K>,
     /// The number of sequences from which this count matrix was obtained.
     #[allow(unused)]
     n: u32,
 }
 
-impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
+impl<A: Alphabet> CountMatrix<A> {
     /// Create a new count matrix without checking the contents.
-    fn new_unchecked(data: DenseMatrix<u32, K>, n: u32) -> Self {
+    fn new_unchecked(data: DenseMatrix<u32, A::K>, n: u32) -> Self {
         Self {
             alphabet: std::marker::PhantomData,
             n,
@@ -35,7 +37,7 @@ impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
     ///
     /// The matrix must contain count data, for sequences of the same
     /// length, i.e. rows should all sum to the same value.
-    pub fn new(data: DenseMatrix<u32, K>) -> Result<Self, InvalidData> {
+    pub fn new(data: DenseMatrix<u32, A::K>) -> Result<Self, InvalidData> {
         // Empty matrices contain valid data.
         if data.rows() == 0 {
             return Ok(Self::new_unchecked(data, 0));
@@ -77,9 +79,9 @@ impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
     }
 
     /// Build a probability matrix from this count matrix using pseudo-counts.
-    pub fn to_freq<P>(&self, pseudo: P) -> FrequencyMatrix<A, K>
+    pub fn to_freq<P>(&self, pseudo: P) -> FrequencyMatrix<A>
     where
-        P: Into<Pseudocounts<A, K>>,
+        P: Into<Pseudocounts<A>>,
     {
         let p = pseudo.into();
         let mut probas = DenseMatrix::new(self.data.rows());
@@ -99,12 +101,12 @@ impl<A: Alphabet, const K: usize> CountMatrix<A, K> {
 
     /// The raw counts from the count matrix.
     #[inline]
-    pub fn counts(&self) -> &DenseMatrix<u32, K> {
+    pub fn counts(&self) -> &DenseMatrix<u32, A::K> {
         &self.data
     }
 }
 
-impl<A: ComplementableAlphabet, const K: usize> CountMatrix<A, K> {
+impl<A: ComplementableAlphabet> CountMatrix<A> {
     /// Get the reverse-complement of this count matrix.
     pub fn reverse_complement(&self) -> Self {
         let mut data = DenseMatrix::new(self.data.rows());
@@ -117,15 +119,13 @@ impl<A: ComplementableAlphabet, const K: usize> CountMatrix<A, K> {
     }
 }
 
-impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<u32, K>> for CountMatrix<A, K> {
-    fn as_ref(&self) -> &DenseMatrix<u32, K> {
+impl<A: Alphabet> AsRef<DenseMatrix<u32, A::K>> for CountMatrix<A> {
+    fn as_ref(&self) -> &DenseMatrix<u32, A::K> {
         &self.data
     }
 }
 
-impl<A: Alphabet, const K: usize> FromIterator<EncodedSequence<A>>
-    for Result<CountMatrix<A, K>, InvalidData>
-{
+impl<A: Alphabet> FromIterator<EncodedSequence<A>> for Result<CountMatrix<A>, InvalidData> {
     fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = EncodedSequence<A>>,
@@ -138,14 +138,14 @@ impl<A: Alphabet, const K: usize> FromIterator<EncodedSequence<A>>
 
 /// A matrix storing symbol frequencies at each position.
 #[derive(Clone, Debug)]
-pub struct FrequencyMatrix<A: Alphabet, const K: usize> {
+pub struct FrequencyMatrix<A: Alphabet> {
     alphabet: std::marker::PhantomData<A>,
-    data: DenseMatrix<f32, K>,
+    data: DenseMatrix<f32, A::K>,
 }
 
-impl<A: Alphabet, const K: usize> FrequencyMatrix<A, K> {
+impl<A: Alphabet> FrequencyMatrix<A> {
     /// Create a new frequency matrix without checking the contents.
-    fn new_unchecked(data: DenseMatrix<f32, K>) -> Self {
+    fn new_unchecked(data: DenseMatrix<f32, A::K>) -> Self {
         Self {
             alphabet: std::marker::PhantomData,
             data,
@@ -153,9 +153,9 @@ impl<A: Alphabet, const K: usize> FrequencyMatrix<A, K> {
     }
 
     /// Convert to a weight matrix using the given background frequencies.
-    pub fn to_weight<B>(&self, background: B) -> WeightMatrix<A, K>
+    pub fn to_weight<B>(&self, background: B) -> WeightMatrix<A>
     where
-        B: Into<Option<Background<A, K>>>,
+        B: Into<Option<Background<A>>>,
     {
         let bg = background.into().unwrap_or_default();
         let mut weight = DenseMatrix::new(self.data.rows());
@@ -168,9 +168,9 @@ impl<A: Alphabet, const K: usize> FrequencyMatrix<A, K> {
     }
 
     /// Convert to a scoring matrix using the given background frequencies.
-    pub fn to_scoring<B>(&self, background: B) -> ScoringMatrix<A, K>
+    pub fn to_scoring<B>(&self, background: B) -> ScoringMatrix<A>
     where
-        B: Into<Option<Background<A, K>>>,
+        B: Into<Option<Background<A>>>,
     {
         let bg = background.into().unwrap_or_default();
         let mut scores = DenseMatrix::new(self.data.rows());
@@ -183,13 +183,13 @@ impl<A: Alphabet, const K: usize> FrequencyMatrix<A, K> {
     }
 }
 
-impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<f32, K>> for FrequencyMatrix<A, K> {
-    fn as_ref(&self) -> &DenseMatrix<f32, K> {
+impl<A: Alphabet> AsRef<DenseMatrix<f32, A::K>> for FrequencyMatrix<A> {
+    fn as_ref(&self) -> &DenseMatrix<f32, A::K> {
         &self.data
     }
 }
 
-impl<A: ComplementableAlphabet, const K: usize> FrequencyMatrix<A, K> {
+impl<A: ComplementableAlphabet> FrequencyMatrix<A> {
     /// Get the reverse-complement of this count matrix.
     pub fn reverse_complement(&self) -> Self {
         let mut data = DenseMatrix::new(self.data.rows());
@@ -206,14 +206,14 @@ impl<A: ComplementableAlphabet, const K: usize> FrequencyMatrix<A, K> {
 
 /// A matrix storing odds ratio of symbol occurences at each position.
 #[derive(Clone, Debug)]
-pub struct WeightMatrix<A: Alphabet, const K: usize> {
-    background: Background<A, K>,
-    data: DenseMatrix<f32, K>,
+pub struct WeightMatrix<A: Alphabet> {
+    background: Background<A>,
+    data: DenseMatrix<f32, A::K>,
 }
 
-impl<A: Alphabet, const K: usize> WeightMatrix<A, K> {
+impl<A: Alphabet> WeightMatrix<A> {
     /// Create a new weight matrix without checking the contents.
-    fn new_unchecked(background: Background<A, K>, data: DenseMatrix<f32, K>) -> Self {
+    fn new_unchecked(background: Background<A>, data: DenseMatrix<f32, A::K>) -> Self {
         Self { background, data }
     }
 
@@ -225,20 +225,20 @@ impl<A: Alphabet, const K: usize> WeightMatrix<A, K> {
 
     /// The log-likelihoods of the position weight matrix.
     #[inline]
-    pub fn weights(&self) -> &DenseMatrix<f32, K> {
+    pub fn weights(&self) -> &DenseMatrix<f32, A::K> {
         &self.data
     }
 
     /// The background frequencies of the position weight matrix.
     #[inline]
-    pub fn background(&self) -> &Background<A, K> {
+    pub fn background(&self) -> &Background<A> {
         &self.background
     }
 
     /// Rescale this weight matrix with a different background.
     pub fn rescale<B>(&self, background: B) -> Self
     where
-        B: Into<Option<Background<A, K>>>,
+        B: Into<Option<Background<A>>>,
     {
         let b = background.into().unwrap_or_default();
         if b.frequencies() != self.background.frequencies() {
@@ -246,7 +246,7 @@ impl<A: Alphabet, const K: usize> WeightMatrix<A, K> {
             let new_freqs = b.frequencies();
             let mut data = self.data.clone();
             for row in data.iter_mut() {
-                for j in 0..K {
+                for j in 0..A::K::USIZE {
                     row[j] *= old_freqs[j] / new_freqs[j];
                 }
             }
@@ -260,7 +260,7 @@ impl<A: Alphabet, const K: usize> WeightMatrix<A, K> {
     }
 
     /// Get a position-specific scoring matrix from this position weight matrix.
-    pub fn to_scoring(&self) -> ScoringMatrix<A, K> {
+    pub fn to_scoring(&self) -> ScoringMatrix<A> {
         let background = self.background.clone();
         let mut data = self.data.clone();
         for row in data.iter_mut() {
@@ -272,7 +272,7 @@ impl<A: Alphabet, const K: usize> WeightMatrix<A, K> {
     }
 }
 
-impl<A: ComplementableAlphabet, const K: usize> WeightMatrix<A, K> {
+impl<A: ComplementableAlphabet> WeightMatrix<A> {
     /// Get the reverse-complement of this count matrix.
     pub fn reverse_complement(&self) -> Self {
         let mut data = DenseMatrix::new(self.data.rows());
@@ -285,20 +285,20 @@ impl<A: ComplementableAlphabet, const K: usize> WeightMatrix<A, K> {
     }
 }
 
-impl<A: Alphabet, const K: usize> AsRef<WeightMatrix<A, K>> for WeightMatrix<A, K> {
+impl<A: Alphabet> AsRef<WeightMatrix<A>> for WeightMatrix<A> {
     fn as_ref(&self) -> &Self {
         &self
     }
 }
 
-impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<f32, K>> for WeightMatrix<A, K> {
-    fn as_ref(&self) -> &DenseMatrix<f32, K> {
+impl<A: Alphabet> AsRef<DenseMatrix<f32, A::K>> for WeightMatrix<A> {
+    fn as_ref(&self) -> &DenseMatrix<f32, A::K> {
         &self.data
     }
 }
 
-impl<A: Alphabet, const K: usize> From<ScoringMatrix<A, K>> for WeightMatrix<A, K> {
-    fn from(pwm: ScoringMatrix<A, K>) -> Self {
+impl<A: Alphabet> From<ScoringMatrix<A>> for WeightMatrix<A> {
+    fn from(pwm: ScoringMatrix<A>) -> Self {
         let background = pwm.background;
         let mut data = pwm.data;
         for row in data.iter_mut() {
@@ -314,12 +314,12 @@ impl<A: Alphabet, const K: usize> From<ScoringMatrix<A, K>> for WeightMatrix<A, 
 
 /// A matrix storing odds ratio of symbol occurences at each position.
 #[derive(Clone, Debug)]
-pub struct ScoringMatrix<A: Alphabet, const K: usize> {
-    background: Background<A, K>,
-    data: DenseMatrix<f32, K>,
+pub struct ScoringMatrix<A: Alphabet> {
+    background: Background<A>,
+    data: DenseMatrix<f32, A::K>,
 }
 
-impl<A: ComplementableAlphabet, const K: usize> ScoringMatrix<A, K> {
+impl<A: ComplementableAlphabet> ScoringMatrix<A> {
     /// Get the reverse-complement of this count matrix.
     pub fn reverse_complement(&self) -> Self {
         let mut data = DenseMatrix::new(self.data.rows());
@@ -332,9 +332,9 @@ impl<A: ComplementableAlphabet, const K: usize> ScoringMatrix<A, K> {
     }
 }
 
-impl<A: Alphabet, const K: usize> ScoringMatrix<A, K> {
+impl<A: Alphabet> ScoringMatrix<A> {
     /// Create a new scoring matrix without checking the contents.
-    fn new_unchecked(background: Background<A, K>, data: DenseMatrix<f32, K>) -> Self {
+    fn new_unchecked(background: Background<A>, data: DenseMatrix<f32, A::K>) -> Self {
         Self { background, data }
     }
 
@@ -346,31 +346,31 @@ impl<A: Alphabet, const K: usize> ScoringMatrix<A, K> {
 
     /// The log-likelihoods of the position weight matrix.
     #[inline]
-    pub fn weights(&self) -> &DenseMatrix<f32, K> {
+    pub fn weights(&self) -> &DenseMatrix<f32, A::K> {
         &self.data
     }
 
     /// The background frequencies of the position weight matrix.
     #[inline]
-    pub fn background(&self) -> &Background<A, K> {
+    pub fn background(&self) -> &Background<A> {
         &self.background
     }
 }
 
-impl<A: Alphabet, const K: usize> AsRef<ScoringMatrix<A, K>> for ScoringMatrix<A, K> {
+impl<A: Alphabet> AsRef<ScoringMatrix<A>> for ScoringMatrix<A> {
     fn as_ref(&self) -> &Self {
         &self
     }
 }
 
-impl<A: Alphabet, const K: usize> AsRef<DenseMatrix<f32, K>> for ScoringMatrix<A, K> {
-    fn as_ref(&self) -> &DenseMatrix<f32, K> {
+impl<A: Alphabet> AsRef<DenseMatrix<f32, A::K>> for ScoringMatrix<A> {
+    fn as_ref(&self) -> &DenseMatrix<f32, A::K> {
         &self.data
     }
 }
 
-impl<A: Alphabet, const K: usize> From<WeightMatrix<A, K>> for ScoringMatrix<A, K> {
-    fn from(pwm: WeightMatrix<A, K>) -> Self {
+impl<A: Alphabet> From<WeightMatrix<A>> for ScoringMatrix<A> {
+    fn from(pwm: WeightMatrix<A>) -> Self {
         let background = pwm.background;
         let mut data = pwm.data;
         for row in data.iter_mut() {

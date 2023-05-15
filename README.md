@@ -46,7 +46,7 @@ of sequences:
 use lightmotif::*;
 
 // Create a count matrix from an iterable of motif sequences
-let counts = CountMatrix::<Dna, {Dna::K}>::from_sequences(&[
+let counts = CountMatrix::from_sequences(&[
     EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
     EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
 ]).unwrap();
@@ -56,12 +56,12 @@ let pssm = counts.to_freq(0.1).to_scoring(None);
 
 // Encode the target sequence into a striped matrix
 let seq = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
-let encoded = EncodedSequence::<Dna>::encode(seq).unwrap();
-let mut striped = encoded.to_striped::<32>();
+let encoded = EncodedSequence::encode(seq).unwrap();
+let mut striped = encoded.to_striped();
 striped.configure(&pssm);
 
 // Use a pipeline to compute scores for every position of the matrix
-let scores = Pipeline::<Dna, f32>::score(&striped, &pssm);
+let scores = Pipeline::<Dna, u8>::score(&striped, &pssm);
 
 // Scores can be extracted into a Vec<f32>, or indexed directly.
 let v = scores.to_vec();
@@ -69,10 +69,10 @@ assert_eq!(scores[0], -23.07094);
 assert_eq!(v[0], -23.07094);
 ```
 
-To use the AVX2 implementation, simply create a `Pipeline<_, __m256>` instead
-of the `Pipeline<_, f32>`. This is only supported when the library is compiled
-with the `avx2` target feature, but it can be easily configured with Rust's
-`#[cfg]` attribute.
+To use the AVX2 implementation, simply create a `Pipeline<Dna, __m256i>` 
+instead of the `Pipeline<Dna, u8>`. This is only supported when the library is 
+compiled with the `avx2` target feature, but it can be easily configured with 
+Rust's `#[cfg]` attribute.
 
 ## ⏱️ Benchmarks
 

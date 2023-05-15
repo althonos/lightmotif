@@ -5,7 +5,10 @@ use std::iter::FusedIterator;
 use std::ops::Index;
 use std::ops::Range;
 
-use self::seal::Vector;
+use typenum::marker_traits::NonZero;
+use typenum::marker_traits::Unsigned;
+
+use self::vector::Vector;
 use super::abc::Alphabet;
 use super::abc::Dna;
 use super::abc::Symbol;
@@ -15,34 +18,52 @@ use super::seq::StripedSequence;
 
 // --- Vector ------------------------------------------------------------------
 
-mod seal {
+mod vector {
+    use typenum::consts::U1;
+    use typenum::consts::U16;
+    use typenum::consts::U32;
+    use typenum::marker_traits::NonZero;
+    use typenum::marker_traits::Unsigned;
+
     /// Sealed trait for concrete vector implementations.
-    pub trait Vector {}
+    ///
+    /// The trait is defined for the loading vector type, which has `LANES`
+    /// lanes of `u8` values. These values are then splat into 4 vectors with
+    /// `f32` values to actually compute the scores.
+    pub trait Vector {
+        type LANES: Unsigned + NonZero;
+    }
 
-    impl Vector for f32 {}
+    impl Vector for u8 {
+        type LANES = U1;
+    }
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    impl Vector for std::arch::x86_64::__m256 {}
+    impl Vector for std::arch::x86_64::__m128i {
+        type LANES = U16;
+    }
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    impl Vector for std::arch::x86_64::__m128 {}
+    impl Vector for std::arch::x86_64::__m256i {
+        type LANES = U32;
+    }
 }
 
 // --- Score -------------------------------------------------------------------
 
 /// Generic trait for computing sequence scores with a PSSM.
-pub trait Score<A: Alphabet, const K: usize, V: Vector, const C: usize> {
+pub trait Score<A: Alphabet, V: Vector> {
     /// Compute the PSSM scores into the given buffer.
-    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<C>)
+    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<V::LANES>)
     where
-        S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<ScoringMatrix<A, K>>;
+        S: AsRef<StripedSequence<A, V::LANES>>,
+        M: AsRef<ScoringMatrix<A>>;
 
     /// Compute the PSSM scores for every sequence positions.
-    fn score<S, M>(seq: S, pssm: M) -> StripedScores<C>
+    fn score<S, M>(seq: S, pssm: M) -> StripedScores<V::LANES>
     where
-        S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<ScoringMatrix<A, K>>,
+        S: AsRef<StripedSequence<A, V::LANES>>,
+        M: AsRef<ScoringMatrix<A>>,
     {
         let mut scores = StripedScores::new_for(&seq, &pssm);
         Self::score_into(seq, pssm, &mut scores);
@@ -50,7 +71,7 @@ pub trait Score<A: Alphabet, const K: usize, V: Vector, const C: usize> {
     }
 
     /// Find the sequence position with the highest score.
-    fn best_position(scores: &StripedScores<C>) -> Option<usize> {
+    fn best_position(scores: &StripedScores<V::LANES>) -> Option<usize> {
         if scores.length == 0 {
             return None;
         }
@@ -79,12 +100,12 @@ pub struct Pipeline<A: Alphabet, V: Vector> {
     vector: std::marker::PhantomData<V>,
 }
 
-/// Scalar scoring implementation, for any column width.
-impl<A: Alphabet, const K: usize, const C: usize> Score<A, K, f32, C> for Pipeline<A, f32> {
-    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<C>)
+/// Scalar scoring implementation.
+impl<A: Alphabet> Score<A, u8> for Pipeline<A, u8> {
+    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<<u8 as Vector>::LANES>)
     where
-        S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<ScoringMatrix<A, K>>,
+        S: AsRef<StripedSequence<A, <u8 as Vector>::LANES>>,
+        M: AsRef<ScoringMatrix<A>>,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
@@ -114,10 +135,10 @@ impl<A: Alphabet, const K: usize, const C: usize> Score<A, K, f32, C> for Pipeli
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "ssse3")]
-unsafe fn score_ssse3<A: Alphabet, const K: usize>(
-    seq: &StripedSequence<A, { std::mem::size_of::<__m128i>() }>,
-    pssm: &ScoringMatrix<A, K>,
-    scores: &mut StripedScores<{ std::mem::size_of::<__m128i>() }>,
+unsafe fn score_ssse3<A: Alphabet>(
+    seq: &StripedSequence<A, <__m128i as Vector>::LANES>,
+    pssm: &ScoringMatrix<A>,
+    scores: &mut StripedScores<<__m128i as Vector>::LANES>,
 ) {
     // mask vectors for broadcasting uint8x16_t to uint32x4_t to floatx4_t
     let m1 = _mm_set_epi32(
@@ -162,7 +183,7 @@ unsafe fn score_ssse3<A: Alphabet, const K: usize>(
             // load row for current weight matrix position
             let row = pssm.weights()[j].as_ptr();
             // index lookup table with each bases incrementally
-            for i in 0..K {
+            for i in 0..A::K::USIZE {
                 let sym = _mm_set1_epi32(i as i32);
                 let lut = _mm_set1_ps(*row.add(i as usize));
                 let p1 = _mm_castsi128_ps(_mm_cmpeq_epi32(x1, sym));
@@ -186,9 +207,7 @@ unsafe fn score_ssse3<A: Alphabet, const K: usize>(
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "ssse3")]
-unsafe fn best_position_ssse3(
-    scores: &StripedScores<{ std::mem::size_of::<__m128i>() }>,
-) -> Option<usize> {
+unsafe fn best_position_ssse3(scores: &StripedScores<<__m128i as Vector>::LANES>) -> Option<usize> {
     if scores.length == 0 {
         None
     } else {
@@ -255,16 +274,11 @@ unsafe fn best_position_ssse3(
 
 /// Intel 128-bit vector implementation, for 16 elements column width.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-impl<A: Alphabet, const K: usize> Score<A, K, __m128, { std::mem::size_of::<__m128i>() }>
-    for Pipeline<A, __m128>
-{
-    fn score_into<S, M>(
-        seq: S,
-        pssm: M,
-        scores: &mut StripedScores<{ std::mem::size_of::<__m128i>() }>,
-    ) where
-        S: AsRef<StripedSequence<A, { std::mem::size_of::<__m128i>() }>>,
-        M: AsRef<ScoringMatrix<A, K>>,
+impl<A: Alphabet> Score<A, __m128i> for Pipeline<A, __m128i> {
+    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<<__m128i as Vector>::LANES>)
+    where
+        S: AsRef<StripedSequence<A, <__m128i as Vector>::LANES>>,
+        M: AsRef<ScoringMatrix<A>>,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
@@ -285,7 +299,7 @@ impl<A: Alphabet, const K: usize> Score<A, K, __m128, { std::mem::size_of::<__m1
         }
     }
 
-    fn best_position(scores: &StripedScores<{ std::mem::size_of::<__m128i>() }>) -> Option<usize> {
+    fn best_position(scores: &StripedScores<<__m128i as Vector>::LANES>) -> Option<usize> {
         unsafe { best_position_ssse3(scores) }
     }
 }
@@ -295,9 +309,9 @@ impl<A: Alphabet, const K: usize> Score<A, K, __m128, { std::mem::size_of::<__m1
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 unsafe fn score_avx2(
-    seq: &StripedSequence<Dna, { std::mem::size_of::<__m256i>() }>,
-    pssm: &ScoringMatrix<Dna, { Dna::K }>,
-    scores: &mut StripedScores<{ std::mem::size_of::<__m256i>() }>,
+    seq: &StripedSequence<Dna, <__m256i as Vector>::LANES>,
+    pssm: &ScoringMatrix<Dna>,
+    scores: &mut StripedScores<<__m256i as Vector>::LANES>,
 ) {
     // constant vector for comparing unknown bases
     let n = _mm256_set1_epi8(super::Nucleotide::N as i8);
@@ -400,9 +414,7 @@ unsafe fn score_avx2(
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
-unsafe fn best_position_avx2(
-    scores: &StripedScores<{ std::mem::size_of::<__m256i>() }>,
-) -> Option<usize> {
+unsafe fn best_position_avx2(scores: &StripedScores<<__m256i as Vector>::LANES>) -> Option<usize> {
     if scores.length == 0 {
         None
     } else {
@@ -465,14 +477,11 @@ unsafe fn best_position_avx2(
 
 /// Intel 256-bit vector implementation, for 32 elements column width.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-impl Score<Dna, { Dna::K }, __m256, { std::mem::size_of::<__m256i>() }> for Pipeline<Dna, __m256> {
-    fn score_into<S, M>(
-        seq: S,
-        pssm: M,
-        scores: &mut StripedScores<{ std::mem::size_of::<__m256i>() }>,
-    ) where
-        S: AsRef<StripedSequence<Dna, { std::mem::size_of::<__m256i>() }>>,
-        M: AsRef<ScoringMatrix<Dna, { Dna::K }>>,
+impl Score<Dna, __m256i> for Pipeline<Dna, __m256i> {
+    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<<__m256i as Vector>::LANES>)
+    where
+        S: AsRef<StripedSequence<Dna, <__m256i as Vector>::LANES>>,
+        M: AsRef<ScoringMatrix<Dna>>,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
@@ -494,7 +503,7 @@ impl Score<Dna, { Dna::K }, __m256, { std::mem::size_of::<__m256i>() }> for Pipe
         }
     }
 
-    fn best_position(scores: &StripedScores<{ std::mem::size_of::<__m256i>() }>) -> Option<usize> {
+    fn best_position(scores: &StripedScores<<__m256i as Vector>::LANES>) -> Option<usize> {
         unsafe { best_position_avx2(scores) }
     }
 }
@@ -502,12 +511,12 @@ impl Score<Dna, { Dna::K }, __m256, { std::mem::size_of::<__m256i>() }> for Pipe
 // --- StripedScores -----------------------------------------------------------
 
 #[derive(Clone, Debug)]
-pub struct StripedScores<const C: usize = 32> {
+pub struct StripedScores<C: Unsigned + NonZero> {
     data: DenseMatrix<f32, C>,
     length: usize,
 }
 
-impl<const C: usize> StripedScores<C> {
+impl<C: Unsigned + NonZero> StripedScores<C> {
     /// Create a new striped score matrix with the given length and rows.
     pub fn new(length: usize, rows: usize) -> Self {
         Self {
@@ -532,11 +541,11 @@ impl<const C: usize> StripedScores<C> {
     }
 
     /// Create a new matrix large enough to store the scores of `pssm` applied to `seq`.
-    pub fn new_for<S, M, A, const K: usize>(seq: S, pssm: M) -> Self
+    pub fn new_for<S, M, A>(seq: S, pssm: M) -> Self
     where
         A: Alphabet,
         S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<ScoringMatrix<A, K>>,
+        M: AsRef<ScoringMatrix<A>>,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
@@ -550,11 +559,11 @@ impl<const C: usize> StripedScores<C> {
     }
 
     /// Resize the striped scores storage to store the scores of `pssm` applied to `seq`.
-    pub fn resize_for<S, M, A, const K: usize>(&mut self, seq: S, pssm: M)
+    pub fn resize_for<S, M, A>(&mut self, seq: S, pssm: M)
     where
         A: Alphabet,
         S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<ScoringMatrix<A, K>>,
+        M: AsRef<ScoringMatrix<A>>,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
@@ -572,19 +581,19 @@ impl<const C: usize> StripedScores<C> {
     }
 }
 
-impl<const C: usize> AsRef<DenseMatrix<f32, C>> for StripedScores<C> {
+impl<C: Unsigned + NonZero> AsRef<DenseMatrix<f32, C>> for StripedScores<C> {
     fn as_ref(&self) -> &DenseMatrix<f32, C> {
         self.matrix()
     }
 }
 
-impl<const C: usize> AsMut<DenseMatrix<f32, C>> for StripedScores<C> {
+impl<C: Unsigned + NonZero> AsMut<DenseMatrix<f32, C>> for StripedScores<C> {
     fn as_mut(&mut self) -> &mut DenseMatrix<f32, C> {
         self.matrix_mut()
     }
 }
 
-impl<const C: usize> Index<usize> for StripedScores<C> {
+impl<C: Unsigned + NonZero> Index<usize> for StripedScores<C> {
     type Output = f32;
     fn index(&self, index: usize) -> &f32 {
         let col = index / self.data.rows();
@@ -593,7 +602,7 @@ impl<const C: usize> Index<usize> for StripedScores<C> {
     }
 }
 
-impl<const C: usize> From<StripedScores<C>> for Vec<f32> {
+impl<C: Unsigned + NonZero> From<StripedScores<C>> for Vec<f32> {
     fn from(scores: StripedScores<C>) -> Self {
         scores.iter().cloned().collect()
     }
@@ -601,12 +610,12 @@ impl<const C: usize> From<StripedScores<C>> for Vec<f32> {
 
 // --- Iter --------------------------------------------------------------------
 
-pub struct Iter<'a, const C: usize> {
+pub struct Iter<'a, C: Unsigned + NonZero> {
     scores: &'a StripedScores<C>,
     indices: Range<usize>,
 }
 
-impl<'a, const C: usize> Iter<'a, C> {
+impl<'a, C: Unsigned + NonZero> Iter<'a, C> {
     fn new(scores: &'a StripedScores<C>) -> Self {
         Self {
             scores,
@@ -621,22 +630,22 @@ impl<'a, const C: usize> Iter<'a, C> {
     }
 }
 
-impl<'a, const C: usize> Iterator for Iter<'a, C> {
+impl<'a, C: Unsigned + NonZero> Iterator for Iter<'a, C> {
     type Item = &'a f32;
     fn next(&mut self) -> Option<Self::Item> {
         self.indices.next().map(|i| self.get(i))
     }
 }
 
-impl<'a, const C: usize> ExactSizeIterator for Iter<'a, C> {
+impl<'a, C: Unsigned + NonZero> ExactSizeIterator for Iter<'a, C> {
     fn len(&self) -> usize {
         self.indices.len()
     }
 }
 
-impl<'a, const C: usize> FusedIterator for Iter<'a, C> {}
+impl<'a, C: Unsigned + NonZero> FusedIterator for Iter<'a, C> {}
 
-impl<'a, const C: usize> DoubleEndedIterator for Iter<'a, C> {
+impl<'a, C: Unsigned + NonZero> DoubleEndedIterator for Iter<'a, C> {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.indices.next_back().map(|i| self.get(i))
     }

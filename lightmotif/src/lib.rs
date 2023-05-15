@@ -1,5 +1,8 @@
 #![doc = include_str!("../README.md")]
 
+extern crate generic_array;
+extern crate typenum;
+
 mod abc;
 mod dense;
 mod err;
