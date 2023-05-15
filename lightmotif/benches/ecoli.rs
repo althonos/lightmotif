@@ -17,13 +17,14 @@ use lightmotif::EncodedSequence;
 use lightmotif::Pipeline;
 use lightmotif::Score;
 use lightmotif::StripedScores;
+use typenum::consts::U32;
 
 const SEQUENCE: &'static str = include_str!("ecoli.txt");
 
 #[bench]
 fn bench_generic(bencher: &mut test::Bencher) {
     let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped();
+    let mut striped = encoded.to_striped::<U32>();
 
     let cm = CountMatrix::<Dna>::from_sequences(&[
         EncodedSequence::from_str("GTTGACCTTATCAAC").unwrap(),

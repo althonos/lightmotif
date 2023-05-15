@@ -5,13 +5,12 @@ extern crate bio;
 extern crate lightmotif;
 extern crate test;
 
-#[cfg(target_feature = "sse2")]
-use std::arch::x86_64::__m128;
+#[cfg(target_feature = "ssse3")]
+use std::arch::x86_64::__m128i;
 #[cfg(target_feature = "avx2")]
-use std::arch::x86_64::__m256;
+use std::arch::x86_64::__m256i;
 use std::str::FromStr;
 
-use lightmotif::Alphabet;
 use lightmotif::Background;
 use lightmotif::CountMatrix;
 use lightmotif::Dna;
@@ -19,6 +18,7 @@ use lightmotif::EncodedSequence;
 use lightmotif::Pipeline;
 use lightmotif::Score;
 use lightmotif::StripedScores;
+use typenum::consts::U1;
 
 const SEQUENCE: &'static str = include_str!("../lightmotif/benches/ecoli.txt");
 
@@ -26,10 +26,10 @@ const SEQUENCE: &'static str = include_str!("../lightmotif/benches/ecoli.txt");
 fn bench_generic(bencher: &mut test::Bencher) {
     let seq = &SEQUENCE[..10000];
     let encoded = EncodedSequence::<Dna>::from_str(seq).unwrap();
-    let mut striped = encoded.to_striped::<32>();
+    let mut striped = encoded.to_striped::<U1>();
 
-    let bg = Background::<Dna, { Dna::K }>::uniform();
-    let cm = CountMatrix::<Dna, { Dna::K }>::from_sequences(&[
+    let bg = Background::<Dna>::uniform();
+    let cm = CountMatrix::<Dna>::from_sequences(&[
         EncodedSequence::from_str("GTTGACCTTATCAAC").unwrap(),
         EncodedSequence::from_str("GTTGATCCAGTCAAC").unwrap(),
     ])
@@ -41,10 +41,8 @@ fn bench_generic(bencher: &mut test::Bencher) {
     let mut scores = StripedScores::new_for(&striped, &pssm);
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
-        Pipeline::<_, f32>::score_into(&striped, &pssm, &mut scores);
-        test::black_box(
-            <Pipeline<_, f32> as Score<Dna, { Dna::K }, f32, 32>>::best_position(&scores),
-        );
+        Pipeline::<Dna, u8>::score_into(&striped, &pssm, &mut scores);
+        test::black_box(Pipeline::<Dna, u8>::best_position(&scores));
     });
 }
 
@@ -55,8 +53,8 @@ fn bench_ssse3(bencher: &mut test::Bencher) {
     let encoded = EncodedSequence::<Dna>::from_str(seq).unwrap();
     let mut striped = encoded.to_striped();
 
-    let bg = Background::<Dna, { Dna::K }>::uniform();
-    let cm = CountMatrix::<Dna, { Dna::K }>::from_sequences(&[
+    let bg = Background::<Dna>::uniform();
+    let cm = CountMatrix::<Dna>::from_sequences(&[
         EncodedSequence::from_str("GTTGACCTTATCAAC").unwrap(),
         EncodedSequence::from_str("GTTGATCCAGTCAAC").unwrap(),
     ])
@@ -68,8 +66,8 @@ fn bench_ssse3(bencher: &mut test::Bencher) {
     let mut scores = StripedScores::new_for(&striped, &pssm);
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
-        Pipeline::<_, __m128>::score_into(&striped, &pssm, &mut scores);
-        test::black_box(Pipeline::<_, __m128>::best_position(&scores).unwrap());
+        Pipeline::<_, __m128i>::score_into(&striped, &pssm, &mut scores);
+        test::black_box(Pipeline::<Dna, __m128i>::best_position(&scores).unwrap());
     });
 }
 
@@ -80,8 +78,8 @@ fn bench_avx2(bencher: &mut test::Bencher) {
     let encoded = EncodedSequence::<Dna>::from_str(seq).unwrap();
     let mut striped = encoded.to_striped();
 
-    let bg = Background::<Dna, { Dna::K }>::uniform();
-    let cm = CountMatrix::<Dna, { Dna::K }>::from_sequences(&[
+    let bg = Background::<Dna>::uniform();
+    let cm = CountMatrix::<Dna>::from_sequences(&[
         EncodedSequence::from_str("GTTGACCTTATCAAC").unwrap(),
         EncodedSequence::from_str("GTTGATCCAGTCAAC").unwrap(),
     ])
@@ -93,8 +91,8 @@ fn bench_avx2(bencher: &mut test::Bencher) {
     let mut scores = StripedScores::new_for(&striped, &pssm);
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
-        Pipeline::<_, __m256>::score_into(&striped, &pssm, &mut scores);
-        test::black_box(Pipeline::<_, __m256>::best_position(&scores).unwrap());
+        Pipeline::<_, __m256i>::score_into(&striped, &pssm, &mut scores);
+        test::black_box(Pipeline::<Dna, __m256i>::best_position(&scores).unwrap());
     });
 }
 
