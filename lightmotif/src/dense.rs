@@ -30,6 +30,34 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
         matrix
     }
 
+    /// Create a new *uninitialized* matrix with the given number of rows.
+    pub unsafe fn uninitialized(rows: usize) -> Self {
+        // alway over-allocate columns to avoid alignment issues.
+        let c = C::USIZE.next_power_of_two();
+
+        // NOTE: this is unsafe but given that we require `T` to be
+        //       copy, this should be fine, as `Copy` prevents the
+        //       type to be `Dorp` as well.
+        // reserve the vector without initializing the data
+        let mut data = Vec::with_capacity((rows + 1) * c);
+        data.set_len((rows + 1) * c);
+
+        // compute offset to aligned memory
+        let mut offset = 0;
+        while data[offset..].as_ptr() as usize % c > 0 {
+            offset += 1
+        }
+
+        // record indices to each rows
+        let indices = (0..rows).into_iter().map(|i| offset + i * c).collect();
+
+        Self {
+            data,
+            indices,
+            _columns: std::marker::PhantomData,
+        }
+    }
+
     /// The number of columns of the matrix.
     #[inline]
     pub const fn columns(&self) -> usize {
