@@ -8,7 +8,8 @@ use std::ops::Range;
 use typenum::marker_traits::NonZero;
 use typenum::marker_traits::Unsigned;
 
-use self::vector::Vector;
+pub use self::vector::Vector;
+
 use super::abc::Alphabet;
 use super::abc::Dna;
 use super::abc::Symbol;
@@ -25,12 +26,24 @@ mod vector {
     use typenum::marker_traits::NonZero;
     use typenum::marker_traits::Unsigned;
 
+    mod seal {
+        pub trait Sealed {}
+
+        impl Sealed for u8 {}
+
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        impl Sealed for std::arch::x86_64::__m128i {}
+
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        impl Sealed for std::arch::x86_64::__m256i {}
+    }
+
     /// Sealed trait for concrete vector implementations.
     ///
     /// The trait is defined for the loading vector type, which has `LANES`
     /// lanes of `u8` values. These values are then splat into 4 vectors with
     /// `f32` values to actually compute the scores.
-    pub trait Vector {
+    pub trait Vector: seal::Sealed {
         type LANES: Unsigned + NonZero;
     }
 
@@ -59,17 +72,17 @@ mod vector {
 // --- Score -------------------------------------------------------------------
 
 /// Generic trait for computing sequence scores with a PSSM.
-pub trait Score<A: Alphabet, V: Vector> {
+pub trait Score<A: Alphabet, V: Vector, C: NonZero + Unsigned = <V as Vector>::LANES> {
     /// Compute the PSSM scores into the given buffer.
-    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<V::LANES>)
+    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<C>)
     where
-        S: AsRef<StripedSequence<A, V::LANES>>,
+        S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A>>;
 
     /// Compute the PSSM scores for every sequence positions.
-    fn score<S, M>(seq: S, pssm: M) -> StripedScores<V::LANES>
+    fn score<S, M>(seq: S, pssm: M) -> StripedScores<C>
     where
-        S: AsRef<StripedSequence<A, V::LANES>>,
+        S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A>>,
     {
         let mut scores = StripedScores::new_for(&seq, &pssm);
@@ -78,7 +91,7 @@ pub trait Score<A: Alphabet, V: Vector> {
     }
 
     /// Find the sequence position with the highest score.
-    fn best_position(scores: &StripedScores<V::LANES>) -> Option<usize> {
+    fn best_position(scores: &StripedScores<C>) -> Option<usize> {
         if scores.length == 0 {
             return None;
         }
@@ -108,10 +121,10 @@ pub struct Pipeline<A: Alphabet, V: Vector = vector::Best> {
 }
 
 /// Scalar scoring implementation.
-impl<A: Alphabet> Score<A, u8> for Pipeline<A, u8> {
-    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<<u8 as Vector>::LANES>)
+impl<A: Alphabet, C: NonZero + Unsigned> Score<A, u8, C> for Pipeline<A, u8> {
+    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<C>)
     where
-        S: AsRef<StripedSequence<A, <u8 as Vector>::LANES>>,
+        S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A>>,
     {
         let seq = seq.as_ref();

@@ -44,6 +44,7 @@ of sequences:
 
 ```rust
 use lightmotif::*;
+use typenum::U32;
 
 // Create a count matrix from an iterable of motif sequences
 let counts = CountMatrix::from_sequences(&[
@@ -57,16 +58,21 @@ let pssm = counts.to_freq(0.1).to_scoring(None);
 // Encode the target sequence into a striped matrix
 let seq = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
 let encoded = EncodedSequence::encode(seq).unwrap();
-let mut striped = encoded.to_striped();
+let mut striped = encoded.to_striped::<U32>();
 striped.configure(&pssm);
 
-// Use a pipeline to compute scores for every position of the matrix
+// Use a pipeline to compute scores for every position of the matrix.
 let scores = Pipeline::<Dna>::score(&striped, &pssm);
 
 // Scores can be extracted into a Vec<f32>, or indexed directly.
 let v = scores.to_vec();
 assert_eq!(scores[0], -23.07094);
 assert_eq!(v[0], -23.07094);
+
+// The highest scoring position can be searched with a pipeline as well.
+let best = Pipeline::<Dna>::best_position(&scores).unwrap();
+assert_eq!(best, 18);
+
 ```
 
 Not specifying a vector type will cause the `Pipeline` to use the best

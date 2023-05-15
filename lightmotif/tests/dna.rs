@@ -1,4 +1,5 @@
 extern crate lightmotif;
+extern crate typenum;
 
 #[cfg(target_feature = "ssse3")]
 use std::arch::x86_64::__m128i;
@@ -11,6 +12,8 @@ use lightmotif::Dna;
 use lightmotif::EncodedSequence;
 use lightmotif::Pipeline;
 use lightmotif::Score;
+
+use typenum::U32;
 
 const SEQUENCE: &'static str = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
 const PATTERNS: &[&'static str] = &["GTTGACCTTATCAAC", "GTTGATCCAGTCAAC"];
@@ -36,7 +39,7 @@ const EXPECTED: &[f32] = &[
 #[test]
 fn test_score_generic() {
     let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped();
+    let mut striped = encoded.to_striped::<U32>();
 
     let cm = CountMatrix::<Dna>::from_sequences(
         PATTERNS
@@ -67,7 +70,7 @@ fn test_score_generic() {
 #[test]
 fn test_best_position_generic() {
     let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped();
+    let mut striped = encoded.to_striped::<U32>();
 
     let cm = CountMatrix::<Dna>::from_sequences(
         PATTERNS

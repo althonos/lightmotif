@@ -25,6 +25,7 @@ pub use err::InvalidSymbol;
 pub use pli::Pipeline;
 pub use pli::Score;
 pub use pli::StripedScores;
+pub use pli::Vector;
 pub use pwm::CountMatrix;
 pub use pwm::FrequencyMatrix;
 pub use pwm::ScoringMatrix;
