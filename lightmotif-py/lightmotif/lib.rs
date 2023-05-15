@@ -1,14 +1,17 @@
 #![doc = include_str!("../README.md")]
 
+extern crate generic_array;
 extern crate lightmotif;
 extern crate pyo3;
+extern crate typenum;
 
 #[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::__m256;
+use std::arch::x86_64::__m256i;
 #[cfg(target_arch = "x86")]
-use std::arch::x86_64::__m256;
+use std::arch::x86_64::__m256i;
 
 use lightmotif as lm;
+#[allow(unused)]
 use lightmotif::Alphabet;
 use lightmotif::Pipeline;
 use lightmotif::Score;
@@ -24,19 +27,24 @@ use pyo3::types::PyDict;
 use pyo3::types::PyString;
 use pyo3::AsPyPointer;
 
+use generic_array::GenericArray;
+use typenum::marker_traits::Unsigned;
+
 // --- Compile-time constants --------------------------------------------------
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-const C: usize = std::mem::size_of::<__m256>();
+type C = <__m256i as lightmotif::Vector>::LANES;
 #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-const C: usize = 1;
+type C = <u8 as lightmotif::Vector>::LANES;
 
 // --- Helpers -----------------------------------------------------------------
 
-fn dict_to_alphabet_array<'py, A: lm::Alphabet, const K: usize>(
+fn dict_to_alphabet_array<'py, A: lm::Alphabet>(
     d: &'py PyDict,
-) -> PyResult<[f32; K]> {
-    let mut p = [0.0; K];
+) -> PyResult<GenericArray<f32, A::K>> {
+    let mut p = std::iter::repeat(0.0)
+        .take(A::K::USIZE)
+        .collect::<GenericArray<f32, A::K>>();
     for (k, v) in d.iter() {
         let s = k.extract::<&PyString>()?.to_str()?;
         if s.len() != 1 {
@@ -100,7 +108,7 @@ pub struct StripedSequence {
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct CountMatrix {
-    data: lm::CountMatrix<lm::Dna, { lm::Dna::K }>,
+    data: lm::CountMatrix<lm::Dna>,
 }
 
 #[pymethods]
@@ -111,7 +119,7 @@ impl CountMatrix {
                 if let Ok(x) = obj.extract::<f32>(py) {
                     Ok(lm::Pseudocounts::from(x))
                 } else if let Ok(d) = obj.extract::<&PyDict>(py) {
-                    let p = dict_to_alphabet_array::<lm::Dna, { lm::Dna::K }>(d)?;
+                    let p = dict_to_alphabet_array::<lm::Dna>(d)?;
                     Ok(lm::Pseudocounts::from(p))
                 } else {
                     Err(PyTypeError::new_err("Invalid type for pseudocount"))
@@ -125,8 +133,8 @@ impl CountMatrix {
     }
 }
 
-impl From<lm::CountMatrix<lm::Dna, { lm::Dna::K }>> for CountMatrix {
-    fn from(data: lm::CountMatrix<lm::Dna, { lm::Dna::K }>) -> Self {
+impl From<lm::CountMatrix<lm::Dna>> for CountMatrix {
+    fn from(data: lm::CountMatrix<lm::Dna>) -> Self {
         Self { data }
     }
 }
@@ -136,7 +144,7 @@ impl From<lm::CountMatrix<lm::Dna, { lm::Dna::K }>> for CountMatrix {
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct WeightMatrix {
-    data: lm::WeightMatrix<lm::Dna, { lm::Dna::K }>,
+    data: lm::WeightMatrix<lm::Dna>,
 }
 
 #[pymethods]
@@ -146,7 +154,7 @@ impl WeightMatrix {
         let bg = Python::with_gil(|py| {
             if let Some(obj) = background {
                 if let Ok(d) = obj.extract::<&PyDict>(py) {
-                    let p = dict_to_alphabet_array::<lm::Dna, { lm::Dna::K }>(d)?;
+                    let p = dict_to_alphabet_array::<lm::Dna>(d)?;
                     lm::Background::new(p)
                         .map_err(|_| PyValueError::new_err("Invalid background frequencies"))
                 } else {
@@ -165,8 +173,8 @@ impl WeightMatrix {
     }
 }
 
-impl From<lm::WeightMatrix<lm::Dna, { lm::Dna::K }>> for WeightMatrix {
-    fn from(data: lm::WeightMatrix<lm::Dna, { lm::Dna::K }>) -> Self {
+impl From<lm::WeightMatrix<lm::Dna>> for WeightMatrix {
+    fn from(data: lm::WeightMatrix<lm::Dna>) -> Self {
         Self { data }
     }
 }
@@ -176,7 +184,7 @@ impl From<lm::WeightMatrix<lm::Dna, { lm::Dna::K }>> for WeightMatrix {
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct ScoringMatrix {
-    data: lm::ScoringMatrix<lm::Dna, { lm::Dna::K }>,
+    data: lm::ScoringMatrix<lm::Dna>,
 }
 
 #[pymethods]
@@ -193,17 +201,17 @@ impl ScoringMatrix {
         let scores = slf.py().allow_threads(|| {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             if std::is_x86_feature_detected!("avx2") {
-                return Pipeline::<lm::Dna, __m256>::score(seq, pssm);
+                return Pipeline::<lm::Dna, __m256i>::score(seq, pssm);
             }
-            Pipeline::<lm::Dna, f32>::score(seq, pssm)
+            Pipeline::<lm::Dna, u8>::score(seq, pssm)
         });
 
         Ok(StripedScores::from(scores))
     }
 }
 
-impl From<lm::ScoringMatrix<lm::Dna, { lm::Dna::K }>> for ScoringMatrix {
-    fn from(data: lm::ScoringMatrix<lm::Dna, { lm::Dna::K }>) -> Self {
+impl From<lm::ScoringMatrix<lm::Dna>> for ScoringMatrix {
+    fn from(data: lm::ScoringMatrix<lm::Dna>) -> Self {
         Self { data }
     }
 }
