@@ -243,15 +243,15 @@ unsafe fn best_position_ssse3(scores: &StripedScores<<__m128i as Vector>::LANES>
                 //       while the rest of the code is actually using at
                 //       most SSSE3 instructions.
                 // replace indices of new local maximums
-                p1 = _mm_or_ps(_mm_andnot_ps(p1, c1), _mm_and_ps(index, c1));
-                p2 = _mm_or_ps(_mm_andnot_ps(p2, c2), _mm_and_ps(index, c2));
-                p3 = _mm_or_ps(_mm_andnot_ps(p3, c3), _mm_and_ps(index, c3));
-                p4 = _mm_or_ps(_mm_andnot_ps(p4, c4), _mm_and_ps(index, c4));
+                p1 = _mm_or_ps(_mm_andnot_ps(c1, p1), _mm_and_ps(index, c1));
+                p2 = _mm_or_ps(_mm_andnot_ps(c2, p2), _mm_and_ps(index, c2));
+                p3 = _mm_or_ps(_mm_andnot_ps(c3, p3), _mm_and_ps(index, c3));
+                p4 = _mm_or_ps(_mm_andnot_ps(c4, p4), _mm_and_ps(index, c4));
                 // replace values of new local maximums
-                s1 = _mm_or_ps(_mm_andnot_ps(s1, c1), _mm_and_ps(r1, c1));
-                s2 = _mm_or_ps(_mm_andnot_ps(s2, c2), _mm_and_ps(r2, c2));
-                s3 = _mm_or_ps(_mm_andnot_ps(s3, c3), _mm_and_ps(r3, c3));
-                s4 = _mm_or_ps(_mm_andnot_ps(s4, c4), _mm_and_ps(r4, c4));
+                s1 = _mm_or_ps(_mm_andnot_ps(c1, s1), _mm_and_ps(r1, c1));
+                s2 = _mm_or_ps(_mm_andnot_ps(c2, s2), _mm_and_ps(r2, c2));
+                s3 = _mm_or_ps(_mm_andnot_ps(c3, s3), _mm_and_ps(r3, c3));
+                s4 = _mm_or_ps(_mm_andnot_ps(c4, s4), _mm_and_ps(r4, c4));
             }
             // find the global maximum across all columns
             let mut x: [u32; 16] = [0; 16];

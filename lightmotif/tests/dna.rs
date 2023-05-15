@@ -6,7 +6,6 @@ use std::arch::x86_64::__m128i;
 use std::arch::x86_64::__m256i;
 use std::str::FromStr;
 
-use lightmotif::Alphabet;
 use lightmotif::CountMatrix;
 use lightmotif::Dna;
 use lightmotif::EncodedSequence;

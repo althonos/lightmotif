@@ -234,7 +234,6 @@ iterator!(IterMut, T, mut [T]);
 #[cfg(test)]
 mod test {
     use typenum::consts::U32;
-    use typenum::marker_traits::Unsigned;
 
     use super::*;
 
