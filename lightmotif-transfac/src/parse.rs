@@ -25,10 +25,10 @@ use nom::sequence::preceded;
 use nom::sequence::terminated;
 use nom::IResult;
 
-use lightmotif::Alphabet;
-use lightmotif::CountMatrix;
-use lightmotif::DenseMatrix;
-use lightmotif::Symbol;
+use lightmotif::abc::Alphabet;
+use lightmotif::abc::Symbol;
+use lightmotif::dense::DenseMatrix;
+use lightmotif::pwm::CountMatrix;
 
 use super::Date;
 use super::DateKind;

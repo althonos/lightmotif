@@ -5,17 +5,11 @@ extern crate lightmotif;
 extern crate pyo3;
 extern crate typenum;
 
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::__m256i;
-#[cfg(target_arch = "x86")]
-use std::arch::x86_64::__m256i;
-
-use lightmotif as lm;
+use lightmotif::abc::Symbol;
+use lightmotif::pli::platform::Backend;
 #[allow(unused)]
-use lightmotif::Alphabet;
-use lightmotif::Pipeline;
-use lightmotif::Score;
-use lightmotif::Symbol;
+use lightmotif::pli::Pipeline;
+use lightmotif::pli::Score;
 
 use pyo3::exceptions::PyBufferError;
 use pyo3::exceptions::PyIndexError;
@@ -33,13 +27,13 @@ use typenum::marker_traits::Unsigned;
 // --- Compile-time constants --------------------------------------------------
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-type C = <__m256i as lightmotif::Vector>::LANES;
+type C = <lightmotif::pli::platform::Avx2 as Backend>::LANES;
 #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-type C = <u8 as lightmotif::Vector>::LANES;
+type C = typenum::consts::U1;
 
 // --- Helpers -----------------------------------------------------------------
 
-fn dict_to_alphabet_array<'py, A: lm::Alphabet>(
+fn dict_to_alphabet_array<'py, A: lightmotif::Alphabet>(
     d: &'py PyDict,
 ) -> PyResult<GenericArray<f32, A::K>> {
     let mut p = std::iter::repeat(0.0)
@@ -54,7 +48,7 @@ fn dict_to_alphabet_array<'py, A: lm::Alphabet>(
             )));
         }
         let x = s.chars().next().unwrap();
-        let symbol = <A as lm::Alphabet>::Symbol::from_char(x)
+        let symbol = <A as lightmotif::Alphabet>::Symbol::from_char(x)
             .map_err(|_| PyValueError::new_err(("Invalid key for pseudocount:", x)))?;
         let value = v.extract::<f32>()?;
         p[symbol.as_index()] = value;
@@ -67,7 +61,7 @@ fn dict_to_alphabet_array<'py, A: lm::Alphabet>(
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct EncodedSequence {
-    data: lm::EncodedSequence<lm::Dna>,
+    data: lightmotif::seq::EncodedSequence<lightmotif::Dna>,
 }
 
 #[pymethods]
@@ -76,9 +70,11 @@ impl EncodedSequence {
     #[new]
     pub fn __init__(sequence: &PyString) -> PyResult<PyClassInitializer<Self>> {
         let seq = sequence.to_str()?;
-        let data = lm::EncodedSequence::encode(&seq).map_err(|lm::InvalidSymbol(x)| {
-            PyValueError::new_err(format!("Invalid symbol in input: {}", x))
-        })?;
+        let data = lightmotif::EncodedSequence::encode(&seq).map_err(
+            |lightmotif::err::InvalidSymbol(x)| {
+                PyValueError::new_err(format!("Invalid symbol in input: {}", x))
+            },
+        )?;
         Ok(EncodedSequence { data }.into())
     }
 
@@ -100,7 +96,7 @@ impl EncodedSequence {
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct StripedSequence {
-    data: lm::StripedSequence<lm::Dna, C>,
+    data: lightmotif::seq::StripedSequence<lightmotif::Dna, C>,
 }
 
 // --- CountMatrix -------------------------------------------------------------
@@ -108,7 +104,7 @@ pub struct StripedSequence {
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct CountMatrix {
-    data: lm::CountMatrix<lm::Dna>,
+    data: lightmotif::CountMatrix<lightmotif::Dna>,
 }
 
 #[pymethods]
@@ -117,15 +113,15 @@ impl CountMatrix {
         let pseudo = Python::with_gil(|py| {
             if let Some(obj) = pseudocount {
                 if let Ok(x) = obj.extract::<f32>(py) {
-                    Ok(lm::Pseudocounts::from(x))
+                    Ok(lightmotif::abc::Pseudocounts::from(x))
                 } else if let Ok(d) = obj.extract::<&PyDict>(py) {
-                    let p = dict_to_alphabet_array::<lm::Dna>(d)?;
-                    Ok(lm::Pseudocounts::from(p))
+                    let p = dict_to_alphabet_array::<lightmotif::Dna>(d)?;
+                    Ok(lightmotif::abc::Pseudocounts::from(p))
                 } else {
                     Err(PyTypeError::new_err("Invalid type for pseudocount"))
                 }
             } else {
-                Ok(lm::Pseudocounts::default())
+                Ok(lightmotif::abc::Pseudocounts::default())
             }
         })?;
         let data = self.data.to_freq(pseudo).to_weight(None);
@@ -133,8 +129,8 @@ impl CountMatrix {
     }
 }
 
-impl From<lm::CountMatrix<lm::Dna>> for CountMatrix {
-    fn from(data: lm::CountMatrix<lm::Dna>) -> Self {
+impl From<lightmotif::CountMatrix<lightmotif::Dna>> for CountMatrix {
+    fn from(data: lightmotif::CountMatrix<lightmotif::Dna>) -> Self {
         Self { data }
     }
 }
@@ -144,7 +140,7 @@ impl From<lm::CountMatrix<lm::Dna>> for CountMatrix {
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct WeightMatrix {
-    data: lm::WeightMatrix<lm::Dna>,
+    data: lightmotif::pwm::WeightMatrix<lightmotif::Dna>,
 }
 
 #[pymethods]
@@ -154,14 +150,14 @@ impl WeightMatrix {
         let bg = Python::with_gil(|py| {
             if let Some(obj) = background {
                 if let Ok(d) = obj.extract::<&PyDict>(py) {
-                    let p = dict_to_alphabet_array::<lm::Dna>(d)?;
-                    lm::Background::new(p)
+                    let p = dict_to_alphabet_array::<lightmotif::Dna>(d)?;
+                    lightmotif::abc::Background::new(p)
                         .map_err(|_| PyValueError::new_err("Invalid background frequencies"))
                 } else {
                     Err(PyTypeError::new_err("Invalid type for pseudocount"))
                 }
             } else {
-                Ok(lm::Background::uniform())
+                Ok(lightmotif::abc::Background::uniform())
             }
         })?;
         // rescale if backgrounds do not match
@@ -173,8 +169,8 @@ impl WeightMatrix {
     }
 }
 
-impl From<lm::WeightMatrix<lm::Dna>> for WeightMatrix {
-    fn from(data: lm::WeightMatrix<lm::Dna>) -> Self {
+impl From<lightmotif::WeightMatrix<lightmotif::Dna>> for WeightMatrix {
+    fn from(data: lightmotif::WeightMatrix<lightmotif::Dna>) -> Self {
         Self { data }
     }
 }
@@ -184,7 +180,7 @@ impl From<lm::WeightMatrix<lm::Dna>> for WeightMatrix {
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct ScoringMatrix {
-    data: lm::ScoringMatrix<lm::Dna>,
+    data: lightmotif::ScoringMatrix<lightmotif::Dna>,
 }
 
 #[pymethods]
@@ -200,18 +196,18 @@ impl ScoringMatrix {
 
         let scores = slf.py().allow_threads(|| {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            if std::is_x86_feature_detected!("avx2") {
-                return Pipeline::<lm::Dna, __m256i>::score(seq, pssm);
+            if let Ok(pli) = Pipeline::avx2() {
+                return pli.score(seq, pssm);
             }
-            Pipeline::<lm::Dna, u8>::score(seq, pssm)
+            Pipeline::generic().score(seq, pssm)
         });
 
         Ok(StripedScores::from(scores))
     }
 }
 
-impl From<lm::ScoringMatrix<lm::Dna>> for ScoringMatrix {
-    fn from(data: lm::ScoringMatrix<lm::Dna>) -> Self {
+impl From<lightmotif::ScoringMatrix<lightmotif::Dna>> for ScoringMatrix {
+    fn from(data: lightmotif::ScoringMatrix<lightmotif::Dna>) -> Self {
         Self { data }
     }
 }
@@ -221,7 +217,7 @@ impl From<lm::ScoringMatrix<lm::Dna>> for ScoringMatrix {
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct StripedScores {
-    scores: lm::StripedScores<C>,
+    scores: lightmotif::pli::StripedScores<C>,
     shape: [Py_ssize_t; 2],
     strides: [Py_ssize_t; 2],
 }
@@ -275,8 +271,8 @@ impl StripedScores {
     }
 }
 
-impl From<lm::StripedScores<C>> for StripedScores {
-    fn from(mut scores: lm::StripedScores<C>) -> Self {
+impl From<lightmotif::pli::StripedScores<C>> for StripedScores {
+    fn from(mut scores: lightmotif::pli::StripedScores<C>) -> Self {
         // extract the matrix shape
         let cols = scores.matrix().columns();
         let rows = scores.matrix().rows();
@@ -327,12 +323,12 @@ pub fn create<'py>(sequences: &'py PyAny) -> PyResult<Motif> {
     for seq in sequences.iter()? {
         let s = seq?.extract::<&PyString>()?.to_str()?;
         let x = py
-            .allow_threads(|| lm::EncodedSequence::encode(&s))
+            .allow_threads(|| lightmotif::EncodedSequence::encode(&s))
             .map_err(|_| PyValueError::new_err("Invalid symbol in sequence"))?;
         encoded.push(x);
     }
 
-    let data = lm::CountMatrix::from_sequences(encoded)
+    let data = lightmotif::CountMatrix::from_sequences(encoded)
         .map_err(|_| PyValueError::new_err("Inconsistent sequence length"))?;
     let weights = data.to_freq(0.0).to_weight(None);
     let scoring = weights.to_scoring();

@@ -5,10 +5,10 @@ extern crate memchr;
 
 use std::io::BufRead;
 
-use lightmotif::Alphabet;
-use lightmotif::CountMatrix;
-use lightmotif::DenseMatrix;
-use lightmotif::Symbol;
+use lightmotif::abc::Alphabet;
+use lightmotif::abc::Symbol;
+use lightmotif::dense::DenseMatrix;
+use lightmotif::pwm::CountMatrix;
 
 pub mod error;
 mod parse;
