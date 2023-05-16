@@ -291,10 +291,10 @@ pub fn parse_matrix<A: Alphabet>(mut input: &str) -> IResult<&str, Matrix<A>> {
 #[cfg(test)]
 mod test {
 
-    use lightmotif::Alphabet;
-    use lightmotif::Dna;
-    use lightmotif::Nucleotide;
-    use lightmotif::Symbol;
+    use lightmotif::abc::Alphabet;
+    use lightmotif::abc::Dna;
+    use lightmotif::abc::Nucleotide;
+    use lightmotif::abc::Symbol;
 
     #[test]
     fn test_parse_alphabet() {

@@ -12,8 +12,6 @@ use lightmotif::Pipeline;
 use typenum::consts::U1;
 use typenum::consts::U16;
 use typenum::consts::U32;
-use typenum::marker_traits::NonZero;
-use typenum::marker_traits::Unsigned;
 
 const SEQUENCE: &'static str = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
 const PATTERNS: &[&'static str] = &["GTTGACCTTATCAAC", "GTTGATCCAGTCAAC"];

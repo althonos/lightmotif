@@ -14,7 +14,9 @@ use lightmotif::pli::StripedScores;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::seq::EncodedSequence;
 use lightmotif::utils::StrictlyPositive;
+
 use typenum::consts::U1;
+use typenum::consts::U16;
 
 const SEQUENCE: &'static str = include_str!("../lightmotif/benches/ecoli.txt");
 
@@ -54,7 +56,7 @@ fn bench_generic(bencher: &mut test::Bencher) {
 #[bench]
 fn bench_sse2(bencher: &mut test::Bencher) {
     let pli = Pipeline::sse2().unwrap();
-    bench_lightmotif(bencher, &pli);
+    bench_lightmotif::<U16, _>(bencher, &pli);
 }
 
 #[cfg(target_feature = "avx2")]
