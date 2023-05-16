@@ -1,7 +1,7 @@
 extern crate lightmotif;
 extern crate typenum;
 
-#[cfg(target_feature = "ssse3")]
+#[cfg(target_feature = "sse2")]
 use std::arch::x86_64::__m128i;
 #[cfg(target_feature = "avx2")]
 use std::arch::x86_64::__m256i;
@@ -87,9 +87,9 @@ fn test_best_position_generic() {
     assert_eq!(Pipeline::<Dna, u8>::best_position(&result), Some(18));
 }
 
-#[cfg(target_feature = "ssse3")]
+#[cfg(target_feature = "sse2")]
 #[test]
-fn test_score_ssse3() {
+fn test_score_sse2() {
     let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped();
 
@@ -123,9 +123,9 @@ fn test_score_ssse3() {
     }
 }
 
-#[cfg(target_feature = "ssse3")]
+#[cfg(target_feature = "sse2")]
 #[test]
-fn test_best_position_ssse3() {
+fn test_best_position_sse2() {
     let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped();
 

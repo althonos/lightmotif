@@ -63,9 +63,9 @@ mod vector {
 
     #[cfg(target_feature = "avx2")]
     pub type Best = std::arch::x86_64::__m256i;
-    #[cfg(all(not(target_feature = "avx2"), target_feature = "ssse3"))]
+    #[cfg(all(not(target_feature = "avx2"), target_feature = "sse2"))]
     pub type Best = std::arch::x86_64::__m128i;
-    #[cfg(all(not(target_feature = "avx2"), not(target_feature = "ssse3")))]
+    #[cfg(all(not(target_feature = "avx2"), not(target_feature = "sse2")))]
     pub type Best = u8;
 }
 
@@ -158,37 +158,14 @@ impl<A: Alphabet, C: NonZero + Unsigned> Score<A, u8, C> for Pipeline<A, u8> {
 // --- SSSE3 -------------------------------------------------------------------
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[target_feature(enable = "ssse3")]
-unsafe fn score_ssse3<A: Alphabet>(
+#[target_feature(enable = "sse2")]
+unsafe fn score_sse2<A: Alphabet>(
     seq: &StripedSequence<A, <__m128i as Vector>::LANES>,
     pssm: &ScoringMatrix<A>,
     scores: &mut StripedScores<<__m128i as Vector>::LANES>,
 ) {
-    // mask vectors for broadcasting uint8x16_t to uint32x4_t to floatx4_t
-    let m1 = _mm_set_epi32(
-        0xFFFFFF03u32 as i32,
-        0xFFFFFF02u32 as i32,
-        0xFFFFFF01u32 as i32,
-        0xFFFFFF00u32 as i32,
-    );
-    let m2 = _mm_set_epi32(
-        0xFFFFFF07u32 as i32,
-        0xFFFFFF06u32 as i32,
-        0xFFFFFF05u32 as i32,
-        0xFFFFFF04u32 as i32,
-    );
-    let m3 = _mm_set_epi32(
-        0xFFFFFF0Bu32 as i32,
-        0xFFFFFF0Au32 as i32,
-        0xFFFFFF09u32 as i32,
-        0xFFFFFF08u32 as i32,
-    );
-    let m4 = _mm_set_epi32(
-        0xFFFFFF0Fu32 as i32,
-        0xFFFFFF0Eu32 as i32,
-        0xFFFFFF0Du32 as i32,
-        0xFFFFFF0Cu32 as i32,
-    );
+    // zero vector alias for the lane swizzling
+    let zero = _mm_setzero_si128();
     // process every position of the sequence data
     for i in 0..seq.data.rows() - seq.wrap {
         // reset sums for current position
@@ -200,10 +177,12 @@ unsafe fn score_ssse3<A: Alphabet>(
         for j in 0..pssm.len() {
             // load sequence row and broadcast to f32
             let x = _mm_load_si128(seq.data[i + j].as_ptr() as *const __m128i);
-            let x1 = _mm_shuffle_epi8(x, m1);
-            let x2 = _mm_shuffle_epi8(x, m2);
-            let x3 = _mm_shuffle_epi8(x, m3);
-            let x4 = _mm_shuffle_epi8(x, m4);
+            let hi = _mm_unpackhi_epi8(x, zero);
+            let lo = _mm_unpacklo_epi8(x, zero);
+            let x1 = _mm_unpacklo_epi8(lo, zero);
+            let x2 = _mm_unpackhi_epi8(lo, zero);
+            let x3 = _mm_unpacklo_epi8(hi, zero);
+            let x4 = _mm_unpackhi_epi8(hi, zero);
             // load row for current weight matrix position
             let row = pssm.weights()[j].as_ptr();
             // index lookup table with each bases incrementally
@@ -230,8 +209,8 @@ unsafe fn score_ssse3<A: Alphabet>(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[target_feature(enable = "ssse3")]
-unsafe fn best_position_ssse3(scores: &StripedScores<<__m128i as Vector>::LANES>) -> Option<usize> {
+#[target_feature(enable = "sse2")]
+unsafe fn best_position_sse2(scores: &StripedScores<<__m128i as Vector>::LANES>) -> Option<usize> {
     if scores.length == 0 {
         None
     } else {
@@ -319,12 +298,12 @@ impl<A: Alphabet> Score<A, __m128i> for Pipeline<A, __m128i> {
 
         scores.length = seq.length - pssm.len() + 1;
         unsafe {
-            score_ssse3(seq, pssm, scores);
+            score_sse2(seq, pssm, scores);
         }
     }
 
     fn best_position(scores: &StripedScores<<__m128i as Vector>::LANES>) -> Option<usize> {
-        unsafe { best_position_ssse3(scores) }
+        unsafe { best_position_sse2(scores) }
     }
 }
 

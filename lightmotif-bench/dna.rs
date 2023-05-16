@@ -5,7 +5,7 @@ extern crate bio;
 extern crate lightmotif;
 extern crate test;
 
-#[cfg(target_feature = "ssse3")]
+#[cfg(target_feature = "sse2")]
 use std::arch::x86_64::__m128i;
 #[cfg(target_feature = "avx2")]
 use std::arch::x86_64::__m256i;
@@ -46,9 +46,9 @@ fn bench_generic(bencher: &mut test::Bencher) {
     });
 }
 
-#[cfg(target_feature = "ssse3")]
+#[cfg(target_feature = "sse2")]
 #[bench]
-fn bench_ssse3(bencher: &mut test::Bencher) {
+fn bench_sse2(bencher: &mut test::Bencher) {
     let seq = &SEQUENCE[..10000];
     let encoded = EncodedSequence::<Dna>::from_str(seq).unwrap();
     let mut striped = encoded.to_striped();
