@@ -11,13 +11,14 @@ use lightmotif::pli::Score;
 use lightmotif::pli::StripedScores;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::seq::EncodedSequence;
+use lightmotif::utils::StrictlyPositive;
 use typenum::consts::U32;
 use typenum::marker_traits::NonZero;
 use typenum::marker_traits::Unsigned;
 
 const SEQUENCE: &'static str = include_str!("ecoli.txt");
 
-fn bench<C: Unsigned + NonZero, P: Score<Dna, C>>(bencher: &mut test::Bencher, pli: &P) {
+fn bench<C: StrictlyPositive, P: Score<Dna, C>>(bencher: &mut test::Bencher, pli: &P) {
     let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped::<C>();
 

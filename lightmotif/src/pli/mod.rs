@@ -1,14 +1,11 @@
 //! Concrete implementations of the sequence scoring pipeline.
 
-use typenum::marker_traits::NonZero;
-use typenum::marker_traits::Unsigned;
+pub use self::scores::StripedScores;
 
 use self::platform::Avx2;
 use self::platform::Backend;
 use self::platform::Generic;
 use self::platform::Sse2;
-pub use self::scores::StripedScores;
-
 use super::abc::Alphabet;
 use super::abc::Dna;
 use super::abc::Symbol;
@@ -16,6 +13,7 @@ use super::dense::DenseMatrix;
 use super::err::UnsupportedBackend;
 use super::pwm::ScoringMatrix;
 use super::seq::StripedSequence;
+use super::utils::StrictlyPositive;
 
 pub mod platform;
 mod scores;
@@ -23,7 +21,7 @@ mod scores;
 // --- Score -------------------------------------------------------------------
 
 /// Generic trait for computing sequence scores with a PSSM.
-pub trait Score<A: Alphabet, C: NonZero + Unsigned> {
+pub trait Score<A: Alphabet, C: StrictlyPositive> {
     /// Compute the PSSM scores into the given striped score matrix.
     fn score_into<S, M>(&self, seq: S, pssm: M, scores: &mut StripedScores<C>)
     where
@@ -68,7 +66,7 @@ pub trait Score<A: Alphabet, C: NonZero + Unsigned> {
 }
 
 /// Generic trait for finding the highest scoring site in a striped score matrix.
-pub trait BestPosition<C: NonZero + Unsigned> {
+pub trait BestPosition<C: StrictlyPositive> {
     /// Find the sequence position with the highest score.
     fn best_position(&self, scores: &StripedScores<C>) -> Option<usize> {
         if scores.len() == 0 {
@@ -112,9 +110,9 @@ impl<A: Alphabet> Pipeline<A, Generic> {
     }
 }
 
-impl<A: Alphabet, C: NonZero + Unsigned> Score<A, C> for Pipeline<A, Generic> {}
+impl<A: Alphabet, C: StrictlyPositive> Score<A, C> for Pipeline<A, Generic> {}
 
-impl<A: Alphabet, C: NonZero + Unsigned> BestPosition<C> for Pipeline<A, Generic> {}
+impl<A: Alphabet, C: StrictlyPositive> BestPosition<C> for Pipeline<A, Generic> {}
 
 // --- SSE2 pipeline -----------------------------------------------------------
 

@@ -11,6 +11,7 @@ use super::abc::Symbol;
 use super::dense::DenseMatrix;
 use super::err::InvalidSymbol;
 use super::pwm::ScoringMatrix;
+use super::utils::StrictlyPositive;
 
 // --- EncodedSequence ---------------------------------------------------------
 
@@ -115,14 +116,14 @@ impl<A: Alphabet> ToString for EncodedSequence<A> {
 
 /// An encoded sequence stored in a striped matrix with a fixed column count.
 #[derive(Clone, Debug)]
-pub struct StripedSequence<A: Alphabet, C: Unsigned + NonZero> {
+pub struct StripedSequence<A: Alphabet, C: StrictlyPositive> {
     alphabet: std::marker::PhantomData<A>,
     pub length: usize,
     pub wrap: usize,
     pub data: DenseMatrix<A::Symbol, C>,
 }
 
-impl<A: Alphabet, C: Unsigned + NonZero> StripedSequence<A, C> {
+impl<A: Alphabet, C: StrictlyPositive> StripedSequence<A, C> {
     /// Reconfigure the striped sequence for searching with a motif.
     pub fn configure(&mut self, motif: &ScoringMatrix<A>) {
         if motif.len() > 0 {
@@ -145,13 +146,13 @@ impl<A: Alphabet, C: Unsigned + NonZero> StripedSequence<A, C> {
     }
 }
 
-impl<A: Alphabet, C: Unsigned + NonZero> AsRef<StripedSequence<A, C>> for StripedSequence<A, C> {
+impl<A: Alphabet, C: StrictlyPositive> AsRef<StripedSequence<A, C>> for StripedSequence<A, C> {
     fn as_ref(&self) -> &Self {
         &self
     }
 }
 
-impl<A: Alphabet, C: Unsigned + NonZero> From<EncodedSequence<A>> for StripedSequence<A, C> {
+impl<A: Alphabet, C: StrictlyPositive> From<EncodedSequence<A>> for StripedSequence<A, C> {
     fn from(encoded: EncodedSequence<A>) -> Self {
         encoded.to_striped()
     }

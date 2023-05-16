@@ -3,6 +3,7 @@ extern crate typenum;
 
 use lightmotif::pli::BestPosition;
 use lightmotif::pli::Score;
+use lightmotif::utils::StrictlyPositive;
 use lightmotif::CountMatrix;
 use lightmotif::Dna;
 use lightmotif::EncodedSequence;
@@ -34,7 +35,7 @@ const EXPECTED: &[f32] = &[
     -30.922688 , -18.678621 
 ];
 
-fn test_score<C: Unsigned + NonZero, P: Score<Dna, C>>(pli: &P) {
+fn test_score<C: StrictlyPositive, P: Score<Dna, C>>(pli: &P) {
     let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped::<C>();
 
@@ -62,7 +63,7 @@ fn test_score<C: Unsigned + NonZero, P: Score<Dna, C>>(pli: &P) {
     }
 }
 
-fn test_best_position<C: Unsigned + NonZero, P: Score<Dna, C> + BestPosition<C>>(pli: &P) {
+fn test_best_position<C: StrictlyPositive, P: Score<Dna, C> + BestPosition<C>>(pli: &P) {
     let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped();
 

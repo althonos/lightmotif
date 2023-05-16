@@ -9,6 +9,7 @@ pub mod err;
 pub mod pli;
 pub mod pwm;
 pub mod seq;
+pub mod utils;
 
 pub use abc::Alphabet;
 pub use abc::Dna;
