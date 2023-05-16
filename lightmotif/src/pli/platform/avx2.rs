@@ -91,9 +91,8 @@ unsafe fn score_avx2(
             let x4 = _mm256_shuffle_epi8(x, m4);
             // load row for current weight matrix position
             let row = pssm.weights()[j].as_ptr();
-            let c = _mm_load_ps(row);
-            let t = _mm256_set_m128(c, c);
-            let u = _mm256_set1_ps(*row.add(crate::abc::Nucleotide::N.as_index()));
+            let t = _mm256_broadcast_ps(&*(row as *const __m128));
+            let u = _mm256_broadcast_ss(&*(row.add(crate::abc::Nucleotide::N.as_index())));
             // check which bases from the sequence are unknown
             let mask = _mm256_cmpeq_epi8(x, n);
             let unk1 = _mm256_castsi256_ps(_mm256_shuffle_epi8(mask, m1));
