@@ -12,6 +12,7 @@ use crate::dense::DenseMatrix;
 use crate::pwm::ScoringMatrix;
 use crate::seq::StripedSequence;
 
+/// Striped matrix storing scores for an equally striped sequence.
 #[derive(Clone, Debug)]
 pub struct StripedScores<C: Unsigned + NonZero> {
     data: DenseMatrix<f32, C>,

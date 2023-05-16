@@ -5,12 +5,12 @@ extern crate test;
 
 use std::str::FromStr;
 
-use lightmotif::CountMatrix;
-use lightmotif::Dna;
-use lightmotif::EncodedSequence;
-use lightmotif::Pipeline;
-use lightmotif::Score;
-use lightmotif::StripedScores;
+use lightmotif::abc::Dna;
+use lightmotif::pli::Pipeline;
+use lightmotif::pli::Score;
+use lightmotif::pli::StripedScores;
+use lightmotif::pwm::CountMatrix;
+use lightmotif::seq::EncodedSequence;
 use typenum::consts::U32;
 use typenum::marker_traits::NonZero;
 use typenum::marker_traits::Unsigned;

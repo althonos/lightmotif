@@ -3,12 +3,10 @@ use std::arch::x86_64::*;
 use typenum::consts::U32;
 
 use super::Backend;
-
 use crate::abc::Dna;
 use crate::abc::Nucleotide;
 use crate::abc::Symbol;
 use crate::pli::scores::StripedScores;
-
 use crate::pwm::ScoringMatrix;
 use crate::seq::StripedSequence;
 

@@ -1,3 +1,5 @@
+//! Storage types for the different stages of a PSSM construction.
+
 use typenum::marker_traits::Unsigned;
 
 use super::abc::Alphabet;

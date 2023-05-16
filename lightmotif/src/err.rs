@@ -1,3 +1,5 @@
+//! Error traits for failible operations in the library.
+
 use std::error::Error;
 use std::fmt::Display;
 use std::fmt::Error as FmtError;
@@ -26,3 +28,15 @@ impl Display for InvalidData {
 }
 
 impl Error for InvalidData {}
+
+/// The requested backend is unsupported on the host platform.
+#[derive(Debug, Clone)]
+pub struct UnsupportedBackend;
+
+impl Display for UnsupportedBackend {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
+        f.write_str("unsupported backend for the host platform")
+    }
+}
+
+impl Error for UnsupportedBackend {}

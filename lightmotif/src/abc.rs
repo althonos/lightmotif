@@ -1,3 +1,5 @@
+//! Digital encoding for biological sequences using an alphabet.
+
 use std::fmt::Debug;
 
 use generic_array::ArrayLength;
@@ -338,7 +340,7 @@ impl<A: Alphabet> Background<A> {
     ///
     /// # Example
     /// ```
-    /// # use lightmotif::*;
+    /// # use lightmotif::abc::*;
     /// let bg = Background::<Dna>::uniform();
     /// assert_eq!(bg.frequencies(), &[0.25, 0.25, 0.25, 0.25, 0.0]);
     /// ```
@@ -362,6 +364,12 @@ impl<A: Alphabet> Background<A> {
     /// A reference to the raw background frequencies.
     pub fn frequencies(&self) -> &[f32] {
         &self.frequencies
+    }
+}
+
+impl<A: Alphabet> AsRef<[f32]> for Background<A> {
+    fn as_ref(&self) -> &[f32] {
+        self.frequencies()
     }
 }
 

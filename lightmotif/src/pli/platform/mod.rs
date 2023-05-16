@@ -1,3 +1,5 @@
+//! Platform-specific code for the scoring pipeline.
+
 mod avx2;
 mod generic;
 mod sse2;
@@ -13,7 +15,3 @@ use typenum::marker_traits::Unsigned;
 pub trait Backend {
     type LANES: Unsigned + NonZero;
 }
-
-/// An error marker when a pipeline backend is unsupported on the host platform.
-#[derive(Debug, Clone)]
-pub struct UnsupportedBackend;

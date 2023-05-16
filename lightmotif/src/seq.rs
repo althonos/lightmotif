@@ -1,3 +1,5 @@
+//! Linear and striped storage for alphabet-encoded sequences.
+
 use std::str::FromStr;
 use std::string::ToString;
 
@@ -162,8 +164,8 @@ mod test {
 
     use super::*;
 
-    use crate::Dna;
-    use crate::Nucleotide::*;
+    use crate::abc::Dna;
+    use crate::abc::Nucleotide::*;
 
     #[test]
     fn test_stripe() {

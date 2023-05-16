@@ -6,9 +6,7 @@ use typenum::marker_traits::Unsigned;
 
 use super::Backend;
 use crate::abc::Alphabet;
-
 use crate::pli::scores::StripedScores;
-
 use crate::pwm::ScoringMatrix;
 use crate::seq::StripedSequence;
 

@@ -1,3 +1,5 @@
+//! Dense matrix storage with automatic memory alignment.
+
 use std::iter::ExactSizeIterator;
 use std::iter::FusedIterator;
 use std::ops::Index;

@@ -1,29 +1,30 @@
+//! Concrete implementations of the sequence scoring pipeline.
+
 use typenum::marker_traits::NonZero;
 use typenum::marker_traits::Unsigned;
 
-pub use self::platform::Avx2;
-pub use self::platform::Backend;
-pub use self::platform::Generic;
-pub use self::platform::Sse2;
-pub use self::platform::UnsupportedBackend;
+use self::platform::Avx2;
+use self::platform::Backend;
+use self::platform::Generic;
+use self::platform::Sse2;
 pub use self::scores::StripedScores;
 
 use super::abc::Alphabet;
 use super::abc::Dna;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
+use super::err::UnsupportedBackend;
 use super::pwm::ScoringMatrix;
 use super::seq::StripedSequence;
 
-mod platform;
+pub mod platform;
 mod scores;
-mod vector;
 
 // --- Score -------------------------------------------------------------------
 
 /// Generic trait for computing sequence scores with a PSSM.
 pub trait Score<A: Alphabet, C: NonZero + Unsigned> {
-    /// Compute the PSSM scores into the given buffer.
+    /// Compute the PSSM scores into the given striped score matrix.
     fn score_into<S, M>(&self, seq: S, pssm: M, scores: &mut StripedScores<C>)
     where
         S: AsRef<StripedSequence<A, C>>,
@@ -66,6 +67,7 @@ pub trait Score<A: Alphabet, C: NonZero + Unsigned> {
     }
 }
 
+/// Generic trait for finding the highest scoring site in a striped score matrix.
 pub trait BestPosition<C: NonZero + Unsigned> {
     /// Find the sequence position with the highest score.
     fn best_position(&self, scores: &StripedScores<C>) -> Option<usize> {
