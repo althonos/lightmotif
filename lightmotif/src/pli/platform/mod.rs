@@ -2,10 +2,12 @@
 
 mod avx2;
 mod generic;
+mod neon;
 mod sse2;
 
 pub use self::avx2::Avx2;
 pub use self::generic::Generic;
+pub use self::neon::Neon;
 pub use self::sse2::Sse2;
 
 use typenum::marker_traits::NonZero;

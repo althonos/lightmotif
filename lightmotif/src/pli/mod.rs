@@ -8,6 +8,7 @@ pub use self::scores::StripedScores;
 use self::platform::Avx2;
 use self::platform::Backend;
 use self::platform::Generic;
+use self::platform::Neon;
 use self::platform::Sse2;
 use super::abc::Alphabet;
 use super::abc::Dna;
@@ -191,3 +192,36 @@ impl<A: Alphabet> BestPosition<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
         Avx2::best_position(scores)
     }
 }
+
+// --- NEON pipeline -----------------------------------------------------------
+
+impl<A: Alphabet> Pipeline<A, Neon> {
+    /// Attempt to create a new AVX2-accelerated pipeline.
+    pub fn neon() -> Result<Self, UnsupportedBackend> {
+        #[cfg(target_arch = "arm")]
+        if std::arch::is_arm_feature_detected!("neon") {
+            return Ok(Self::default());
+        }
+        #[cfg(target_arch = "aarch64")]
+        if std::arch::is_aarch64_feature_detected!("neon") {
+            return Ok(Self::default());
+        }
+        Err(UnsupportedBackend)
+    }
+}
+
+impl Score<Dna, <Neon as Backend>::LANES> for Pipeline<Dna, Neon> {
+    fn score_into<S, M>(
+        &self,
+        seq: S,
+        pssm: M,
+        scores: &mut StripedScores<<Neon as Backend>::LANES>,
+    ) where
+        S: AsRef<StripedSequence<Dna, <Neon as Backend>::LANES>>,
+        M: AsRef<ScoringMatrix<Dna>>,
+    {
+        Neon::score_into(seq, pssm, scores)
+    }
+}
+
+impl<A: Alphabet> BestPosition<<Neon as Backend>::LANES> for Pipeline<A, Neon> {}

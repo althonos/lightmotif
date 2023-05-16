@@ -65,9 +65,9 @@ unsafe fn score_sse2<A, C>(
                 // load row for current weight matrix position
                 let row = pssm.weights()[j].as_ptr();
                 // index lookup table with each bases incrementally
-                for i in 0..A::K::USIZE {
-                    let sym = _mm_set1_epi32(i as i32);
-                    let lut = _mm_set1_ps(*row.add(i));
+                for k in 0..A::K::USIZE {
+                    let sym = _mm_set1_epi32(k as i32);
+                    let lut = _mm_load1_ps(row.add(k));
                     let p1 = _mm_castsi128_ps(_mm_cmpeq_epi32(x1, sym));
                     let p2 = _mm_castsi128_ps(_mm_cmpeq_epi32(x2, sym));
                     let p3 = _mm_castsi128_ps(_mm_cmpeq_epi32(x3, sym));
@@ -117,21 +117,21 @@ unsafe fn best_position_sse2(scores: &StripedScores<<Sse2 as Backend>::LANES>) -
                 let r2 = _mm_load_ps(row[0x04..].as_ptr());
                 let r3 = _mm_load_ps(row[0x08..].as_ptr());
                 let r4 = _mm_load_ps(row[0x0c..].as_ptr());
-                // compare scores to local maximums
+                // compare scores to local maxima
                 let c1 = _mm_cmplt_ps(s1, r1);
                 let c2 = _mm_cmplt_ps(s2, r2);
                 let c3 = _mm_cmplt_ps(s3, r3);
                 let c4 = _mm_cmplt_ps(s4, r4);
                 // NOTE: code below could use `_mm_blendv_ps` instead,
                 //       but this instruction is only available on SSE4.1
-                //       while the rest of the code is actually using at
-                //       most SSSE3 instructions.
-                // replace indices of new local maximums
+                //       while the rest of the code is actually using SSE2
+                //       instructions only.
+                // replace indices of new local maxima
                 p1 = _mm_or_ps(_mm_andnot_ps(c1, p1), _mm_and_ps(index, c1));
                 p2 = _mm_or_ps(_mm_andnot_ps(c2, p2), _mm_and_ps(index, c2));
                 p3 = _mm_or_ps(_mm_andnot_ps(c3, p3), _mm_and_ps(index, c3));
                 p4 = _mm_or_ps(_mm_andnot_ps(c4, p4), _mm_and_ps(index, c4));
-                // replace values of new local maximums
+                // replace values of new local maxima
                 s1 = _mm_or_ps(_mm_andnot_ps(c1, s1), _mm_and_ps(r1, c1));
                 s2 = _mm_or_ps(_mm_andnot_ps(c2, s2), _mm_and_ps(r2, c2));
                 s3 = _mm_or_ps(_mm_andnot_ps(c3, s3), _mm_and_ps(r3, c3));
