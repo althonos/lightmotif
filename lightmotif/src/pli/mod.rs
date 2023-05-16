@@ -1,7 +1,3 @@
-use std::iter::FusedIterator;
-use std::ops::Index;
-use std::ops::Range;
-
 use typenum::marker_traits::NonZero;
 use typenum::marker_traits::Unsigned;
 
@@ -12,7 +8,6 @@ pub use self::platform::Sse2;
 pub use self::platform::UnsupportedBackend;
 pub use self::scores::StripedScores;
 
-use self::vector::Vector;
 use super::abc::Alphabet;
 use super::abc::Dna;
 use super::abc::Symbol;

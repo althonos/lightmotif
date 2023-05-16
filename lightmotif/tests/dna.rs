@@ -1,14 +1,12 @@
 extern crate lightmotif;
 extern crate typenum;
 
-#[cfg(target_feature = "sse2")]
-use std::arch::x86_64::__m128i;
 #[cfg(target_feature = "avx2")]
 use std::arch::x86_64::__m256i;
 use std::str::FromStr;
 
 use lightmotif::pli::BestPosition;
-use lightmotif::pli::Generic;
+
 use lightmotif::pli::Score;
 use lightmotif::CountMatrix;
 use lightmotif::Dna;
