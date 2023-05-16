@@ -132,12 +132,12 @@ fn test_best_position_avx2() {
 #[test]
 fn test_score_neon() {
     let pli = Pipeline::neon().unwrap();
-    test_score(&pli);
+    test_score::<U16, _>(&pli);
 }
 
 #[cfg(target_feature = "neon")]
 #[test]
 fn test_best_position_neon() {
     let pli = Pipeline::neon().unwrap();
-    test_best_position(&pli);
+    test_best_position::<U16, _>(&pli);
 }

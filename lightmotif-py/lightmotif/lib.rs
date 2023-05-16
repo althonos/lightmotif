@@ -7,7 +7,6 @@ extern crate typenum;
 
 use lightmotif::abc::Symbol;
 use lightmotif::pli::platform::Backend;
-#[allow(unused)]
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
 
@@ -26,9 +25,16 @@ use typenum::marker_traits::Unsigned;
 
 // --- Compile-time constants --------------------------------------------------
 
+#[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+type C = <lightmotif::pli::platform::Neon as Backend>::LANES;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 type C = <lightmotif::pli::platform::Avx2 as Backend>::LANES;
-#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+#[cfg(not(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "arm",
+    target_arch = "aarch64",
+)))]
 type C = typenum::consts::U1;
 
 // --- Helpers -----------------------------------------------------------------
@@ -201,6 +207,10 @@ impl ScoringMatrix {
             }
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             if let Ok(pli) = Pipeline::sse2() {
+                return pli.score(seq, pssm);
+            }
+            #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+            if let Ok(pli) = Pipeline::neon() {
                 return pli.score(seq, pssm);
             }
             Pipeline::generic().score(seq, pssm)
