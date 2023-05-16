@@ -1,12 +1,13 @@
 //! Intel 128-bit vector implementation, for 16 elements column width.
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(target_arch = "x86")]
+use std::arch::x86::*;
+#[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 use std::ops::Div;
 use std::ops::Rem;
 
 use typenum::consts::U16;
-use typenum::consts::U32;
 use typenum::marker_traits::Unsigned;
 use typenum::marker_traits::Zero;
 
@@ -157,6 +158,7 @@ unsafe fn best_position_sse2(scores: &StripedScores<<Sse2 as Backend>::LANES>) -
 }
 
 impl Sse2 {
+    #[allow(unused)]
     pub fn score_into<A, C, S, M>(seq: S, pssm: M, scores: &mut StripedScores<C>)
     where
         A: Alphabet,
@@ -185,6 +187,7 @@ impl Sse2 {
         panic!("attempting to run SSE2 code on a non-x86 host")
     }
 
+    #[allow(unused)]
     pub fn best_position(scores: &StripedScores<<Sse2 as Backend>::LANES>) -> Option<usize> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {

@@ -210,18 +210,27 @@ impl<A: Alphabet> Pipeline<A, Neon> {
     }
 }
 
-impl Score<Dna, <Neon as Backend>::LANES> for Pipeline<Dna, Neon> {
-    fn score_into<S, M>(
-        &self,
-        seq: S,
-        pssm: M,
-        scores: &mut StripedScores<<Neon as Backend>::LANES>,
-    ) where
-        S: AsRef<StripedSequence<Dna, <Neon as Backend>::LANES>>,
-        M: AsRef<ScoringMatrix<Dna>>,
+impl<A, C> Score<A, C> for Pipeline<A, Neon>
+where
+    A: Alphabet,
+    C: StrictlyPositive + Rem<U16> + Div<U16>,
+    <C as Rem<U16>>::Output: Zero,
+    <C as Div<U16>>::Output: Unsigned,
+{
+    fn score_into<S, M>(&self, seq: S, pssm: M, scores: &mut StripedScores<C>)
+    where
+        S: AsRef<StripedSequence<A, C>>,
+        M: AsRef<ScoringMatrix<A>>,
     {
         Neon::score_into(seq, pssm, scores)
     }
 }
 
-impl<A: Alphabet> BestPosition<<Neon as Backend>::LANES> for Pipeline<A, Neon> {}
+impl<A, C> BestPosition<C> for Pipeline<A, Neon>
+where
+    A: Alphabet,
+    C: StrictlyPositive + Rem<U16> + Div<U16>,
+    <C as Rem<U16>>::Output: Zero,
+    <C as Div<U16>>::Output: Unsigned,
+{
+}

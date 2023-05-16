@@ -1,6 +1,8 @@
 //! Intel 256-bit vector implementation, for 32 elements column width.
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(target_arch = "x86")]
+use std::arch::x86::*;
+#[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
 use typenum::consts::U32;
@@ -194,6 +196,7 @@ unsafe fn best_position_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -
 
 /// Intel 256-bit vector implementation, for 32 elements column width.
 impl Avx2 {
+    #[allow(unused)]
     pub fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<<Avx2 as Backend>::LANES>)
     where
         S: AsRef<StripedSequence<Dna, <Avx2 as Backend>::LANES>>,
@@ -218,6 +221,7 @@ impl Avx2 {
         panic!("attempting to run AVX2 code on a non-x86 host")
     }
 
+    #[allow(unused)]
     pub fn best_position(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {

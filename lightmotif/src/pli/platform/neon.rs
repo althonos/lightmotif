@@ -8,7 +8,6 @@ use std::ops::Div;
 use std::ops::Rem;
 
 use typenum::consts::U16;
-use typenum::consts::U32;
 use typenum::marker_traits::Unsigned;
 use typenum::marker_traits::Zero;
 
@@ -65,9 +64,9 @@ unsafe fn score_neon<A, C>(
                 // load row for current weight matrix position
                 let row = pssm.weights()[j].as_ptr();
                 // index lookup table with each bases incrementally
-                for i in 0..A::K::USIZE {
-                    let sym = vdupq_n_u32(i as u32);
-                    let lut = vreinterpretq_u32_f32(vld1q_dup_f32(row.add(i)));
+                for k in 0..A::K::USIZE {
+                    let sym = vdupq_n_u32(k as u32);
+                    let lut = vreinterpretq_u32_f32(vld1q_dup_f32(row.add(k)));
                     let p1 = vceqq_u32(x1, sym);
                     let p2 = vceqq_u32(x2, sym);
                     let p3 = vceqq_u32(x3, sym);
@@ -86,6 +85,7 @@ unsafe fn score_neon<A, C>(
 }
 
 impl Neon {
+    #[allow(unused)]
     pub fn score_into<A, C, S, M>(seq: S, pssm: M, scores: &mut StripedScores<C>)
     where
         A: Alphabet,
