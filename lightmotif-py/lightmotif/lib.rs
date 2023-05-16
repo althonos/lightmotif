@@ -199,6 +199,10 @@ impl ScoringMatrix {
             if let Ok(pli) = Pipeline::avx2() {
                 return pli.score(seq, pssm);
             }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            if let Ok(pli) = Pipeline::sse2() {
+                return pli.score(seq, pssm);
+            }
             Pipeline::generic().score(seq, pssm)
         });
 

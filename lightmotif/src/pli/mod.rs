@@ -19,7 +19,6 @@ use super::seq::StripedSequence;
 use super::utils::StrictlyPositive;
 
 use typenum::consts::U16;
-use typenum::consts::U32;
 use typenum::marker_traits::Unsigned;
 use typenum::marker_traits::Zero;
 
@@ -159,8 +158,6 @@ impl<A: Alphabet> BestPosition<<Sse2 as Backend>::LANES> for Pipeline<A, Sse2> {
         Sse2::best_position(scores)
     }
 }
-
-impl<A: Alphabet> BestPosition<U32> for Pipeline<A, Sse2> {}
 
 // --- AVX2 pipeline -----------------------------------------------------------
 

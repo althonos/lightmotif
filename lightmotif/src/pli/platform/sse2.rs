@@ -65,7 +65,7 @@ unsafe fn score_sse2<A, C>(
                 // index lookup table with each bases incrementally
                 for i in 0..A::K::USIZE {
                     let sym = _mm_set1_epi32(i as i32);
-                    let lut = _mm_set1_ps(*row.add(i as usize));
+                    let lut = _mm_set1_ps(*row.add(i));
                     let p1 = _mm_castsi128_ps(_mm_cmpeq_epi32(x1, sym));
                     let p2 = _mm_castsi128_ps(_mm_cmpeq_epi32(x2, sym));
                     let p3 = _mm_castsi128_ps(_mm_cmpeq_epi32(x3, sym));
