@@ -1,5 +1,8 @@
 //! Concrete implementations of the sequence scoring pipeline.
 
+use std::ops::Div;
+use std::ops::Rem;
+
 pub use self::scores::StripedScores;
 
 use self::platform::Avx2;
@@ -14,6 +17,11 @@ use super::err::UnsupportedBackend;
 use super::pwm::ScoringMatrix;
 use super::seq::StripedSequence;
 use super::utils::StrictlyPositive;
+
+use typenum::consts::U16;
+use typenum::consts::U32;
+use typenum::marker_traits::Unsigned;
+use typenum::marker_traits::Zero;
 
 pub mod platform;
 mod scores;
@@ -130,14 +138,16 @@ impl<A: Alphabet> Pipeline<A, Sse2> {
     }
 }
 
-impl<A: Alphabet> Score<A, <Sse2 as Backend>::LANES> for Pipeline<A, Sse2> {
-    fn score_into<S, M>(
-        &self,
-        seq: S,
-        pssm: M,
-        scores: &mut StripedScores<<Sse2 as Backend>::LANES>,
-    ) where
-        S: AsRef<StripedSequence<A, <Sse2 as Backend>::LANES>>,
+impl<A, C> Score<A, C> for Pipeline<A, Sse2>
+where
+    A: Alphabet,
+    C: StrictlyPositive + Rem<U16> + Div<U16>,
+    <C as Rem<U16>>::Output: Zero,
+    <C as Div<U16>>::Output: Unsigned,
+{
+    fn score_into<S, M>(&self, seq: S, pssm: M, scores: &mut StripedScores<C>)
+    where
+        S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A>>,
     {
         Sse2::score_into(seq, pssm, scores)
@@ -149,6 +159,8 @@ impl<A: Alphabet> BestPosition<<Sse2 as Backend>::LANES> for Pipeline<A, Sse2> {
         Sse2::best_position(scores)
     }
 }
+
+impl<A: Alphabet> BestPosition<U32> for Pipeline<A, Sse2> {}
 
 // --- AVX2 pipeline -----------------------------------------------------------
 

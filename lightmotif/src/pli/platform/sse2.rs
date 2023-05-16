@@ -1,14 +1,19 @@
 //! Intel 128-bit vector implementation, for 16 elements column width.
 use std::arch::x86_64::*;
+use std::ops::Div;
+use std::ops::Rem;
 
 use typenum::consts::U16;
+use typenum::consts::U32;
 use typenum::marker_traits::Unsigned;
+use typenum::marker_traits::Zero;
 
 use super::Backend;
 use crate::abc::Alphabet;
 use crate::pli::scores::StripedScores;
 use crate::pwm::ScoringMatrix;
 use crate::seq::StripedSequence;
+use crate::utils::StrictlyPositive;
 
 /// A marker type for the SSE2 implementation of the pipeline.
 #[derive(Clone, Debug, Default)]
@@ -20,53 +25,64 @@ impl Backend for Sse2 {
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn score_sse2<A: Alphabet>(
-    seq: &StripedSequence<A, <Sse2 as Backend>::LANES>,
+unsafe fn score_sse2<A, C>(
+    seq: &StripedSequence<A, C>,
     pssm: &ScoringMatrix<A>,
-    scores: &mut StripedScores<<Sse2 as Backend>::LANES>,
-) {
-    let data = scores.matrix_mut();
+    scores: &mut StripedScores<C>,
+) where
+    A: Alphabet,
+    C: StrictlyPositive + Rem<U16> + Div<U16>,
+    <C as Rem<U16>>::Output: Zero,
+    <C as Div<U16>>::Output: Unsigned,
+{
     // mask vectors for broadcasting uint8x16_t to uint32x4_t to floatx4_t
     let zero = _mm_setzero_si128();
-    // process every position of the sequence data
-    for i in 0..seq.data.rows() - seq.wrap {
-        // reset sums for current position
-        let mut s1 = _mm_setzero_ps();
-        let mut s2 = _mm_setzero_ps();
-        let mut s3 = _mm_setzero_ps();
-        let mut s4 = _mm_setzero_ps();
-        // advance position in the position weight matrix
-        for j in 0..pssm.len() {
-            // load sequence row and broadcast to f32
-            let x = _mm_load_si128(seq.data[i + j].as_ptr() as *const __m128i);
-            let hi = _mm_unpackhi_epi8(x, zero);
-            let lo = _mm_unpacklo_epi8(x, zero);
-            let x1 = _mm_unpacklo_epi8(lo, zero);
-            let x2 = _mm_unpackhi_epi8(lo, zero);
-            let x3 = _mm_unpacklo_epi8(hi, zero);
-            let x4 = _mm_unpackhi_epi8(hi, zero);
-            // load row for current weight matrix position
-            let row = pssm.weights()[j].as_ptr();
-            // index lookup table with each bases incrementally
-            for i in 0..A::K::USIZE {
-                let sym = _mm_set1_epi32(i as i32);
-                let lut = _mm_set1_ps(*row.add(i as usize));
-                let p1 = _mm_castsi128_ps(_mm_cmpeq_epi32(x1, sym));
-                let p2 = _mm_castsi128_ps(_mm_cmpeq_epi32(x2, sym));
-                let p3 = _mm_castsi128_ps(_mm_cmpeq_epi32(x3, sym));
-                let p4 = _mm_castsi128_ps(_mm_cmpeq_epi32(x4, sym));
-                s1 = _mm_add_ps(s1, _mm_and_ps(lut, p1));
-                s2 = _mm_add_ps(s2, _mm_and_ps(lut, p2));
-                s3 = _mm_add_ps(s3, _mm_and_ps(lut, p3));
-                s4 = _mm_add_ps(s4, _mm_and_ps(lut, p4));
+    // process columns of the striped matrix, any multiple of 16 is supported
+    let data = scores.matrix_mut();
+    for offset in (0..<C as Div<U16>>::Output::USIZE)
+        .into_iter()
+        .map(|i| i * <Sse2 as Backend>::LANES::USIZE)
+    {
+        // process every position of the sequence data
+        for i in 0..seq.data.rows() - seq.wrap {
+            // reset sums for current position
+            let mut s1 = _mm_setzero_ps();
+            let mut s2 = _mm_setzero_ps();
+            let mut s3 = _mm_setzero_ps();
+            let mut s4 = _mm_setzero_ps();
+            // advance position in the position weight matrix
+            for j in 0..pssm.len() {
+                // load sequence row and broadcast to f32
+                let x = _mm_load_si128(seq.data[i + j].as_ptr().add(offset) as *const __m128i);
+                let hi = _mm_unpackhi_epi8(x, zero);
+                let lo = _mm_unpacklo_epi8(x, zero);
+                let x1 = _mm_unpacklo_epi8(lo, zero);
+                let x2 = _mm_unpackhi_epi8(lo, zero);
+                let x3 = _mm_unpacklo_epi8(hi, zero);
+                let x4 = _mm_unpackhi_epi8(hi, zero);
+                // load row for current weight matrix position
+                let row = pssm.weights()[j].as_ptr();
+                // index lookup table with each bases incrementally
+                for i in 0..A::K::USIZE {
+                    let sym = _mm_set1_epi32(i as i32);
+                    let lut = _mm_set1_ps(*row.add(i as usize));
+                    let p1 = _mm_castsi128_ps(_mm_cmpeq_epi32(x1, sym));
+                    let p2 = _mm_castsi128_ps(_mm_cmpeq_epi32(x2, sym));
+                    let p3 = _mm_castsi128_ps(_mm_cmpeq_epi32(x3, sym));
+                    let p4 = _mm_castsi128_ps(_mm_cmpeq_epi32(x4, sym));
+                    s1 = _mm_add_ps(s1, _mm_and_ps(lut, p1));
+                    s2 = _mm_add_ps(s2, _mm_and_ps(lut, p2));
+                    s3 = _mm_add_ps(s3, _mm_and_ps(lut, p3));
+                    s4 = _mm_add_ps(s4, _mm_and_ps(lut, p4));
+                }
             }
+            // record the score for the current position
+            let row = &mut data[i];
+            _mm_storeu_ps(row[offset + 0..].as_mut_ptr(), s1);
+            _mm_storeu_ps(row[offset + 4..].as_mut_ptr(), s2);
+            _mm_storeu_ps(row[offset + 8..].as_mut_ptr(), s3);
+            _mm_storeu_ps(row[offset + 12..].as_mut_ptr(), s4);
         }
-        // record the score for the current position
-        let row = &mut data[i];
-        _mm_storeu_ps(row[0..].as_mut_ptr(), s1);
-        _mm_storeu_ps(row[4..].as_mut_ptr(), s2);
-        _mm_storeu_ps(row[8..].as_mut_ptr(), s3);
-        _mm_storeu_ps(row[12..].as_mut_ptr(), s4);
     }
 }
 
@@ -139,13 +155,38 @@ unsafe fn best_position_sse2(scores: &StripedScores<<Sse2 as Backend>::LANES>) -
 }
 
 impl Sse2 {
-    pub fn score_into<A, S, M>(
-        seq: S,
-        pssm: M,
-        scores: &mut StripedScores<<Sse2 as Backend>::LANES>,
-    ) where
+    pub fn score_into<A, C, S, M>(seq: S, pssm: M, scores: &mut StripedScores<C>)
+    where
         A: Alphabet,
-        S: AsRef<StripedSequence<A, <Sse2 as Backend>::LANES>>,
+        C: StrictlyPositive + Rem<U16> + Div<U16>,
+        S: AsRef<StripedSequence<A, C>>,
+        M: AsRef<ScoringMatrix<A>>,
+        <C as Rem<U16>>::Output: Zero,
+        <C as Div<U16>>::Output: Unsigned,
+    {
+        let seq = seq.as_ref();
+        let pssm = pssm.as_ref();
+
+        if seq.wrap < pssm.len() - 1 {
+            panic!(
+                "not enough wrapping rows for motif of length {}",
+                pssm.len()
+            );
+        }
+
+        scores.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        unsafe {
+            score_sse2(seq, pssm, scores);
+        }
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        panic!("attempting to run SSE2 code on a non-x86 host")
+    }
+
+    pub fn score_into32<A, S, M>(seq: S, pssm: M, scores: &mut StripedScores<U32>)
+    where
+        A: Alphabet,
+        S: AsRef<StripedSequence<A, U32>>,
         M: AsRef<ScoringMatrix<A>>,
     {
         let seq = seq.as_ref();

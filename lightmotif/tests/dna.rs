@@ -9,10 +9,11 @@ use lightmotif::Dna;
 use lightmotif::EncodedSequence;
 use lightmotif::Pipeline;
 
+use typenum::consts::U1;
+use typenum::consts::U16;
+use typenum::consts::U32;
 use typenum::marker_traits::NonZero;
 use typenum::marker_traits::Unsigned;
-use typenum::U1;
-use typenum::U32;
 
 const SEQUENCE: &'static str = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
 const PATTERNS: &[&'static str] = &["GTTGACCTTATCAAC", "GTTGATCCAGTCAAC"];
@@ -98,14 +99,28 @@ fn test_best_position_generic() {
 #[test]
 fn test_score_sse2() {
     let pli = Pipeline::sse2().unwrap();
-    test_score(&pli);
+    test_score::<U16, _>(&pli);
 }
 
 #[cfg(target_feature = "sse2")]
 #[test]
 fn test_best_position_sse2() {
     let pli = Pipeline::sse2().unwrap();
-    test_best_position(&pli);
+    test_best_position::<U16, _>(&pli);
+}
+
+#[cfg(target_feature = "sse2")]
+#[test]
+fn test_score_sse2_32() {
+    let pli = Pipeline::sse2().unwrap();
+    test_score::<U32, _>(&pli);
+}
+
+#[cfg(target_feature = "sse2")]
+#[test]
+fn test_best_position_sse2_32() {
+    let pli = Pipeline::sse2().unwrap();
+    test_best_position::<U32, _>(&pli);
 }
 
 #[cfg(target_feature = "avx2")]

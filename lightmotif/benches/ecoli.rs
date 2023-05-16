@@ -12,6 +12,7 @@ use lightmotif::pli::StripedScores;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::seq::EncodedSequence;
 use lightmotif::utils::StrictlyPositive;
+use typenum::consts::U16;
 use typenum::consts::U32;
 use typenum::marker_traits::NonZero;
 use typenum::marker_traits::Unsigned;
@@ -46,7 +47,14 @@ fn bench_generic(bencher: &mut test::Bencher) {
 #[bench]
 fn bench_sse2(bencher: &mut test::Bencher) {
     let pli = Pipeline::sse2().unwrap();
-    bench(bencher, &pli);
+    bench::<U16, _>(bencher, &pli);
+}
+
+#[cfg(target_feature = "sse2")]
+#[bench]
+fn bench_sse2_32(bencher: &mut test::Bencher) {
+    let pli = Pipeline::sse2().unwrap();
+    bench::<U32, _>(bencher, &pli);
 }
 
 #[cfg(target_feature = "avx2")]
