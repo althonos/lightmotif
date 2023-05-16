@@ -38,11 +38,13 @@ impl<A: Alphabet> EncodedSequence<A> {
     }
 
     /// Return the number of symbols in the sequence.
+    #[inline]
     pub fn len(&self) -> usize {
         self.data.len()
     }
 
     /// Iterate over the symbols in the sequence.
+    #[inline]
     pub fn iter(&self) -> impl IntoIterator<Item = &A::Symbol> {
         self.data.iter()
     }

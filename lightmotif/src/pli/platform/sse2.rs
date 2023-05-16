@@ -1,24 +1,38 @@
+//! Intel 128-bit vector implementation, for 16 elements column width.
 use std::arch::x86_64::*;
 
-use typenum::Unsigned;
+use typenum::consts::U16;
+use typenum::marker_traits::Unsigned;
 
-use super::Pipeline;
-use super::Score;
-use super::StripedScores;
-use super::Vector;
+use super::Backend;
 use crate::abc::Alphabet;
 use crate::abc::Dna;
 use crate::abc::Nucleotide;
 use crate::abc::Symbol;
+use crate::pli::scores::StripedScores;
+use crate::pli::BestPosition;
+use crate::pli::Pipeline;
+use crate::pli::Score;
+use crate::pli::Vector;
 use crate::pwm::ScoringMatrix;
 use crate::seq::StripedSequence;
 
+/// A marker type for the SSE2 implementation of the pipeline.
+#[derive(Clone, Debug, Default)]
+pub struct Sse2;
+
+impl Backend for Sse2 {
+    type LANES = U16;
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
 unsafe fn score_sse2<A: Alphabet>(
-    seq: &StripedSequence<A, <__m128i as Vector>::LANES>,
+    seq: &StripedSequence<A, <Sse2 as Backend>::LANES>,
     pssm: &ScoringMatrix<A>,
-    scores: &mut StripedScores<<__m128i as Vector>::LANES>,
+    scores: &mut StripedScores<<Sse2 as Backend>::LANES>,
 ) {
+    let data = scores.matrix_mut();
     // mask vectors for broadcasting uint8x16_t to uint32x4_t to floatx4_t
     let zero = _mm_setzero_si128();
     // process every position of the sequence data
@@ -55,7 +69,7 @@ unsafe fn score_sse2<A: Alphabet>(
             }
         }
         // record the score for the current position
-        let row = &mut scores.data[i];
+        let row = &mut data[i];
         _mm_storeu_ps(row[0..].as_mut_ptr(), s1);
         _mm_storeu_ps(row[4..].as_mut_ptr(), s2);
         _mm_storeu_ps(row[8..].as_mut_ptr(), s3);
@@ -63,11 +77,13 @@ unsafe fn score_sse2<A: Alphabet>(
     }
 }
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn best_position_sse2(scores: &StripedScores<<__m128i as Vector>::LANES>) -> Option<usize> {
-    if scores.length == 0 {
+unsafe fn best_position_sse2(scores: &StripedScores<<Sse2 as Backend>::LANES>) -> Option<usize> {
+    if scores.len() == 0 {
         None
     } else {
+        let data = scores.matrix();
         unsafe {
             // the row index for the best score in each column
             // (these are 32-bit integers but for use with `_mm256_blendv_ps`
@@ -77,12 +93,12 @@ unsafe fn best_position_sse2(scores: &StripedScores<<__m128i as Vector>::LANES>)
             let mut p3 = _mm_setzero_ps();
             let mut p4 = _mm_setzero_ps();
             // store the best scores for each column
-            let mut s1 = _mm_load_ps(scores.data[0][0x00..].as_ptr());
-            let mut s2 = _mm_load_ps(scores.data[0][0x04..].as_ptr());
-            let mut s3 = _mm_load_ps(scores.data[0][0x08..].as_ptr());
-            let mut s4 = _mm_load_ps(scores.data[0][0x0c..].as_ptr());
+            let mut s1 = _mm_load_ps(data[0][0x00..].as_ptr());
+            let mut s2 = _mm_load_ps(data[0][0x04..].as_ptr());
+            let mut s3 = _mm_load_ps(data[0][0x08..].as_ptr());
+            let mut s4 = _mm_load_ps(data[0][0x0c..].as_ptr());
             // process all rows iteratively
-            for (i, row) in scores.data.iter().enumerate() {
+            for (i, row) in data.iter().enumerate() {
                 // record the current row index
                 let index = _mm_castsi128_ps(_mm_set1_epi32(i as i32));
                 // load scores for the current row
@@ -119,9 +135,9 @@ unsafe fn best_position_sse2(scores: &StripedScores<<__m128i as Vector>::LANES>)
             let mut best_pos = 0;
             let mut best_score = -f32::INFINITY;
             for (col, &row) in x.iter().enumerate() {
-                if scores.data[row as usize][col] > best_score {
-                    best_score = scores.data[row as usize][col];
-                    best_pos = col * scores.data.rows() + row as usize;
+                if data[row as usize][col] > best_score {
+                    best_score = data[row as usize][col];
+                    best_pos = col * data.rows() + row as usize;
                 }
             }
             Some(best_pos)
@@ -129,11 +145,14 @@ unsafe fn best_position_sse2(scores: &StripedScores<<__m128i as Vector>::LANES>)
     }
 }
 
-/// Intel 128-bit vector implementation, for 16 elements column width.
-impl<A: Alphabet> Score<A, __m128i> for Pipeline<A, __m128i> {
-    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<<__m128i as Vector>::LANES>)
-    where
-        S: AsRef<StripedSequence<A, <__m128i as Vector>::LANES>>,
+impl Sse2 {
+    pub fn score_into<A, S, M>(
+        seq: S,
+        pssm: M,
+        scores: &mut StripedScores<<Sse2 as Backend>::LANES>,
+    ) where
+        A: Alphabet,
+        S: AsRef<StripedSequence<A, <Sse2 as Backend>::LANES>>,
         M: AsRef<ScoringMatrix<A>>,
     {
         let seq = seq.as_ref();
@@ -145,17 +164,22 @@ impl<A: Alphabet> Score<A, __m128i> for Pipeline<A, __m128i> {
                 pssm.len()
             );
         }
-        if scores.data.rows() < (seq.data.rows() - seq.wrap) {
-            panic!("not enough rows for scores: {}", pssm.len());
-        }
 
-        scores.length = seq.length - pssm.len() + 1;
+        scores.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             score_sse2(seq, pssm, scores);
         }
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        panic!("attempting to run SSE2 code on a non-x86 host")
     }
 
-    fn best_position(scores: &StripedScores<<__m128i as Vector>::LANES>) -> Option<usize> {
-        unsafe { best_position_sse2(scores) }
+    pub fn best_position(scores: &StripedScores<<Sse2 as Backend>::LANES>) -> Option<usize> {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        unsafe {
+            best_position_sse2(scores)
+        }
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        panic!("attempting to run SSE2 code on a non-x86 host")
     }
 }

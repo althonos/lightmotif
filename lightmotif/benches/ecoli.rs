@@ -35,9 +35,10 @@ fn bench_generic(bencher: &mut test::Bencher) {
     let pssm = pbm.to_scoring(None);
 
     striped.configure(&pssm);
+    let pli = Pipeline::generic();
     let mut scores = StripedScores::new_for(&striped, &pssm);
     bencher.bytes = SEQUENCE.len() as u64;
-    bencher.iter(|| test::black_box(Pipeline::<_, u8>::score_into(&striped, &pssm, &mut scores)));
+    bencher.iter(|| test::black_box(pli.score_into(&striped, &pssm, &mut scores)));
 }
 
 #[cfg(target_feature = "sse2")]
@@ -55,15 +56,10 @@ fn bench_sse2(bencher: &mut test::Bencher) {
     let pssm = pbm.to_scoring(None);
 
     striped.configure(&pssm);
+    let pli = Pipeline::sse2().unwrap();
     let mut scores = StripedScores::new_for(&striped, &pssm);
     bencher.bytes = SEQUENCE.len() as u64;
-    bencher.iter(|| {
-        test::black_box(Pipeline::<_, __m128i>::score_into(
-            &striped,
-            &pssm,
-            &mut scores,
-        ))
-    });
+    bencher.iter(|| test::black_box(pli.score_into(&striped, &pssm, &mut scores)));
 }
 
 #[cfg(target_feature = "avx2")]
@@ -81,13 +77,8 @@ fn bench_avx2(bencher: &mut test::Bencher) {
     let pssm = pbm.to_scoring(None);
 
     striped.configure(&pssm);
+    let pli = Pipeline::avx2().unwrap();
     let mut scores = StripedScores::new_for(&striped, &pssm);
     bencher.bytes = SEQUENCE.len() as u64;
-    bencher.iter(|| {
-        test::black_box(Pipeline::<_, __m256i>::score_into(
-            &striped,
-            &pssm,
-            &mut scores,
-        ))
-    });
+    bencher.iter(|| test::black_box(pli.score_into(&striped, &pssm, &mut scores)));
 }

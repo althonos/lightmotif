@@ -7,11 +7,13 @@ use std::arch::x86_64::__m128i;
 use std::arch::x86_64::__m256i;
 use std::str::FromStr;
 
+use lightmotif::pli::BestPosition;
+use lightmotif::pli::Generic;
+use lightmotif::pli::Score;
 use lightmotif::CountMatrix;
 use lightmotif::Dna;
 use lightmotif::EncodedSequence;
 use lightmotif::Pipeline;
-use lightmotif::Score;
 
 use typenum::U32;
 
@@ -52,7 +54,8 @@ fn test_score_generic() {
     let pssm = pwm.into();
 
     striped.configure(&pssm);
-    let result = Pipeline::<Dna, u8>::score(&striped, &pssm);
+    let pli = Pipeline::generic();
+    let result = pli.score(&striped, &pssm);
     let scores = result.to_vec();
 
     assert_eq!(scores.len(), EXPECTED.len());
@@ -83,8 +86,9 @@ fn test_best_position_generic() {
     let pssm = pwm.into();
 
     striped.configure(&pssm);
-    let result = Pipeline::<Dna, u8>::score(&striped, &pssm);
-    assert_eq!(Pipeline::<Dna, u8>::best_position(&result), Some(18));
+    let pli = Pipeline::generic();
+    let result = pli.score(&striped, &pssm);
+    assert_eq!(pli.best_position(&result), Some(18));
 }
 
 #[cfg(target_feature = "sse2")]
@@ -104,7 +108,8 @@ fn test_score_sse2() {
     let pssm = pwm.into();
 
     striped.configure(&pssm);
-    let result = Pipeline::<Dna, __m128i>::score(&striped, &pssm);
+    let pli = Pipeline::sse2().unwrap();
+    let result = pli.score(&striped, &pssm);
 
     // for i in 0..result.data.rows() {
     //     println!("i={} {:?}", i, &result.data[i]);
@@ -140,8 +145,9 @@ fn test_best_position_sse2() {
     let pssm = pwm.into();
 
     striped.configure(&pssm);
-    let result = Pipeline::<Dna, __m128i>::score(&striped, &pssm);
-    assert_eq!(Pipeline::<Dna, __m128i>::best_position(&result), Some(18));
+    let pli = Pipeline::sse2().unwrap();
+    let result = pli.score(&striped, &pssm);
+    assert_eq!(pli.best_position(&result), Some(18));
 }
 
 #[cfg(target_feature = "avx2")]
@@ -161,7 +167,8 @@ fn test_score_avx2() {
     let pssm = pwm.into();
 
     striped.configure(&pssm);
-    let result = Pipeline::<_, __m256i>::score(&striped, &pssm);
+    let pli = Pipeline::avx2().unwrap();
+    let result = pli.score(&striped, &pssm);
     let scores = result.to_vec();
 
     assert_eq!(scores.len(), EXPECTED.len());
@@ -193,6 +200,7 @@ fn test_best_position_avx2() {
     let pssm = pwm.into();
 
     striped.configure(&pssm);
-    let result = Pipeline::<Dna, __m256i>::score(&striped, &pssm);
-    assert_eq!(Pipeline::<Dna, __m256i>::best_position(&result), Some(18));
+    let pli = Pipeline::avx2().unwrap();
+    let result = pli.score(&striped, &pssm);
+    assert_eq!(pli.best_position(&result), Some(18));
 }

@@ -1,24 +1,35 @@
 use std::arch::x86_64::*;
 
-use typenum::Unsigned;
+use typenum::consts::U32;
+use typenum::marker_traits::Unsigned;
 
-use super::Pipeline;
-use super::Score;
-use super::StripedScores;
-use super::Vector;
+use super::Backend;
 use crate::abc::Alphabet;
 use crate::abc::Dna;
 use crate::abc::Nucleotide;
 use crate::abc::Symbol;
+use crate::pli::scores::StripedScores;
+use crate::pli::Pipeline;
+use crate::pli::Vector;
 use crate::pwm::ScoringMatrix;
 use crate::seq::StripedSequence;
 
+/// A marker type for the AVX2 implementation of the pipeline.
+#[derive(Clone, Debug, Default)]
+pub struct Avx2;
+
+impl Backend for Avx2 {
+    type LANES = U32;
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 unsafe fn score_avx2(
-    seq: &StripedSequence<Dna, <__m256i as Vector>::LANES>,
+    seq: &StripedSequence<Dna, <Avx2 as Backend>::LANES>,
     pssm: &ScoringMatrix<Dna>,
-    scores: &mut StripedScores<<__m256i as Vector>::LANES>,
+    scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
 ) {
+    let data = scores.matrix_mut();
     // constant vector for comparing unknown bases
     let n = _mm256_set1_epi8(Nucleotide::N as i8);
     // mask vectors for broadcasting uint8x32_t to uint32x8_t to floatx8_t
@@ -110,7 +121,7 @@ unsafe fn score_avx2(
         let r3 = _mm256_permute2f128_ps(s1, s2, 0x31);
         let r4 = _mm256_permute2f128_ps(s3, s4, 0x31);
         // record the score for the current position
-        let row = &mut scores.data[i];
+        let row = &mut data[i];
         _mm256_store_ps(row[0x00..].as_mut_ptr(), r1);
         _mm256_store_ps(row[0x08..].as_mut_ptr(), r2);
         _mm256_store_ps(row[0x10..].as_mut_ptr(), r3);
@@ -118,11 +129,13 @@ unsafe fn score_avx2(
     }
 }
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
-unsafe fn best_position_avx2(scores: &StripedScores<<__m256i as Vector>::LANES>) -> Option<usize> {
-    if scores.length == 0 {
+unsafe fn best_position_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
+    if scores.len() == 0 {
         None
     } else {
+        let data = scores.matrix();
         unsafe {
             // the row index for the best score in each column
             // (these are 32-bit integers but for use with `_mm256_blendv_ps`
@@ -132,12 +145,12 @@ unsafe fn best_position_avx2(scores: &StripedScores<<__m256i as Vector>::LANES>)
             let mut p3 = _mm256_setzero_ps();
             let mut p4 = _mm256_setzero_ps();
             // store the best scores for each column
-            let mut s1 = _mm256_load_ps(scores.data[0][0x00..].as_ptr());
-            let mut s2 = _mm256_load_ps(scores.data[0][0x08..].as_ptr());
-            let mut s3 = _mm256_load_ps(scores.data[0][0x10..].as_ptr());
-            let mut s4 = _mm256_load_ps(scores.data[0][0x18..].as_ptr());
+            let mut s1 = _mm256_load_ps(data[0][0x00..].as_ptr());
+            let mut s2 = _mm256_load_ps(data[0][0x08..].as_ptr());
+            let mut s3 = _mm256_load_ps(data[0][0x10..].as_ptr());
+            let mut s4 = _mm256_load_ps(data[0][0x18..].as_ptr());
             // process all rows iteratively
-            for (i, row) in scores.data.iter().enumerate() {
+            for (i, row) in data.iter().enumerate() {
                 // record the current row index
                 let index = _mm256_castsi256_ps(_mm256_set1_epi32(i as i32));
                 // load scores for the current row
@@ -170,9 +183,9 @@ unsafe fn best_position_avx2(scores: &StripedScores<<__m256i as Vector>::LANES>)
             let mut best_pos = 0;
             let mut best_score = -f32::INFINITY;
             for (col, &row) in x.iter().enumerate() {
-                if scores.data[row as usize][col] > best_score {
-                    best_score = scores.data[row as usize][col];
-                    best_pos = col * scores.data.rows() + row as usize;
+                if data[row as usize][col] > best_score {
+                    best_score = data[row as usize][col];
+                    best_pos = col * data.rows() + row as usize;
                 }
             }
             Some(best_pos)
@@ -181,15 +194,14 @@ unsafe fn best_position_avx2(scores: &StripedScores<<__m256i as Vector>::LANES>)
 }
 
 /// Intel 256-bit vector implementation, for 32 elements column width.
-impl Score<Dna, __m256i> for Pipeline<Dna, __m256i> {
-    fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<<__m256i as Vector>::LANES>)
+impl Avx2 {
+    pub fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<<Avx2 as Backend>::LANES>)
     where
-        S: AsRef<StripedSequence<Dna, <__m256i as Vector>::LANES>>,
+        S: AsRef<StripedSequence<Dna, <Avx2 as Backend>::LANES>>,
         M: AsRef<ScoringMatrix<Dna>>,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
-        let result = &mut scores.data;
 
         if seq.wrap < pssm.len() - 1 {
             panic!(
@@ -197,17 +209,22 @@ impl Score<Dna, __m256i> for Pipeline<Dna, __m256i> {
                 pssm.len()
             );
         }
-        if result.rows() < (seq.data.rows() - seq.wrap) {
-            panic!("not enough rows for scores: {}", pssm.len());
-        }
 
-        scores.length = seq.length - pssm.len() + 1;
+        scores.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
-            score_avx2(seq, pssm, scores);
-        }
+            score_avx2(seq, pssm, scores)
+        };
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        panic!("attempting to run AVX2 code on a non-x86 host")
     }
 
-    fn best_position(scores: &StripedScores<<__m256i as Vector>::LANES>) -> Option<usize> {
-        unsafe { best_position_avx2(scores) }
+    pub fn best_position(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        unsafe {
+            best_position_avx2(scores)
+        }
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        panic!("attempting to run AVX2 code on a non-x86 host")
     }
 }

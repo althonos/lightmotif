@@ -3,12 +3,12 @@
 extern crate generic_array;
 extern crate typenum;
 
-mod abc;
-mod dense;
-mod err;
-mod pli;
-mod pwm;
-mod seq;
+pub mod abc;
+pub mod dense;
+pub mod err;
+pub mod pli;
+pub mod pwm;
+pub mod seq;
 
 pub use abc::Alphabet;
 pub use abc::AminoAcid;
@@ -22,10 +22,10 @@ pub use abc::Pseudocounts;
 pub use abc::Symbol;
 pub use dense::DenseMatrix;
 pub use err::InvalidSymbol;
+pub use pli::BestPosition;
 pub use pli::Pipeline;
 pub use pli::Score;
 pub use pli::StripedScores;
-pub use pli::Vector;
 pub use pwm::CountMatrix;
 pub use pwm::FrequencyMatrix;
 pub use pwm::ScoringMatrix;

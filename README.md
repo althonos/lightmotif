@@ -47,7 +47,7 @@ use lightmotif::*;
 use typenum::U32;
 
 // Create a count matrix from an iterable of motif sequences
-let counts = CountMatrix::from_sequences(&[
+let counts = CountMatrix::<Dna>::from_sequences(&[
     EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
     EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
 ]).unwrap();
@@ -62,7 +62,8 @@ let mut striped = encoded.to_striped::<U32>();
 striped.configure(&pssm);
 
 // Use a pipeline to compute scores for every position of the matrix.
-let scores = Pipeline::<Dna>::score(&striped, &pssm);
+let pli = Pipeline::generic();
+let scores = pli.score(&striped, &pssm);
 
 // Scores can be extracted into a Vec<f32>, or indexed directly.
 let v = scores.to_vec();
@@ -70,7 +71,7 @@ assert_eq!(scores[0], -23.07094);
 assert_eq!(v[0], -23.07094);
 
 // The highest scoring position can be searched with a pipeline as well.
-let best = Pipeline::<Dna>::best_position(&scores).unwrap();
+let best = pli.best_position(&scores).unwrap();
 assert_eq!(best, 18);
 
 ```
