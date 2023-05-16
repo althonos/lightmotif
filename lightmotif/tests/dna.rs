@@ -1,18 +1,16 @@
 extern crate lightmotif;
 extern crate typenum;
 
-#[cfg(target_feature = "avx2")]
-use std::arch::x86_64::__m256i;
-use std::str::FromStr;
-
 use lightmotif::pli::BestPosition;
-
 use lightmotif::pli::Score;
 use lightmotif::CountMatrix;
 use lightmotif::Dna;
 use lightmotif::EncodedSequence;
 use lightmotif::Pipeline;
 
+use typenum::marker_traits::NonZero;
+use typenum::marker_traits::Unsigned;
+use typenum::U1;
 use typenum::U32;
 
 const SEQUENCE: &'static str = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
@@ -36,15 +34,12 @@ const EXPECTED: &[f32] = &[
     -30.922688 , -18.678621 
 ];
 
-#[test]
-fn test_score_generic() {
-    let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped::<U32>();
+fn test_score<C: Unsigned + NonZero, P: Score<Dna, C>>(pli: &P) {
+    let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
+    let mut striped = encoded.to_striped::<C>();
 
     let cm = CountMatrix::<Dna>::from_sequences(
-        PATTERNS
-            .iter()
-            .map(|x| EncodedSequence::from_str(x).unwrap()),
+        PATTERNS.iter().map(|x| EncodedSequence::encode(x).unwrap()),
     )
     .unwrap();
     let pbm = cm.to_freq(0.1);
@@ -52,7 +47,6 @@ fn test_score_generic() {
     let pssm = pwm.into();
 
     striped.configure(&pssm);
-    let pli = Pipeline::generic();
     let result = pli.score(&striped, &pssm);
     let scores = result.to_vec();
 
@@ -68,15 +62,12 @@ fn test_score_generic() {
     }
 }
 
-#[test]
-fn test_best_position_generic() {
-    let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped::<U32>();
+fn test_best_position<C: Unsigned + NonZero, P: Score<Dna, C> + BestPosition<C>>(pli: &P) {
+    let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
+    let mut striped = encoded.to_striped();
 
     let cm = CountMatrix::<Dna>::from_sequences(
-        PATTERNS
-            .iter()
-            .map(|x| EncodedSequence::from_str(x).unwrap()),
+        PATTERNS.iter().map(|x| EncodedSequence::encode(x).unwrap()),
     )
     .unwrap();
     let pbm = cm.to_freq(0.1);
@@ -84,121 +75,48 @@ fn test_best_position_generic() {
     let pssm = pwm.into();
 
     striped.configure(&pssm);
-    let pli = Pipeline::generic();
     let result = pli.score(&striped, &pssm);
     assert_eq!(pli.best_position(&result), Some(18));
+}
+
+#[test]
+fn test_score_generic() {
+    let pli = Pipeline::generic();
+    test_score::<U32, _>(&pli);
+    test_score::<U1, _>(&pli);
+}
+
+#[test]
+fn test_best_position_generic() {
+    let pli = Pipeline::generic();
+    test_best_position::<U32, _>(&pli);
+    test_best_position::<U1, _>(&pli);
 }
 
 #[cfg(target_feature = "sse2")]
 #[test]
 fn test_score_sse2() {
-    let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped();
-
-    let cm = CountMatrix::from_sequences(
-        PATTERNS
-            .iter()
-            .map(|x| EncodedSequence::from_str(x).unwrap()),
-    )
-    .unwrap();
-    let pbm = cm.to_freq(0.1);
-    let pwm = pbm.to_weight(None);
-    let pssm = pwm.into();
-
-    striped.configure(&pssm);
     let pli = Pipeline::sse2().unwrap();
-    let result = pli.score(&striped, &pssm);
-
-    // for i in 0..result.data.rows() {
-    //     println!("i={} {:?}", i, &result.data[i]);
-    // }
-
-    let scores = result.to_vec();
-    assert_eq!(scores.len(), EXPECTED.len());
-    for i in 0..EXPECTED.len() {
-        assert!(
-            (scores[i] - EXPECTED[i]).abs() < 1e-5,
-            "{} != {} at position {}",
-            scores[i],
-            EXPECTED[i],
-            i
-        );
-    }
+    test_score(&pli);
 }
 
 #[cfg(target_feature = "sse2")]
 #[test]
 fn test_best_position_sse2() {
-    let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped();
-
-    let cm = CountMatrix::<Dna>::from_sequences(
-        PATTERNS
-            .iter()
-            .map(|x| EncodedSequence::from_str(x).unwrap()),
-    )
-    .unwrap();
-    let pbm = cm.to_freq(0.1);
-    let pwm = pbm.to_weight(None);
-    let pssm = pwm.into();
-
-    striped.configure(&pssm);
     let pli = Pipeline::sse2().unwrap();
-    let result = pli.score(&striped, &pssm);
-    assert_eq!(pli.best_position(&result), Some(18));
+    test_best_position(&pli);
 }
 
 #[cfg(target_feature = "avx2")]
 #[test]
 fn test_score_avx2() {
-    let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped();
-
-    let cm = CountMatrix::<Dna>::from_sequences(
-        PATTERNS
-            .iter()
-            .map(|x| EncodedSequence::from_str(x).unwrap()),
-    )
-    .unwrap();
-    let pbm = cm.to_freq(0.1);
-    let pwm = pbm.to_weight(None);
-    let pssm = pwm.into();
-
-    striped.configure(&pssm);
     let pli = Pipeline::avx2().unwrap();
-    let result = pli.score(&striped, &pssm);
-    let scores = result.to_vec();
-
-    assert_eq!(scores.len(), EXPECTED.len());
-    for i in 0..EXPECTED.len() {
-        assert!(
-            (scores[i] - EXPECTED[i]).abs() < 1e-5,
-            "{} != {} at position {}",
-            scores[i],
-            EXPECTED[i],
-            i
-        );
-    }
+    test_score(&pli);
 }
 
 #[cfg(target_feature = "avx2")]
 #[test]
 fn test_best_position_avx2() {
-    let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped();
-
-    let cm = CountMatrix::<Dna>::from_sequences(
-        PATTERNS
-            .iter()
-            .map(|x| EncodedSequence::from_str(x).unwrap()),
-    )
-    .unwrap();
-    let pbm = cm.to_freq(0.1);
-    let pwm = pbm.to_weight(None);
-    let pssm = pwm.into();
-
-    striped.configure(&pssm);
     let pli = Pipeline::avx2().unwrap();
-    let result = pli.score(&striped, &pssm);
-    assert_eq!(pli.best_position(&result), Some(18));
+    test_best_position(&pli);
 }
