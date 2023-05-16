@@ -114,13 +114,6 @@ fn test_score_sse2_32() {
     test_score::<U32, _>(&pli);
 }
 
-#[cfg(target_feature = "sse2")]
-#[test]
-fn test_best_position_sse2_32() {
-    let pli = Pipeline::sse2().unwrap();
-    test_best_position::<U32, _>(&pli);
-}
-
 #[cfg(target_feature = "avx2")]
 #[test]
 fn test_score_avx2() {

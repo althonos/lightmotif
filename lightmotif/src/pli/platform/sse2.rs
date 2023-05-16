@@ -1,4 +1,6 @@
 //! Intel 128-bit vector implementation, for 16 elements column width.
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use std::arch::x86_64::*;
 use std::ops::Div;
 use std::ops::Rem;
@@ -163,31 +165,6 @@ impl Sse2 {
         M: AsRef<ScoringMatrix<A>>,
         <C as Rem<U16>>::Output: Zero,
         <C as Div<U16>>::Output: Unsigned,
-    {
-        let seq = seq.as_ref();
-        let pssm = pssm.as_ref();
-
-        if seq.wrap < pssm.len() - 1 {
-            panic!(
-                "not enough wrapping rows for motif of length {}",
-                pssm.len()
-            );
-        }
-
-        scores.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        unsafe {
-            score_sse2(seq, pssm, scores);
-        }
-        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-        panic!("attempting to run SSE2 code on a non-x86 host")
-    }
-
-    pub fn score_into32<A, S, M>(seq: S, pssm: M, scores: &mut StripedScores<U32>)
-    where
-        A: Alphabet,
-        S: AsRef<StripedSequence<A, U32>>,
-        M: AsRef<ScoringMatrix<A>>,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();

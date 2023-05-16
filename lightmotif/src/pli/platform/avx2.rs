@@ -1,3 +1,6 @@
+//! Intel 256-bit vector implementation, for 32 elements column width.
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use std::arch::x86_64::*;
 
 use typenum::consts::U32;
