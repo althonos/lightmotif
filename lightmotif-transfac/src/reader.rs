@@ -80,7 +80,7 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
             }
         }
 
-        if self.buffer.len() > 0 {
+        if !self.buffer.is_empty() {
             let matrix = super::parse::parse_matrix::<A>(&self.buffer).unwrap().1;
             self.buffer.clear();
             self.last = 0;

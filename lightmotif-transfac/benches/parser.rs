@@ -4,12 +4,8 @@ extern crate lightmotif;
 extern crate lightmotif_transfac;
 extern crate test;
 
-use lightmotif::Alphabet;
-use lightmotif::Background;
-use lightmotif::CountMatrix;
-use lightmotif::Dna;
-use lightmotif::EncodedSequence;
-use lightmotif::Pipeline;
+use lightmotif::abc::Dna;
+
 use lightmotif_transfac::reader::Reader;
 
 #[bench]

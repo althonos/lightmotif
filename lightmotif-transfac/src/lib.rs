@@ -29,19 +29,19 @@ pub struct Matrix<A: Alphabet> {
 
 impl<A: Alphabet> Matrix<A> {
     pub fn id(&self) -> Option<&str> {
-        self.id.as_ref().map(String::as_str)
+        self.id.as_deref()
     }
 
     pub fn accession(&self) -> Option<&str> {
-        self.accession.as_ref().map(String::as_str)
+        self.accession.as_deref()
     }
 
     pub fn name(&self) -> Option<&str> {
-        self.name.as_ref().map(String::as_str)
+        self.name.as_deref()
     }
 
     pub fn description(&self) -> Option<&str> {
-        self.description.as_ref().map(String::as_str)
+        self.description.as_deref()
     }
 }
 
