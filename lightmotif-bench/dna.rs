@@ -7,6 +7,7 @@ extern crate test;
 
 use lightmotif::abc::Background;
 use lightmotif::abc::Dna;
+use lightmotif::num::StrictlyPositive;
 use lightmotif::num::U1;
 use lightmotif::num::U16;
 use lightmotif::pli::BestPosition;
@@ -15,7 +16,6 @@ use lightmotif::pli::Score;
 use lightmotif::pli::StripedScores;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::seq::EncodedSequence;
-use lightmotif::utils::StrictlyPositive;
 
 const SEQUENCE: &'static str = include_str!("../lightmotif/benches/ecoli.txt");
 
