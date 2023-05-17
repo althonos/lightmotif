@@ -91,7 +91,7 @@ impl<A: Alphabet> CountMatrix<A> {
             let src = &self.data[i];
             let dst = &mut probas[i];
             for (j, &x) in src.iter().enumerate() {
-                dst[j] = x as f32 + p.counts()[j] as f32;
+                dst[j] = x as f32 + p.counts()[j];
             }
             let s: f32 = dst.iter().sum();
             for x in dst.iter_mut() {
@@ -289,7 +289,7 @@ impl<A: ComplementableAlphabet> WeightMatrix<A> {
 
 impl<A: Alphabet> AsRef<WeightMatrix<A>> for WeightMatrix<A> {
     fn as_ref(&self) -> &Self {
-        &self
+        self
     }
 }
 
@@ -361,7 +361,7 @@ impl<A: Alphabet> ScoringMatrix<A> {
 
 impl<A: Alphabet> AsRef<ScoringMatrix<A>> for ScoringMatrix<A> {
     fn as_ref(&self) -> &Self {
-        &self
+        self
     }
 }
 

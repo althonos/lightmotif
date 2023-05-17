@@ -85,7 +85,7 @@ impl Alphabet for Dna {
 }
 
 /// A deoxyribonucleotide.
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(u8)]
 pub enum Nucleotide {
     /// Adenine.
@@ -105,13 +105,8 @@ pub enum Nucleotide {
     /// ![guanine.png](https://www.ebi.ac.uk/chebi/displayImage.do?defaultImage=true&imageIndex=0&chebiId=16235)
     G = 3,
     /// Unknown base.
+    #[default]
     N = 4,
-}
-
-impl Default for Nucleotide {
-    fn default() -> Nucleotide {
-        Nucleotide::N
-    }
 }
 
 impl From<Nucleotide> for char {
@@ -197,7 +192,7 @@ impl Alphabet for Protein {
 }
 
 /// A proteinogenic amino acid.
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
 #[repr(u8)]
 pub enum AminoAcid {
     A = 0,
@@ -220,13 +215,8 @@ pub enum AminoAcid {
     V = 17,
     W = 18,
     Y = 19,
+    #[default]
     X = 20,
-}
-
-impl Default for AminoAcid {
-    fn default() -> Self {
-        AminoAcid::X
-    }
 }
 
 impl From<AminoAcid> for char {
@@ -315,7 +305,7 @@ impl<A: Alphabet> Background<A> {
         let frequencies = frequencies.into();
         let mut sum = 0.0;
         for &f in frequencies.iter() {
-            if f < 0.0 || f > 1.0 {
+            if !(0.0..=1.0).contains(&f) {
                 return Err(InvalidData);
             }
             sum += f;
@@ -324,7 +314,7 @@ impl<A: Alphabet> Background<A> {
             return Err(InvalidData);
         }
         Ok(Self {
-            frequencies: frequencies.into(),
+            frequencies,
             alphabet: std::marker::PhantomData,
         })
     }
@@ -346,7 +336,6 @@ impl<A: Alphabet> Background<A> {
     /// ```
     pub fn uniform() -> Self {
         let frequencies = (0..A::K::USIZE)
-            .into_iter()
             .map(|i| {
                 if i != A::default_symbol().as_index() {
                     1.0 / ((A::K::USIZE - 1) as f32)
@@ -410,7 +399,7 @@ impl<A: Alphabet> From<GenericArray<f32, A::K>> for Pseudocounts<A> {
     fn from(counts: GenericArray<f32, A::K>) -> Self {
         Self {
             alphabet: std::marker::PhantomData,
-            counts: counts.into(),
+            counts,
         }
     }
 }
@@ -418,7 +407,6 @@ impl<A: Alphabet> From<GenericArray<f32, A::K>> for Pseudocounts<A> {
 impl<A: Alphabet> From<f32> for Pseudocounts<A> {
     fn from(count: f32) -> Self {
         let counts = (0..A::K::USIZE)
-            .into_iter()
             .map(|i| {
                 if i != A::default_symbol().as_index() {
                     count

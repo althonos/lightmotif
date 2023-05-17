@@ -42,10 +42,7 @@ unsafe fn score_sse2<A, C>(
     let zero = _mm_setzero_si128();
     // process columns of the striped matrix, any multiple of 16 is supported
     let data = scores.matrix_mut();
-    for offset in (0..<C as Div<U16>>::Output::USIZE)
-        .into_iter()
-        .map(|i| i * <Sse2 as Backend>::LANES::USIZE)
-    {
+    for offset in (0..<C as Div<U16>>::Output::USIZE).map(|i| i * <Sse2 as Backend>::LANES::USIZE) {
         // process every position of the sequence data
         for i in 0..seq.data.rows() - seq.wrap {
             // reset sums for current position
@@ -81,7 +78,7 @@ unsafe fn score_sse2<A, C>(
             }
             // record the score for the current position
             let row = &mut data[i];
-            _mm_storeu_ps(row[offset + 0..].as_mut_ptr(), s1);
+            _mm_storeu_ps(row[offset..].as_mut_ptr(), s1);
             _mm_storeu_ps(row[offset + 4..].as_mut_ptr(), s2);
             _mm_storeu_ps(row[offset + 8..].as_mut_ptr(), s3);
             _mm_storeu_ps(row[offset + 12..].as_mut_ptr(), s4);

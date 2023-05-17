@@ -77,7 +77,7 @@ impl<C: Unsigned + NonZero> StripedScores<C> {
 
     /// Iterate over scores of individual sequence positions.
     pub fn iter(&self) -> Iter<'_, C> {
-        Iter::new(&self)
+        Iter::new(self)
     }
 
     /// Convert the striped scores to a vector of scores.

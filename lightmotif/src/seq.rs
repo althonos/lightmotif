@@ -80,7 +80,7 @@ impl<A: Alphabet> EncodedSequence<A> {
 
 impl<A: Alphabet> AsRef<EncodedSequence<A>> for EncodedSequence<A> {
     fn as_ref(&self) -> &Self {
-        &self
+        self
     }
 }
 
@@ -148,7 +148,7 @@ impl<A: Alphabet, C: StrictlyPositive> StripedSequence<A, C> {
 
 impl<A: Alphabet, C: StrictlyPositive> AsRef<StripedSequence<A, C>> for StripedSequence<A, C> {
     fn as_ref(&self) -> &Self {
-        &self
+        self
     }
 }
 

@@ -14,10 +14,8 @@ use lightmotif::seq::EncodedSequence;
 use lightmotif::utils::StrictlyPositive;
 use typenum::consts::U16;
 use typenum::consts::U32;
-use typenum::marker_traits::NonZero;
-use typenum::marker_traits::Unsigned;
 
-const SEQUENCE: &'static str = include_str!("ecoli.txt");
+const SEQUENCE: &str = include_str!("ecoli.txt");
 
 fn bench<C: StrictlyPositive, P: Score<Dna, C>>(bencher: &mut test::Bencher, pli: &P) {
     let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
@@ -34,7 +32,10 @@ fn bench<C: StrictlyPositive, P: Score<Dna, C>>(bencher: &mut test::Bencher, pli
     striped.configure(&pssm);
     let mut scores = StripedScores::new_for(&striped, &pssm);
     bencher.bytes = SEQUENCE.len() as u64;
-    bencher.iter(|| test::black_box(pli.score_into(&striped, &pssm, &mut scores)));
+    bencher.iter(|| {
+        pli.score_into(&striped, &pssm, &mut scores);
+        test::black_box(())
+    });
 }
 
 #[bench]

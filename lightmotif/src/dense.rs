@@ -51,7 +51,7 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
         }
 
         // record indices to each rows
-        let indices = (0..rows).into_iter().map(|i| offset + i * c).collect();
+        let indices = (0..rows).map(|i| offset + i * c).collect();
 
         Self {
             data,
