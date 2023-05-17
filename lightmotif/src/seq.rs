@@ -1,7 +1,9 @@
 //! Linear and striped storage for alphabet-encoded sequences.
 
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::fmt::Result as FmtResult;
 use std::str::FromStr;
-use std::string::ToString;
 
 use typenum::marker_traits::NonZero;
 use typenum::marker_traits::Unsigned;
@@ -90,6 +92,15 @@ impl<A: Alphabet> AsRef<[<A as Alphabet>::Symbol]> for EncodedSequence<A> {
     }
 }
 
+impl<A: Alphabet> Display for EncodedSequence<A> {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        for c in self.data.iter() {
+            write!(f, "{}", c.as_char())?;
+        }
+        Ok(())
+    }
+}
+
 impl<A: Alphabet> FromStr for EncodedSequence<A> {
     type Err = InvalidSymbol;
     fn from_str(seq: &str) -> Result<Self, Self::Err> {
@@ -106,12 +117,6 @@ impl<'a, A: Alphabet> IntoIterator for &'a EncodedSequence<A> {
     }
 }
 
-impl<A: Alphabet> ToString for EncodedSequence<A> {
-    fn to_string(&self) -> String {
-        self.to_string()
-    }
-}
-
 // --- StripedSequence ---------------------------------------------------------
 
 /// An encoded sequence stored in a striped matrix with a fixed column count.
@@ -124,6 +129,22 @@ pub struct StripedSequence<A: Alphabet, C: StrictlyPositive> {
 }
 
 impl<A: Alphabet, C: StrictlyPositive> StripedSequence<A, C> {
+    /// Create a new striped sequence from a textual representation.
+    pub fn encode(sequence: &str) -> Result<Self, InvalidSymbol> {
+        let length = sequence.len();
+        let n = (length + (C::USIZE - 1)) / C::USIZE;
+        let mut data = DenseMatrix::new(n);
+        for (i, x) in sequence.chars().enumerate() {
+            data[i % n][i / n] = A::Symbol::from_char(x)?;
+        }
+        Ok(StripedSequence {
+            alphabet: std::marker::PhantomData,
+            data,
+            length,
+            wrap: 0,
+        })
+    }
+
     /// Reconfigure the striped sequence for searching with a motif.
     pub fn configure(&mut self, motif: &ScoringMatrix<A>) {
         if motif.len() > 0 {
@@ -155,6 +176,13 @@ impl<A: Alphabet, C: StrictlyPositive> AsRef<StripedSequence<A, C>> for StripedS
 impl<A: Alphabet, C: StrictlyPositive> From<EncodedSequence<A>> for StripedSequence<A, C> {
     fn from(encoded: EncodedSequence<A>) -> Self {
         encoded.to_striped()
+    }
+}
+
+impl<A: Alphabet, C: StrictlyPositive> FromStr for StripedSequence<A, C> {
+    type Err = InvalidSymbol;
+    fn from_str(seq: &str) -> Result<Self, Self::Err> {
+        Self::encode(seq)
     }
 }
 

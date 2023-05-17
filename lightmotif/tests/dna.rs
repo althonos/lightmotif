@@ -8,6 +8,7 @@ use lightmotif::CountMatrix;
 use lightmotif::Dna;
 use lightmotif::EncodedSequence;
 use lightmotif::Pipeline;
+use lightmotif::StripedSequence;
 
 use typenum::consts::U1;
 use typenum::consts::U16;
@@ -35,8 +36,7 @@ const EXPECTED: &[f32] = &[
 ];
 
 fn test_score<C: StrictlyPositive, P: Score<Dna, C>>(pli: &P) {
-    let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped::<C>();
+    let mut striped = StripedSequence::<Dna, C>::encode(SEQUENCE).unwrap();
 
     let cm = CountMatrix::<Dna>::from_sequences(
         PATTERNS.iter().map(|x| EncodedSequence::encode(x).unwrap()),
@@ -63,8 +63,7 @@ fn test_score<C: StrictlyPositive, P: Score<Dna, C>>(pli: &P) {
 }
 
 fn test_best_position<C: StrictlyPositive, P: Score<Dna, C> + BestPosition<C>>(pli: &P) {
-    let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped();
+    let mut striped = StripedSequence::<Dna, C>::encode(SEQUENCE).unwrap();
 
     let cm = CountMatrix::<Dna>::from_sequences(
         PATTERNS.iter().map(|x| EncodedSequence::encode(x).unwrap()),

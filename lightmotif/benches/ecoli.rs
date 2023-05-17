@@ -3,14 +3,13 @@
 extern crate lightmotif;
 extern crate test;
 
-use std::str::FromStr;
-
 use lightmotif::abc::Dna;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
 use lightmotif::pli::StripedScores;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::seq::EncodedSequence;
+use lightmotif::seq::StripedSequence;
 use lightmotif::utils::StrictlyPositive;
 use typenum::consts::U16;
 use typenum::consts::U32;
@@ -18,12 +17,11 @@ use typenum::consts::U32;
 const SEQUENCE: &str = include_str!("ecoli.txt");
 
 fn bench<C: StrictlyPositive, P: Score<Dna, C>>(bencher: &mut test::Bencher, pli: &P) {
-    let encoded = EncodedSequence::<Dna>::from_str(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped::<C>();
+    let mut striped = StripedSequence::<Dna, C>::encode(SEQUENCE).unwrap();
 
     let cm = CountMatrix::<Dna>::from_sequences(&[
-        EncodedSequence::from_str("GTTGACCTTATCAAC").unwrap(),
-        EncodedSequence::from_str("GTTGATCCAGTCAAC").unwrap(),
+        EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
+        EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
     ])
     .unwrap();
     let pbm = cm.to_freq(0.1);
