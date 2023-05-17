@@ -1,6 +1,6 @@
 [package]
 name = "lightmotif-transfac"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Martin Larralde <martin.larralde@embl.de>"]
 edition = "2021"
 license = "MIT"
@@ -13,7 +13,7 @@ keywords = ["bioinformatics", "motif", "parser", "transfac"]
 
 [dependencies.lightmotif]
 path = "../lightmotif"
-version = "0.1.1"
+version = "0.2.0"
 [dependencies]
 nom = "7"
 memchr = "2"
