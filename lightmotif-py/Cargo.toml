@@ -20,7 +20,6 @@ path = "../lightmotif"
 version = "0.1.1"
 [dependencies]
 pyo3 = "0.18.3"
-typenum = "1.16"
 generic-array = "0.14"
 
 [features]

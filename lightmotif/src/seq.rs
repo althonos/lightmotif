@@ -12,8 +12,8 @@ use super::abc::Alphabet;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
 use super::err::InvalidSymbol;
+use super::num::StrictlyPositive;
 use super::pwm::ScoringMatrix;
-use super::utils::StrictlyPositive;
 
 // --- EncodedSequence ---------------------------------------------------------
 

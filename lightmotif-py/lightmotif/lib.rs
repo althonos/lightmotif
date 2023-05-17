@@ -3,9 +3,9 @@
 extern crate generic_array;
 extern crate lightmotif;
 extern crate pyo3;
-extern crate typenum;
 
 use lightmotif::abc::Symbol;
+use lightmotif::num::Unsigned;
 use lightmotif::pli::platform::Backend;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
@@ -21,7 +21,6 @@ use pyo3::types::PyString;
 use pyo3::AsPyPointer;
 
 use generic_array::GenericArray;
-use typenum::marker_traits::Unsigned;
 
 // --- Compile-time constants --------------------------------------------------
 

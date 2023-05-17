@@ -1,18 +1,17 @@
 extern crate lightmotif;
 extern crate typenum;
 
+use lightmotif::abc::Dna;
+use lightmotif::num::StrictlyPositive;
+use lightmotif::num::U1;
+use lightmotif::num::U16;
+use lightmotif::num::U32;
 use lightmotif::pli::BestPosition;
+use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
-use lightmotif::utils::StrictlyPositive;
-use lightmotif::CountMatrix;
-use lightmotif::Dna;
-use lightmotif::EncodedSequence;
-use lightmotif::Pipeline;
-use lightmotif::StripedSequence;
-
-use typenum::consts::U1;
-use typenum::consts::U16;
-use typenum::consts::U32;
+use lightmotif::pwm::CountMatrix;
+use lightmotif::seq::EncodedSequence;
+use lightmotif::seq::StripedSequence;
 
 const SEQUENCE: &str = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
 const PATTERNS: &[&str] = &["GTTGACCTTATCAAC", "GTTGATCCAGTCAAC"];

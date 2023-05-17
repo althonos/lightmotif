@@ -4,15 +4,15 @@ extern crate lightmotif;
 extern crate test;
 
 use lightmotif::abc::Dna;
+use lightmotif::num::StrictlyPositive;
+use lightmotif::num::U16;
+use lightmotif::num::U32;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
 use lightmotif::pli::StripedScores;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::seq::EncodedSequence;
 use lightmotif::seq::StripedSequence;
-use lightmotif::utils::StrictlyPositive;
-use typenum::consts::U16;
-use typenum::consts::U32;
 
 const SEQUENCE: &str = include_str!("ecoli.txt");
 

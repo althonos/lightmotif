@@ -13,10 +13,10 @@ use typenum::marker_traits::Zero;
 
 use super::Backend;
 use crate::abc::Alphabet;
+use crate::num::StrictlyPositive;
 use crate::pli::scores::StripedScores;
 use crate::pwm::ScoringMatrix;
 use crate::seq::StripedSequence;
-use crate::utils::StrictlyPositive;
 
 /// A marker type for the SSE2 implementation of the pipeline.
 #[derive(Clone, Debug, Default)]

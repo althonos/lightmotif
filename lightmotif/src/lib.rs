@@ -6,10 +6,10 @@ extern crate typenum;
 pub mod abc;
 pub mod dense;
 pub mod err;
+pub mod num;
 pub mod pli;
 pub mod pwm;
 pub mod seq;
-pub mod utils;
 
 pub use abc::Alphabet;
 pub use abc::Dna;

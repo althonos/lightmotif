@@ -15,9 +15,9 @@ use super::abc::Dna;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
 use super::err::UnsupportedBackend;
+use super::num::StrictlyPositive;
 use super::pwm::ScoringMatrix;
 use super::seq::StripedSequence;
-use super::utils::StrictlyPositive;
 
 use typenum::consts::U16;
 use typenum::marker_traits::Unsigned;
