@@ -25,6 +25,7 @@ impl Backend for Avx2 {
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
+#[allow(overflowing_literals)]
 unsafe fn score_avx2(
     seq: &StripedSequence<Dna, <Avx2 as Backend>::LANES>,
     pssm: &ScoringMatrix<Dna>,
@@ -34,45 +35,25 @@ unsafe fn score_avx2(
     // constant vector for comparing unknown bases
     let n = _mm256_set1_epi8(Nucleotide::N as i8);
     // mask vectors for broadcasting uint8x32_t to uint32x8_t to floatx8_t
+    #[rustfmt::skip]
     let m1 = _mm256_set_epi32(
-        0xFFFFFF03u32 as i32,
-        0xFFFFFF02u32 as i32,
-        0xFFFFFF01u32 as i32,
-        0xFFFFFF00u32 as i32,
-        0xFFFFFF03u32 as i32,
-        0xFFFFFF02u32 as i32,
-        0xFFFFFF01u32 as i32,
-        0xFFFFFF00u32 as i32,
+        0xFFFFFF03, 0xFFFFFF02, 0xFFFFFF01, 0xFFFFFF00,
+        0xFFFFFF03, 0xFFFFFF02, 0xFFFFFF01, 0xFFFFFF00,
     );
+    #[rustfmt::skip]
     let m2 = _mm256_set_epi32(
-        0xFFFFFF07u32 as i32,
-        0xFFFFFF06u32 as i32,
-        0xFFFFFF05u32 as i32,
-        0xFFFFFF04u32 as i32,
-        0xFFFFFF07u32 as i32,
-        0xFFFFFF06u32 as i32,
-        0xFFFFFF05u32 as i32,
-        0xFFFFFF04u32 as i32,
+        0xFFFFFF07, 0xFFFFFF06, 0xFFFFFF05, 0xFFFFFF04,
+        0xFFFFFF07, 0xFFFFFF06, 0xFFFFFF05, 0xFFFFFF04,
     );
+    #[rustfmt::skip]
     let m3 = _mm256_set_epi32(
-        0xFFFFFF0Bu32 as i32,
-        0xFFFFFF0Au32 as i32,
-        0xFFFFFF09u32 as i32,
-        0xFFFFFF08u32 as i32,
-        0xFFFFFF0Bu32 as i32,
-        0xFFFFFF0Au32 as i32,
-        0xFFFFFF09u32 as i32,
-        0xFFFFFF08u32 as i32,
+        0xFFFFFF0B, 0xFFFFFF0A, 0xFFFFFF09, 0xFFFFFF08,
+        0xFFFFFF0B, 0xFFFFFF0A, 0xFFFFFF09, 0xFFFFFF08,
     );
+    #[rustfmt::skip]
     let m4 = _mm256_set_epi32(
-        0xFFFFFF0Fu32 as i32,
-        0xFFFFFF0Eu32 as i32,
-        0xFFFFFF0Du32 as i32,
-        0xFFFFFF0Cu32 as i32,
-        0xFFFFFF0Fu32 as i32,
-        0xFFFFFF0Eu32 as i32,
-        0xFFFFFF0Du32 as i32,
-        0xFFFFFF0Cu32 as i32,
+        0xFFFFFF0F, 0xFFFFFF0E, 0xFFFFFF0D, 0xFFFFFF0C,
+        0xFFFFFF0F, 0xFFFFFF0E, 0xFFFFFF0D, 0xFFFFFF0C,
     );
     // process every position of the sequence data
     for i in 0..seq.data.rows() - seq.wrap {
