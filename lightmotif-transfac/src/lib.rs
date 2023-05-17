@@ -11,7 +11,8 @@ use lightmotif::dense::DenseMatrix;
 use lightmotif::pwm::CountMatrix;
 
 pub mod error;
-mod parse;
+#[doc(hidden)]
+pub mod parse;
 pub mod reader;
 
 #[derive(Clone)]
@@ -19,6 +20,7 @@ pub struct Matrix<A: Alphabet> {
     id: Option<String>,
     accession: Option<String>,
     name: Option<String>,
+    description: Option<String>,
     counts: CountMatrix<A>,
     dates: Vec<Date>,
     references: Vec<Reference>,
@@ -36,6 +38,10 @@ impl<A: Alphabet> Matrix<A> {
 
     pub fn name(&self) -> Option<&str> {
         self.name.as_ref().map(String::as_str)
+    }
+
+    pub fn description(&self) -> Option<&str> {
+        self.description.as_ref().map(String::as_str)
     }
 }
 

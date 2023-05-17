@@ -17,6 +17,7 @@ use nom::combinator::opt;
 use nom::error::Error;
 use nom::error::ErrorKind;
 use nom::multi::count;
+use nom::multi::many0;
 use nom::multi::many1;
 use nom::multi::many_till;
 use nom::multi::separated_list1;
@@ -62,10 +63,17 @@ pub fn parse_alphabet<S: Symbol>(input: &str) -> IResult<&str, Vec<S>> {
     )(input)
 }
 
+pub fn parse_element(input: &str) -> IResult<&str, u32> {
+    terminated(
+        nom::character::complete::u32,
+        opt(preceded(char('.'), many0(char('0')))),
+    )(input)
+}
+
 pub fn parse_row(input: &str, k: usize) -> IResult<&str, Vec<u32>> {
     delimited(
         nom::character::complete::u32,
-        count(delimited(space0, nom::character::complete::u32, space0), k),
+        count(delimited(space0, parse_element, space0), k),
         parse_line,
     )(input)
 }
@@ -73,8 +81,8 @@ pub fn parse_row(input: &str, k: usize) -> IResult<&str, Vec<u32>> {
 pub fn parse_tag(input: &str) -> IResult<&str, &str> {
     let (rest, tag) = nom::bytes::complete::take(2usize)(input)?;
     match tag {
-        "AC" | "BA" | "BS" | "BF" | "CC" | "CO" | "DT" | "ID" | "NA" | "P0" | "PO" | "RN"
-        | "XX" | "//" => Ok((rest, tag)),
+        "AC" | "BA" | "BS" | "BF" | "CC" | "CO" | "DE" | "DT" | "ID" | "NA" | "P0" | "PO"
+        | "RN" | "XX" | "//" => Ok((rest, tag)),
         _ => Err(nom::Err::Error(Error::new(input, ErrorKind::Alt))),
     }
 }
@@ -193,6 +201,7 @@ pub fn parse_matrix<A: Alphabet>(mut input: &str) -> IResult<&str, Matrix<A>> {
     let mut name = None;
     let mut id = None;
     let mut copyright = None;
+    let mut description = None;
     let mut dates = Vec::new();
     let mut references = Vec::new();
     let mut comments = Vec::new();
@@ -232,6 +241,11 @@ pub fn parse_matrix<A: Alphabet>(mut input: &str) -> IResult<&str, Matrix<A>> {
                 copyright = Some(line.trim().to_string());
                 input = rest;
             }
+            "DE" => {
+                let (rest, line) = preceded(tag("DE"), parse_line)(input)?;
+                description = Some(line.trim().to_string());
+                input = rest;
+            }
             "DT" => {
                 let (rest, date) = parse_date(input)?;
                 dates.push(date);
@@ -267,7 +281,7 @@ pub fn parse_matrix<A: Alphabet>(mut input: &str) -> IResult<&str, Matrix<A>> {
                 input = rest;
             }
             "//" => {
-                input = preceded(tag("//"), parse_line)(input)?.0;
+                input = preceded(tag("//"), alt((parse_line, eof)))(input)?.0;
                 break;
             }
             "XX" => input = parse_line(input)?.0,
@@ -280,6 +294,7 @@ pub fn parse_matrix<A: Alphabet>(mut input: &str) -> IResult<&str, Matrix<A>> {
         accession,
         id,
         name,
+        description,
         counts,
         dates,
         references,
