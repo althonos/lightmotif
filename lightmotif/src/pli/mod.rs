@@ -154,8 +154,14 @@ where
     }
 }
 
-impl<A: Alphabet> BestPosition<<Sse2 as Backend>::LANES> for Pipeline<A, Sse2> {
-    fn best_position(&self, scores: &StripedScores<<Sse2 as Backend>::LANES>) -> Option<usize> {
+impl<A, C> BestPosition<C> for Pipeline<A, Sse2>
+where
+    A: Alphabet,
+    C: StrictlyPositive + Rem<U16> + Div<U16>,
+    <C as Rem<U16>>::Output: Zero,
+    <C as Div<U16>>::Output: Unsigned,
+{
+    fn best_position(&self, scores: &StripedScores<C>) -> Option<usize> {
         Sse2::best_position(scores)
     }
 }

@@ -42,7 +42,7 @@ unsafe fn score_sse2<A, C>(
     let zero = _mm_setzero_si128();
     // process columns of the striped matrix, any multiple of 16 is supported
     let data = scores.matrix_mut();
-    for offset in (0..<C as Div<U16>>::Output::USIZE).map(|i| i * <Sse2 as Backend>::LANES::USIZE) {
+    for offset in (0..<C as Div<U16>>::Output::USIZE).map(|i| i * U16::USIZE) {
         // process every position of the sequence data
         for i in 0..seq.data.rows() - seq.wrap {
             // reset sums for current position
@@ -88,65 +88,86 @@ unsafe fn score_sse2<A, C>(
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn best_position_sse2(scores: &StripedScores<<Sse2 as Backend>::LANES>) -> Option<usize> {
+unsafe fn best_position_sse2<C>(scores: &StripedScores<C>) -> Option<usize>
+where
+    C: StrictlyPositive + Rem<U16> + Div<U16>,
+    <C as Rem<U16>>::Output: Zero,
+    <C as Div<U16>>::Output: Unsigned,
+{
     if scores.len() == 0 {
         None
     } else {
         let data = scores.matrix();
         unsafe {
-            // the row index for the best score in each column
-            // (these are 32-bit integers but for use with `_mm256_blendv_ps`
-            // they get stored in 32-bit float vectors).
-            let mut p1 = _mm_setzero_ps();
-            let mut p2 = _mm_setzero_ps();
-            let mut p3 = _mm_setzero_ps();
-            let mut p4 = _mm_setzero_ps();
-            // store the best scores for each column
-            let mut s1 = _mm_load_ps(data[0][0x00..].as_ptr());
-            let mut s2 = _mm_load_ps(data[0][0x04..].as_ptr());
-            let mut s3 = _mm_load_ps(data[0][0x08..].as_ptr());
-            let mut s4 = _mm_load_ps(data[0][0x0c..].as_ptr());
-            // process all rows iteratively
-            for (i, row) in data.iter().enumerate() {
-                // record the current row index
-                let index = _mm_castsi128_ps(_mm_set1_epi32(i as i32));
-                // load scores for the current row
-                let r1 = _mm_load_ps(row[0x00..].as_ptr());
-                let r2 = _mm_load_ps(row[0x04..].as_ptr());
-                let r3 = _mm_load_ps(row[0x08..].as_ptr());
-                let r4 = _mm_load_ps(row[0x0c..].as_ptr());
-                // compare scores to local maxima
-                let c1 = _mm_cmplt_ps(s1, r1);
-                let c2 = _mm_cmplt_ps(s2, r2);
-                let c3 = _mm_cmplt_ps(s3, r3);
-                let c4 = _mm_cmplt_ps(s4, r4);
-                // NOTE: code below could use `_mm_blendv_ps` instead,
-                //       but this instruction is only available on SSE4.1
-                //       while the rest of the code is actually using SSE2
-                //       instructions only.
-                // replace indices of new local maxima
-                p1 = _mm_or_ps(_mm_andnot_ps(c1, p1), _mm_and_ps(index, c1));
-                p2 = _mm_or_ps(_mm_andnot_ps(c2, p2), _mm_and_ps(index, c2));
-                p3 = _mm_or_ps(_mm_andnot_ps(c3, p3), _mm_and_ps(index, c3));
-                p4 = _mm_or_ps(_mm_andnot_ps(c4, p4), _mm_and_ps(index, c4));
-                // replace values of new local maxima
-                s1 = _mm_or_ps(_mm_andnot_ps(c1, s1), _mm_and_ps(r1, c1));
-                s2 = _mm_or_ps(_mm_andnot_ps(c2, s2), _mm_and_ps(r2, c2));
-                s3 = _mm_or_ps(_mm_andnot_ps(c3, s3), _mm_and_ps(r3, c3));
-                s4 = _mm_or_ps(_mm_andnot_ps(c4, s4), _mm_and_ps(r4, c4));
-            }
-            // find the global maximum across all columns
-            let mut x: [u32; 16] = [0; 16];
-            _mm_storeu_si128(x[0x00..].as_mut_ptr() as *mut _, _mm_castps_si128(p1));
-            _mm_storeu_si128(x[0x04..].as_mut_ptr() as *mut _, _mm_castps_si128(p2));
-            _mm_storeu_si128(x[0x08..].as_mut_ptr() as *mut _, _mm_castps_si128(p3));
-            _mm_storeu_si128(x[0x0c..].as_mut_ptr() as *mut _, _mm_castps_si128(p4));
+            let mut best_col = [0u32; 16];
             let mut best_pos = 0;
             let mut best_score = -f32::INFINITY;
-            for (col, &row) in x.iter().enumerate() {
-                if data[row as usize][col] > best_score {
-                    best_score = data[row as usize][col];
-                    best_pos = col * data.rows() + row as usize;
+            for offset in (0..<C as Div<U16>>::Output::USIZE).map(|i| i * U16::USIZE) {
+                // the row index for the best score in each column
+                // (these are 32-bit integers but for use with `_mm256_blendv_ps`
+                // they get stored in 32-bit float vectors).
+                let mut p1 = _mm_setzero_ps();
+                let mut p2 = _mm_setzero_ps();
+                let mut p3 = _mm_setzero_ps();
+                let mut p4 = _mm_setzero_ps();
+                // store the best scores for each column
+                let mut s1 = _mm_load_ps(data[0][offset + 0x00..].as_ptr());
+                let mut s2 = _mm_load_ps(data[0][offset + 0x04..].as_ptr());
+                let mut s3 = _mm_load_ps(data[0][offset + 0x08..].as_ptr());
+                let mut s4 = _mm_load_ps(data[0][offset + 0x0c..].as_ptr());
+                // process all rows iteratively
+                for (i, row) in data.iter().enumerate() {
+                    // record the current row index
+                    let index = _mm_castsi128_ps(_mm_set1_epi32(i as i32));
+                    // load scores for the current row
+                    let r1 = _mm_load_ps(row[offset + 0x00..].as_ptr());
+                    let r2 = _mm_load_ps(row[offset + 0x04..].as_ptr());
+                    let r3 = _mm_load_ps(row[offset + 0x08..].as_ptr());
+                    let r4 = _mm_load_ps(row[offset + 0x0c..].as_ptr());
+                    // compare scores to local maxima
+                    let c1 = _mm_cmplt_ps(s1, r1);
+                    let c2 = _mm_cmplt_ps(s2, r2);
+                    let c3 = _mm_cmplt_ps(s3, r3);
+                    let c4 = _mm_cmplt_ps(s4, r4);
+                    // NOTE: code below could use `_mm_blendv_ps` instead,
+                    //       but this instruction is only available on SSE4.1
+                    //       while the rest of the code is actually using SSE2
+                    //       instructions only.
+                    // replace indices of new local maxima
+                    p1 = _mm_or_ps(_mm_andnot_ps(c1, p1), _mm_and_ps(index, c1));
+                    p2 = _mm_or_ps(_mm_andnot_ps(c2, p2), _mm_and_ps(index, c2));
+                    p3 = _mm_or_ps(_mm_andnot_ps(c3, p3), _mm_and_ps(index, c3));
+                    p4 = _mm_or_ps(_mm_andnot_ps(c4, p4), _mm_and_ps(index, c4));
+                    // replace values of new local maxima
+                    s1 = _mm_or_ps(_mm_andnot_ps(c1, s1), _mm_and_ps(r1, c1));
+                    s2 = _mm_or_ps(_mm_andnot_ps(c2, s2), _mm_and_ps(r2, c2));
+                    s3 = _mm_or_ps(_mm_andnot_ps(c3, s3), _mm_and_ps(r3, c3));
+                    s4 = _mm_or_ps(_mm_andnot_ps(c4, s4), _mm_and_ps(r4, c4));
+                }
+                // find the global maximum across all columns
+                _mm_storeu_si128(
+                    best_col[0x00..].as_mut_ptr() as *mut _,
+                    _mm_castps_si128(p1),
+                );
+                _mm_storeu_si128(
+                    best_col[0x04..].as_mut_ptr() as *mut _,
+                    _mm_castps_si128(p2),
+                );
+                _mm_storeu_si128(
+                    best_col[0x08..].as_mut_ptr() as *mut _,
+                    _mm_castps_si128(p3),
+                );
+                _mm_storeu_si128(
+                    best_col[0x0c..].as_mut_ptr() as *mut _,
+                    _mm_castps_si128(p4),
+                );
+                for k in 0..U16::USIZE {
+                    let row = best_col[k] as usize;
+                    let col = k + offset;
+                    if data[row][col] > best_score {
+                        best_score = data[row][col];
+                        best_pos = col * data.rows() + row as usize;
+                    }
                 }
             }
             Some(best_pos)
@@ -185,7 +206,12 @@ impl Sse2 {
     }
 
     #[allow(unused)]
-    pub fn best_position(scores: &StripedScores<<Sse2 as Backend>::LANES>) -> Option<usize> {
+    pub fn best_position<C>(scores: &StripedScores<C>) -> Option<usize>
+    where
+        C: StrictlyPositive + Rem<U16> + Div<U16>,
+        <C as Rem<U16>>::Output: Zero,
+        <C as Div<U16>>::Output: Unsigned,
+    {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             best_position_sse2(scores)
