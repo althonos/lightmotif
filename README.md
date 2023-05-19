@@ -75,11 +75,10 @@ let best = pli.best_position(&scores).unwrap();
 assert_eq!(best, 18);
 
 ```
-
-Not specifying a vector type will cause the `Pipeline` to use the best
-vector type available based on the selected target features. To explicitly
-use the AVX2, SSSE3, or generic implementation, use `Pipeline<Dna, __m256i>`,
-`Pipeline<Dna, __m128i>`, or `Pipeline<Dna, u8>` respectively.
+This example uses the *generic* pipeline, which is not platform accelerated.
+To use the much faster AVX2 code, create an AVX2 pipeline with 
+`Pipeline::avx2` instead: this returns a `Result` which is `Ok` if AVX2 
+is supported on the local platform.
 
 ## ⏱️ Benchmarks
 
