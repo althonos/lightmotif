@@ -11,7 +11,7 @@ use typenum::marker_traits::Unsigned;
 // --- DenseMatrix -------------------------------------------------------------
 
 /// An aligned dense matrix of with a constant number of columns.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DenseMatrix<T: Default + Copy, C: Unsigned> {
     data: Vec<T>,
     indices: Vec<usize>,

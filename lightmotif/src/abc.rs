@@ -66,7 +66,7 @@ where
 // --- DNA ---------------------------------------------------------------------
 
 /// The standard DNA alphabet composed of 4 deoxyribonucleotides and a wildcard.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Dna;
 
 impl Alphabet for Dna {
@@ -157,7 +157,7 @@ impl ComplementableSymbol for Nucleotide {
 // --- Protein -----------------------------------------------------------------
 
 /// The standard protein alphabet composed of 20 residues and a wildcard.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Protein;
 
 impl Alphabet for Protein {
@@ -287,7 +287,7 @@ impl Symbol for AminoAcid {
 // --- Background --------------------------------------------------------------
 
 /// The background frequencies for an alphabet.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Background<A: Alphabet> {
     frequencies: GenericArray<f32, A::K>,
     alphabet: std::marker::PhantomData<A>,
@@ -377,7 +377,7 @@ impl<A: Alphabet> Default for Background<A> {
 // --- Pseudocounts ------------------------------------------------------------
 
 /// A structure for storing the pseudocounts over an alphabet.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Pseudocounts<A: Alphabet> {
     counts: GenericArray<f32, A::K>,
     alphabet: std::marker::PhantomData<A>,

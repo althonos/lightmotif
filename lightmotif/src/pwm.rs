@@ -14,7 +14,7 @@ use super::seq::EncodedSequence;
 // --- CountMatrix -------------------------------------------------------------
 
 /// A matrix storing symbol occurences at each position.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CountMatrix<A: Alphabet> {
     /// The alphabet of the count matrix.
     alphabet: std::marker::PhantomData<A>,
@@ -139,7 +139,7 @@ impl<A: Alphabet> FromIterator<EncodedSequence<A>> for Result<CountMatrix<A>, In
 // --- FrequencyMatrix ---------------------------------------------------------
 
 /// A matrix storing symbol frequencies at each position.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FrequencyMatrix<A: Alphabet> {
     alphabet: std::marker::PhantomData<A>,
     data: DenseMatrix<f32, A::K>,
@@ -207,7 +207,7 @@ impl<A: ComplementableAlphabet> FrequencyMatrix<A> {
 // --- WeightMatrix ------------------------------------------------------------
 
 /// A matrix storing odds ratio of symbol occurences at each position.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct WeightMatrix<A: Alphabet> {
     background: Background<A>,
     data: DenseMatrix<f32, A::K>,
@@ -315,7 +315,7 @@ impl<A: Alphabet> From<ScoringMatrix<A>> for WeightMatrix<A> {
 // --- ScoringMatrix -----------------------------------------------------------
 
 /// A matrix storing odds ratio of symbol occurences at each position.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ScoringMatrix<A: Alphabet> {
     background: Background<A>,
     data: DenseMatrix<f32, A::K>,
