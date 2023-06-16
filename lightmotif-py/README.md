@@ -83,8 +83,7 @@ pssm = pwm.log_odds()
 
 # Encode the target sequence into a striped matrix
 seq = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG"
-encoded = lightmotif.EncodedSequence(seq)
-striped = encoded.stripe()
+striped = lightmotif.stripe(seq)
 
 # Compute scores using the fastest backend implementation for the host machine
 scores = pssm.calculate(sseq)

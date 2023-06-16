@@ -114,6 +114,15 @@ pub struct CountMatrix {
 
 #[pymethods]
 impl CountMatrix {
+    pub fn __eq__(&self, object: &PyAny) -> PyResult<bool> {
+        let py = object.py();
+        if let Ok(other) = object.extract::<Py<Self>>() {
+            Ok(self.data == other.borrow(py).data)
+        } else {
+            Ok(false)
+        }
+    }
+
     pub fn normalize(&self, pseudocount: Option<PyObject>) -> PyResult<WeightMatrix> {
         let pseudo = Python::with_gil(|py| {
             if let Some(obj) = pseudocount {
@@ -150,6 +159,15 @@ pub struct WeightMatrix {
 
 #[pymethods]
 impl WeightMatrix {
+    pub fn __eq__(&self, object: &PyAny) -> PyResult<bool> {
+        let py = object.py();
+        if let Ok(other) = object.extract::<Py<Self>>() {
+            Ok(self.data == other.borrow(py).data)
+        } else {
+            Ok(false)
+        }
+    }
+
     pub fn log_odds(&self, background: Option<PyObject>) -> PyResult<ScoringMatrix> {
         // extract the background from the method argument
         let bg = Python::with_gil(|py| {
@@ -190,6 +208,15 @@ pub struct ScoringMatrix {
 
 #[pymethods]
 impl ScoringMatrix {
+    pub fn __eq__(&self, object: &PyAny) -> PyResult<bool> {
+        let py = object.py();
+        if let Ok(other) = object.extract::<Py<Self>>() {
+            Ok(self.data == other.borrow(py).data)
+        } else {
+            Ok(false)
+        }
+    }
+
     /// Return the PSSM score for all positions of the given sequence.
     pub fn calculate(
         slf: PyRef<'_, Self>,
