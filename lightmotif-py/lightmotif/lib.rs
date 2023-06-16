@@ -4,7 +4,9 @@ extern crate generic_array;
 extern crate lightmotif;
 extern crate pyo3;
 
+use lightmotif::abc::Alphabet;
 use lightmotif::abc::Symbol;
+use lightmotif::dense::DenseMatrix;
 use lightmotif::num::Unsigned;
 use lightmotif::pli::platform::Backend;
 use lightmotif::pli::Pipeline;
@@ -12,11 +14,13 @@ use lightmotif::pli::Score;
 
 use pyo3::exceptions::PyBufferError;
 use pyo3::exceptions::PyIndexError;
+use pyo3::exceptions::PyKeyError;
 use pyo3::exceptions::PyTypeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::ffi::Py_ssize_t;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use pyo3::types::PyList;
 use pyo3::types::PyString;
 use pyo3::AsPyPointer;
 
@@ -114,6 +118,40 @@ pub struct CountMatrix {
 
 #[pymethods]
 impl CountMatrix {
+    /// Create a new count matrix.
+    #[new]
+    pub fn __init__(_alphabet: &PyString, values: &PyDict) -> PyResult<PyClassInitializer<Self>> {
+        let mut data: Option<DenseMatrix<u32, <lightmotif::Dna as Alphabet>::K>> = None;
+        for s in lightmotif::Dna::symbols() {
+            let key = String::from(s.as_char());
+            let column = values
+                .get_item(&key)
+                .ok_or(PyKeyError::new_err(key))?
+                .downcast::<PyList>()?;
+
+            if data.is_none() {
+                data = Some(DenseMatrix::new(column.len()));
+            }
+
+            let matrix = data.as_mut().unwrap();
+            if matrix.rows() != column.len() {
+                return Err(PyValueError::new_err("Invalid number of rows"));
+            }
+
+            for (i, x) in column.iter().enumerate() {
+                matrix[i][s.as_index()] = x.extract::<u32>()?;
+            }
+        }
+
+        match data {
+            None => Err(PyValueError::new_err("Invalid count matrix")),
+            Some(matrix) => match lightmotif::CountMatrix::new(matrix) {
+                Ok(counts) => Ok(Self::from(counts).into()),
+                Err(_) => Err(PyValueError::new_err("Inconsistent rows in count matrix")),
+            },
+        }
+    }
+
     pub fn __eq__(&self, object: &PyAny) -> PyResult<bool> {
         let py = object.py();
         if let Ok(other) = object.extract::<Py<Self>>() {
