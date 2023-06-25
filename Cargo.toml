@@ -1,2 +1,3 @@
 [workspace]
 members = ["lightmotif", "lightmotif-bench", "lightmotif-transfac", "lightmotif-py", "lightmotif-tfmpvalue"]
+resolver = "2"
