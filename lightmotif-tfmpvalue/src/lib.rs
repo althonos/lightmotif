@@ -373,7 +373,6 @@ pub struct ScoresIterator<'pssm, 'tfmp, A: Alphabet> {
     granularity: f64,
     target: f64,
     converged: bool,
-
     min: i64,
     max: i64,
 }
@@ -412,10 +411,9 @@ impl<'pssm, 'tfmp, A: Alphabet> Iterator for ScoresIterator<'pssm, 'tfmp, A> {
 
 #[cfg(test)]
 mod test {
-    use lightmotif::abc::Alphabet;
+
     use lightmotif::abc::Dna;
-    use lightmotif::abc::Nucleotide;
-    use lightmotif::abc::Symbol;
+
     use lightmotif::dense::DenseMatrix;
     use lightmotif::pwm::CountMatrix;
 

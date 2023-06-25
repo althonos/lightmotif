@@ -14,14 +14,14 @@
 
 ## 🗺️ Overview
 
-**TFMPvalue** is an algorithm proposed by Touzet & Varré [\[1\]](#ref1) for 
+**TFMPvalue** is an algorithm proposed by Touzet & Varré[\[1\]](#ref1) for 
 computing a [*p-value*](https://en.wikipedia.org/wiki/P-value) from a score 
 obtained with a position weight matrix.
 It uses discretization to compute an approximation of the score distribution
 for the position weight matrix, iterating with growing levels of accuracy 
 until convergence is reached. This approach outperforms 
 [dynamic-programming](https://en.wikipedia.org/wiki/Dynamic_programming)
-based methods such as **LazyDistrib** by Beckstette *et al.* [\[2\]](#ref2).
+based methods such as **LazyDistrib** by Beckstette *et al.*[\[2\]](#ref2).
 
 `lightmotif-tfmpvalue` provides an implementation of the **TFMPvalue** algorithm
 to use with position weight matrices from the `lightmotif` crate.
