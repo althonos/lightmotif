@@ -1,6 +1,6 @@
 # 🎼🧬 `lightmotif-tfmpvalue` [![Star me](https://img.shields.io/github/stars/althonos/lightmotif.svg?style=social&label=Star&maxAge=3600)](https://github.com/althonos/lightmotif/stargazers)
 
-*A Rust port of the TFMPvalue algorithm for the [`lightmotif`](https://crates.io/crates/lightmotif) crate.*.
+*A Rust port of the [TFMPvalue](https://bioinfo.lifl.fr/TFM/TFMpvalue/) algorithm for the [`lightmotif`](https://crates.io/crates/lightmotif) crate.*.
 
 [![Actions](https://img.shields.io/github/actions/workflow/status/althonos/lightmotif/rust.yml?branch=main&logo=github&style=flat-square&maxAge=300)](https://github.com/althonos/lightmotif/actions)
 [![Coverage](https://img.shields.io/codecov/c/gh/althonos/lightmotif?logo=codecov&style=flat-square&maxAge=3600)](https://codecov.io/gh/althonos/lightmotif/)
@@ -55,7 +55,8 @@ This library is provided under the open-source
 [GNU General Public License v3.0](https://choosealicense.com/licenses/gpl-3.0/).
 The original TFMPvalue implementation was written by the [BONSAI team](https://bioinfo.univ-lille.fr/)
 of [CRISTaL](https://www.cristal.univ-lille.fr/), [Université de Lille](http://www.univ-lille.fr/)
-and is available under the terms of the [GNU General Public License v2.0](https://choosealicense.com/licenses/gpl-2.0/).
+and [is available](https://bioinfo.univ-lille.fr/tfm-pvalue/tfm-pvalue.php) 
+under the terms of the [GNU General Public License v2.0](https://choosealicense.com/licenses/gpl-2.0/).
 
 *This project is in no way not affiliated, sponsored, or otherwise endorsed
 by the [original TFMPvalue authors](https://bioinfo.univ-lille.fr/). It was 
@@ -66,5 +67,5 @@ in the [Zeller team](https://github.com/zellerlab).*
 ## 📚 References
 
 - <a id="ref1">\[1\]</a> Touzet, Hélène and Jean-Stéphane Varré. ‘Efficient and accurate P-value computation for Position Weight Matrices’. Algorithms for Molecular Biology 2, 1–12 (2007). [doi:10.1186/1748-7188-2-15](https://doi.org/10.1186/1748-7188-2-15).
-- <a id="ref2">\[2\]</a> Beckstette, Michael, Robert Homann, and Robert Giegerich. ‘Fast index based algorithms and software for matching position specific scoring matrices’. BMC Bioinformatics 7, 389 (2006).[doi:10.1186/1471-2105-7-389](https://doi.org/10.1186/1471-2105-7-389).
+- <a id="ref2">\[2\]</a> Beckstette, Michael, Robert Homann, and Robert Giegerich. ‘Fast index based algorithms and software for matching position specific scoring matrices’. BMC Bioinformatics 7, 389 (2006). [doi:10.1186/1471-2105-7-389](https://doi.org/10.1186/1471-2105-7-389).
 
