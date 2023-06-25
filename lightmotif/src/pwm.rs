@@ -181,7 +181,7 @@ impl<A: Alphabet> FrequencyMatrix<A> {
                 dst[j] = (x / f).log2();
             }
         }
-        ScoringMatrix::new_unchecked(bg, scores)
+        ScoringMatrix::new(bg, scores)
     }
 }
 
@@ -270,7 +270,7 @@ impl<A: Alphabet> WeightMatrix<A> {
                 *item = item.log2();
             }
         }
-        ScoringMatrix::new_unchecked(background, data)
+        ScoringMatrix::new(background, data)
     }
 }
 
@@ -330,13 +330,13 @@ impl<A: ComplementableAlphabet> ScoringMatrix<A> {
                 data[i][s.as_index()] = row[A::complement(s).as_index()];
             }
         }
-        Self::new_unchecked(self.background.clone(), data)
+        Self::new(self.background.clone(), data)
     }
 }
 
 impl<A: Alphabet> ScoringMatrix<A> {
-    /// Create a new scoring matrix without checking the contents.
-    fn new_unchecked(background: Background<A>, data: DenseMatrix<f32, A::K>) -> Self {
+    /// Create a new scoring matrix from the given log-odds matrix.
+    pub fn new(background: Background<A>, data: DenseMatrix<f32, A::K>) -> Self {
         Self { background, data }
     }
 
@@ -356,6 +356,22 @@ impl<A: Alphabet> ScoringMatrix<A> {
     #[inline]
     pub fn background(&self) -> &Background<A> {
         &self.background
+    }
+
+    /// The lowest score that can be obtained with this scoring matrix.
+    pub fn min_score(&self) -> f32 {
+        self.data
+            .iter()
+            .map(|row| row.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap())
+            .sum()
+    }
+
+    /// The highest score that can be obtained with this scoring matrix.
+    pub fn max_score(&self) -> f32 {
+        self.data
+            .iter()
+            .map(|row| row.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap())
+            .sum()
     }
 }
 
