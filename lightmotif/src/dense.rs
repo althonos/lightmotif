@@ -39,7 +39,7 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
 
         // NOTE: this is unsafe but given that we require `T` to be
         //       copy, this should be fine, as `Copy` prevents the
-        //       type to be `Dorp` as well.
+        //       type to be `Drop` as well.
         // reserve the vector without initializing the data
         let mut data = Vec::with_capacity((rows + 1) * c);
         data.set_len((rows + 1) * c);

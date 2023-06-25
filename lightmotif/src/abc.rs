@@ -34,8 +34,8 @@ pub trait ComplementableSymbol: Symbol {
 
 /// A biological alphabet with associated metadata.
 pub trait Alphabet: Debug + Copy + Default + 'static {
-    type Symbol: Symbol;
-    type K: Unsigned + NonZero + ArrayLength<f32>;
+    type Symbol: Symbol + Debug;
+    type K: Unsigned + NonZero + ArrayLength<f32> + Debug;
 
     /// Get the default symbol for this alphabet.
     fn default_symbol() -> Self::Symbol {
