@@ -21,23 +21,16 @@ type Map<K, V> = HashMap<K, V>;
 /// The TFMPvalue algorithm.
 #[derive(Debug)]
 pub struct TfmPvalue<'pssm, A: Alphabet> {
-    /// The granularity with which the matrix has been built.
-    granularity: f64,
-
-    scale: f64,
-    /// The matrix offsets.
-    offset: i64,
-    offsets: Vec<i64>,
-
-    /// Original PSSM
+    /// A reference to the original scoring matrix.
     matrix: &'pssm ScoringMatrix<A>,
-
+    /// The granularity with which the round matrix has been built.
+    granularity: f64,
+    /// The round matrix offsets.
+    offsets: Vec<i64>,
     /// Rescaled PSSM in integer space.
     int_matrix: DenseMatrix<i64, A::K>,
-
     /// The maximum error caused by integer rescale.
     error_max: f64,
-
     /// The maximum integer score reachable at each row of the matrix.
     max_score_rows: Vec<i64>,
     /// The minimum integer score reachable at each row of the matrix.
@@ -52,8 +45,6 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
         Self {
             granularity: f64::NAN,
             matrix,
-            scale: 1.0,
-            offset: 0,
             offsets: vec![0; M],
             int_matrix: DenseMatrix::new(M),
             max_score_rows: vec![0; M],
@@ -64,38 +55,32 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
 
     /// Compute the approximate score matrix with the given granularity.
     fn recompute(&mut self, granularity: f64) {
+        assert!(granularity < 1.0);
         let M: usize = self.matrix.len();
         let K: usize = <A as Alphabet>::K::USIZE;
 
-        // compute matrix score range
-        let min_s = self.matrix.min_score() as f64;
-        let max_s = self.matrix.max_score() as f64;
-        let score_range = max_s - min_s + 1.0;
-
         // compute effective granularity
         self.granularity = granularity;
-        self.scale = if self.granularity > 1.0 {
-            self.granularity / score_range
-        } else if self.granularity < 1.0 {
-            1.0 / self.granularity
-        } else {
-            1.0
-        };
 
         // compute integer matrix
         for i in 0..M {
             for j in 0..K - 1 {
-                self.int_matrix[i][j] = (self.matrix[i][j] as f64 * self.scale).floor() as i64;
+                self.int_matrix[i][j] =
+                    (self.matrix[i][j] as f64 / self.granularity).floor() as i64;
             }
         }
 
         // compute maximum error by summing max error at each row
         self.error_max = 0.0;
         for i in 1..M {
-            let mut max_e = self.matrix[i][0] as f64 * self.scale - self.int_matrix[i][0] as f64;
+            let mut max_e =
+                self.matrix[i][0] as f64 / self.granularity - self.int_matrix[i][0] as f64;
             for j in 0..K - 1 {
-                if max_e < self.matrix[i][j] as f64 * self.scale - self.int_matrix[i][j] as f64 {
-                    max_e = self.matrix[i][j] as f64 * self.scale - self.int_matrix[i][j] as f64;
+                if max_e
+                    < self.matrix[i][j] as f64 / self.granularity - self.int_matrix[i][j] as f64
+                {
+                    max_e =
+                        self.matrix[i][j] as f64 / self.granularity - self.int_matrix[i][j] as f64;
                 }
             }
             self.error_max += max_e;
@@ -104,14 +89,12 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
         // TODO: sort columns?
 
         // compute offsets
-        self.offset = 0;
         self.offsets = vec![0; M];
         for i in 0..M {
             self.offsets[i] = -(0..K - 1).map(|j| self.int_matrix[i][j]).min().unwrap();
             for j in 0..K - 1 {
                 self.int_matrix[i][j] += self.offsets[i];
             }
-            self.offset += self.offsets[i];
         }
 
         // look for the minimum score of the matrix for each row
@@ -179,7 +162,7 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
         let M: usize = self.matrix.len();
 
         // Compute the integer score range from the given score.
-        let scaled = score * self.scale + self.offset as f64;
+        let scaled = score / self.granularity + self.offsets.iter().sum::<i64>() as f64;
         let avg = scaled.floor() as i64;
         let max = (scaled + self.error_max + 1.0).floor() as i64;
         let min = (scaled - self.error_max - 1.0).floor() as i64;
@@ -408,10 +391,11 @@ impl<'pssm, 'tfmp, A: Alphabet> Iterator for ScoresIterator<'pssm, 'tfmp, A> {
             self.converged = true;
         }
 
+        let offset = self.tfmp.offsets.iter().sum::<i64>();
         Some(Iteration {
             granularity,
             range,
-            score: (iscore - self.tfmp.offset) as f64 / self.tfmp.scale,
+            score: (iscore - offset) as f64 * granularity,
             converged: self.converged,
             _hidden: (),
         })
