@@ -14,12 +14,12 @@
 
 ## 🗺️ Overview
 
-**TFMPvalue** is an algorithm proposed by Touzet & Varré[\[1\]](#ref1) for 
-computing a [*p-value*](https://en.wikipedia.org/wiki/P-value) from a score 
+**TFMPvalue** is an algorithm proposed by Touzet & Varré[\[1\]](#ref1) for
+computing a [*p-value*](https://en.wikipedia.org/wiki/P-value) from a score
 obtained with a position weight matrix.
 It uses discretization to compute an approximation of the score distribution
-for the position weight matrix, iterating with growing levels of accuracy 
-until convergence is reached. This approach outperforms 
+for the position weight matrix, iterating with growing levels of accuracy
+until convergence is reached. This approach outperforms
 [dynamic-programming](https://en.wikipedia.org/wiki/Dynamic_programming)
 based methods such as **LazyDistrib** by Beckstette *et al.*[\[2\]](#ref2).
 
@@ -29,7 +29,8 @@ to use with position weight matrices from the `lightmotif` crate.
 ## 💡 Example
 
 Use `lightmotif` to create a position specific scoring matrix, and then use
-the TFMPvalue algorithm to compute the exact P-value for a 
+the TFMPvalue algorithm to compute the exact P-value for a given score, or
+a score threshold for a given P-value:
 
 ```rust
 extern crate lightmotif;
@@ -63,10 +64,10 @@ assert_eq!(score, 19.3);
 ```
 
 *Note that in the example above, the computation is not bounded, so for certain
-particular matrices the algorithm may require a large amount of memory to 
-converge. Use the `tfmp.approximate_pvalue` and `tfmp.approximate_score` methods
-to obtain an iterator over the algorithm iterations, allowing you to stop at 
-any given time based on external criterion.*
+particular matrices the algorithm may require a large amount of memory to
+converge. Use the `TfmPvalue::approximate_pvalue` and `TfmPvalue::approximate_score`
+methods to obtain an iterator over the algorithm iterations, allowing you to stop at
+any given time based on external criterion such as total memory usage.*
 
 
 ## 💭 Feedback
@@ -95,12 +96,12 @@ This library is provided under the open-source
 [GNU General Public License v3.0](https://choosealicense.com/licenses/gpl-3.0/).
 The original TFMPvalue implementation was written by the [BONSAI team](https://bioinfo.univ-lille.fr/)
 of [CRISTaL](https://www.cristal.univ-lille.fr/), [Université de Lille](http://www.univ-lille.fr/)
-and [is available](https://bioinfo.univ-lille.fr/tfm-pvalue/tfm-pvalue.php) 
+and [is available](https://bioinfo.univ-lille.fr/tfm-pvalue/tfm-pvalue.php)
 under the terms of the [GNU General Public License v2.0](https://choosealicense.com/licenses/gpl-2.0/).
 
 *This project is in no way not affiliated, sponsored, or otherwise endorsed
-by the [original TFMPvalue authors](https://bioinfo.univ-lille.fr/). It was 
-developed by [Martin Larralde](https://github.com/althonos/) during his PhD 
+by the [original TFMPvalue authors](https://bioinfo.univ-lille.fr/). It was
+developed by [Martin Larralde](https://github.com/althonos/) during his PhD
 project at the [European Molecular Biology Laboratory](https://www.embl.de/)
 in the [Zeller team](https://github.com/zellerlab).*
 

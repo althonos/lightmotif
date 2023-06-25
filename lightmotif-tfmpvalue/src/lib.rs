@@ -173,16 +173,18 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
         // Compute p-values
         let mut pvalues = Map::default();
         let mut s = max + 1;
+        let mut last = qvalues[M - 1].keys().cloned().collect::<Vec<i64>>();
+        last.sort_unstable_by(|x, y| x.partial_cmp(&y).unwrap());
         let mut sum = qvalues[0].get(&(max + 1)).cloned().unwrap_or_default();
-        for &first in qvalues[M - 1].keys() {
-            sum += qvalues[M - 1][&first];
-            if first >= avg {
-                s = first;
+        for &l in last.iter().rev() {
+            sum += qvalues[M - 1][&l];
+            if l >= avg {
+                s = l;
             }
-            pvalues.insert(first, sum);
+            pvalues.insert(l, sum);
         }
 
-        //
+        // Find the p-value range for the requested score
         let mut keys = pvalues.keys().cloned().collect::<Vec<i64>>();
         keys.sort_unstable_by(|x, y| x.partial_cmp(&y).unwrap());
         let mut kmax = keys.iter().position(|&k| k == s).unwrap();
@@ -190,9 +192,10 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
             kmax -= 1;
         }
 
+        // Return p-value range
         let pmax = pvalues[&keys[kmax]];
         let pmin = pvalues[&s];
-        RangeInclusive::new(pmax, pmin)
+        RangeInclusive::new(pmin, pmax)
     }
 
     /// Search the score and p-value range for a given p-value.
@@ -450,22 +453,84 @@ mod test {
     }
 
     #[test]
-    fn score2pval() {
+    fn approximate_pvalue() {
+        let pssm = build_ma0045();
+        let mut tfmp = TfmPvalue::new(&pssm);
+        let mut pvalues = tfmp.approximate_pvalue(10.0);
+
+        // Reference values computed with pytfmpval:
+        //
+        // granularity  pmin                    pmax
+        //         0.1  5.7484256103634834e-05  0.000185822369530797
+        //        0.01  0.00011981534771621227  0.00012914929538965225
+        //       0.001  0.00012489012442529202  0.0001261131837964058
+        //      0.0001  0.00012567872181534767  0.00012605986557900906
+        //       1e-05  0.00012601236812770367  0.0001260137651115656
+        //       1e-06  0.00012601329945027828  0.0001260137651115656
+        //       1e-07  0.00012601329945027828  0.00012601329945027828
+
+        let it = pvalues.next().unwrap();
+        assert_almost_eq!(it.granularity, 1e-1, places = 5);
+        assert_almost_eq!(it.range.start(), 5.74842561e-5, places = 7);
+        assert_almost_eq!(it.range.end(), 0.000185822369, places = 7);
+        assert!(!it.converged);
+
+        let it = pvalues.next().unwrap();
+        assert_almost_eq!(it.granularity, 1e-2, places = 7);
+        assert_almost_eq!(it.range.start(), 0.000119815, places = 5);
+        assert_almost_eq!(it.range.end(), 0.000129149, places = 7);
+        assert!(!it.converged);
+
+        let it = pvalues.next().unwrap();
+        assert_almost_eq!(it.granularity, 1e-3, places = 5);
+        assert_almost_eq!(it.range.start(), 0.000124890, places = 7);
+        assert_almost_eq!(it.range.end(), 0.000126113, places = 7);
+        assert!(!it.converged);
+
+        let it = pvalues.next().unwrap();
+        assert_almost_eq!(it.granularity, 1e-4, places = 5);
+        assert_almost_eq!(it.range.start(), 0.00012567, places = 5);
+        assert_almost_eq!(it.range.end(), 0.000126059, places = 5);
+        assert!(!it.converged);
+
+        let it = pvalues.next().unwrap();
+        assert_almost_eq!(it.granularity, 1e-5, places = 5);
+        assert_almost_eq!(it.range.start(), 0.00012601, places = 5);
+        assert_almost_eq!(it.range.end(), 0.0001260137, places = 5);
+        assert!(!it.converged);
+
+        let it = pvalues.next().unwrap();
+        assert_almost_eq!(it.granularity, 1e-6, places = 5);
+        assert_almost_eq!(it.range.start(), 0.00012601, places = 5);
+        assert_almost_eq!(it.range.end(), 0.0001260137, places = 5);
+        assert!(!it.converged);
+
+        let it = pvalues.next().unwrap();
+        assert_almost_eq!(it.granularity, 1e-7, places = 5);
+        assert_almost_eq!(it.range.start(), 0.0001260, places = 5);
+        assert_almost_eq!(it.range.end(), 0.0001260132, places = 5);
+        assert!(it.converged);
+
+        assert!(pvalues.next().is_none());
+    }
+
+    #[test]
+    fn pvalue() {
         let pssm = build_ma0045();
         let mut tfmp = TfmPvalue::new(&pssm);
 
         assert_almost_eq!(tfmp.pvalue(8.882756), 0.0003, places = 5);
         assert_almost_eq!(tfmp.pvalue(12.657785), 0.00001, places = 5);
-        assert_almost_eq!(tfmp.pvalue(19.1), 1e-10, places = 4);
+        assert_almost_eq!(tfmp.pvalue(19.1), 1e-10, places = 5);
     }
 
     #[test]
-    fn pval2score() {
+    fn score() {
         let pssm = build_ma0045();
         let mut tfmp = TfmPvalue::new(&pssm);
 
         assert_almost_eq!(tfmp.score(0.00001), 12.657785, places = 4);
-        assert_almost_eq!(tfmp.score(0.0003), 8.882756, places = 4);
-        assert_almost_eq!(tfmp.score(1e-10), 19.1, places = 4);
+        assert_almost_eq!(tfmp.score(0.0003), 8.882756, places = 5);
+        assert_almost_eq!(tfmp.score(1e-10), 19.1, places = 5);
     }
 }
