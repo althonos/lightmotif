@@ -8,7 +8,6 @@ pub mod dense;
 pub mod err;
 pub mod num;
 pub mod pli;
-pub mod pvalue;
 pub mod pwm;
 pub mod seq;
 

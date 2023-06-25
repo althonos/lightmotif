@@ -1,4 +1,4 @@
-//! Algorithm for computing P-value from match scores.
+#![doc = include_str!("../README.md")]
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -7,10 +7,10 @@ use std::hash::BuildHasher;
 use std::hash::Hasher;
 use std::ops::RangeInclusive;
 
-use super::abc::Alphabet;
-use super::dense::DenseMatrix;
-use super::num::Unsigned;
-use super::pwm::ScoringMatrix;
+use lightmotif::abc::Alphabet;
+use lightmotif::dense::DenseMatrix;
+use lightmotif::num::Unsigned;
+use lightmotif::pwm::ScoringMatrix;
 
 /// A rescaled matrix
 #[derive(Debug)]
@@ -289,13 +289,6 @@ impl<'pssm, A: Alphabet> TfmpMatrix<'pssm, A> {
     }
 }
 
-// fn look_for_pvalue<A: Alphabet>(avg_s: i64, min_s: i64, max_s: i64) -> (f64, f64) {
-//     let mut nbocc = calc_distrib_with_map_min_max(min_s, max_s);
-
-//     let mut f64 s = nbocc[]
-
-// }
-
 fn score2pval<A: Alphabet>(matrix: &ScoringMatrix<A>, score: f64) -> f64 {
     let mut granularity = 0.1;
     let max_granularity = 1e-10;
@@ -376,14 +369,14 @@ fn pval2score<A: Alphabet>(matrix: &ScoringMatrix<A>, pvalue: f64) -> f64 {
 
 #[cfg(test)]
 mod test {
-    use crate::abc::Alphabet;
-    use crate::abc::Background;
-    use crate::abc::Dna;
-    use crate::abc::Nucleotide;
-    use crate::abc::Symbol;
-    use crate::dense::DenseMatrix;
-    use crate::num::Unsigned;
-    use crate::pwm::CountMatrix;
+    use lightmotif::abc::Alphabet;
+    use lightmotif::abc::Background;
+    use lightmotif::abc::Dna;
+    use lightmotif::abc::Nucleotide;
+    use lightmotif::abc::Symbol;
+    use lightmotif::dense::DenseMatrix;
+    use lightmotif::num::Unsigned;
+    use lightmotif::pwm::CountMatrix;
 
     use super::*;
 
