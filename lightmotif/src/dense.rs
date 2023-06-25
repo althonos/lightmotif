@@ -60,6 +60,28 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
         }
     }
 
+    /// Create a new dense matrix from an iterable of rows.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any of the rows does not have the number of elements
+    /// corresponding to the dense matrix columns.
+    pub fn from_rows<I>(rows: I) -> Self
+    where
+        I: IntoIterator,
+        <I as IntoIterator>::Item: AsRef<[T]>,
+        <I as IntoIterator>::IntoIter: ExactSizeIterator,
+    {
+        let it = rows.into_iter();
+        let mut dense = Self::new(it.len());
+
+        for (i, row) in it.enumerate() {
+            dense[i].copy_from_slice(row.as_ref());
+        }
+
+        dense
+    }
+
     /// The number of columns of the matrix.
     #[inline]
     pub const fn columns(&self) -> usize {
