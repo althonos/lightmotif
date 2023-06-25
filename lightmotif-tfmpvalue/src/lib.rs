@@ -432,19 +432,26 @@ mod test {
 
     /// Build the MA0045 PSSM from Jaspar using a uniform background and 0.25 pseudocounts.
     fn build_ma0045() -> ScoringMatrix<Dna> {
-        let a = [3, 7, 9, 3, 11, 11, 11, 3, 4, 3, 8, 8, 9, 9, 11, 2];
-        let c = [5, 0, 1, 6, 0, 0, 0, 3, 1, 4, 5, 1, 0, 5, 0, 7];
-        let g = [4, 3, 1, 4, 3, 2, 2, 2, 8, 6, 1, 4, 2, 0, 3, 0];
-        let t = [2, 4, 3, 1, 0, 1, 1, 6, 1, 1, 0, 1, 3, 0, 0, 5];
-
-        let mut counts = DenseMatrix::<u32, <Dna as Alphabet>::K>::new(a.len());
-        for i in 0..a.len() {
-            counts[i][Nucleotide::A.as_index()] = a[i];
-            counts[i][Nucleotide::C.as_index()] = c[i];
-            counts[i][Nucleotide::G.as_index()] = g[i];
-            counts[i][Nucleotide::T.as_index()] = t[i];
-        }
-
+        #[rustfmt::skip]
+        let counts = DenseMatrix::from_rows([
+            //A   C   T   G   N
+            [ 3,  5,  2,  4,  0],
+            [ 7,  0,  4,  3,  0],
+            [ 9,  1,  3,  1,  0],
+            [ 3,  6,  1,  4,  0],
+            [11,  0,  0,  3,  0],
+            [11,  0,  1,  2,  0],
+            [11,  0,  1,  2,  0],
+            [ 3,  3,  6,  2,  0],
+            [ 4,  1,  1,  8,  0],
+            [ 3,  4,  1,  6,  0],
+            [ 8,  5,  0,  1,  0],
+            [ 8,  1,  1,  4,  0],
+            [ 9,  0,  3,  2,  0],
+            [ 9,  5,  0,  0,  0],
+            [11,  0,  0,  3,  0],
+            [ 2,  7,  5,  0,  0],
+        ]);
         CountMatrix::new(counts)
             .unwrap()
             .to_freq(0.25)

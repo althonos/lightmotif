@@ -26,7 +26,47 @@ based methods such as **LazyDistrib** by Beckstette *et al.* [\[2\]](#ref2).
 `lightmotif-tfmpvalue` provides an implementation of the **TFMPvalue** algorithm
 to use with position weight matrices from the `lightmotif` crate.
 
-<!-- ## 💡 Example -->
+## 💡 Example
+
+Use `lightmotif` to create a position specific scoring matrix, and then use
+the TFMPvalue algorithm to compute the exact P-value for a 
+
+```rust
+extern crate lightmotif;
+extern crate lightmotif_tfmpvalue;
+
+use lightmotif::pwm::CountMatrix;
+use lightmotif::abc::Dna;
+use lightmotif::seq::EncodedSequence;
+use lightmotif_tfmpvalue::TfmPvalue;
+
+// Use a ScoringMatrix from `lightmotif`
+let pssm = CountMatrix::<Dna>::from_sequences(&[
+        EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
+        EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
+    ])
+    .unwrap()
+    .to_freq(0.25)
+    .to_scoring(None);
+
+// Initialize the TFMPvalue algorithm for the given PSSM
+// (the `pssm` reference must outlive `tfmp`).
+let mut tfmp = TfmPvalue::new(&pssm);
+
+// Compute the exact p-value for a given score
+let pvalue = tfmp.pvalue(19.3);
+assert_eq!(pvalue, 1.4901161193847656e-08);
+
+// Compute the exact score for a given p-value
+let score = tfmp.score(pvalue);
+assert_eq!(score, 19.3);
+```
+
+*Note that in the example above, the computation is not bounded, so for certain
+particular matrices the algorithm may require a large amount of memory to 
+converge. Use the `tfmp.approximate_pvalue` and `tfmp.approximate_score` methods
+to obtain an iterator over the algorithm iterations, allowing you to stop at 
+any given time based on external criterion.*
 
 
 ## 💭 Feedback
