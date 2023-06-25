@@ -6,7 +6,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.3.0...HEAD
+
+
+## [v0.3.0] - 2023-06-25
+[v0.3.0]: https://github.com/althonos/lightmotif/compare/v0.2.0...v0.3.0
+
+### Changed
+- Rewrite the SSE2 maximum search implementation using a generic number of columns.
+- Refactor `lightmotif::pwm` to avoid infinite odds-ratio for columns with zero background frequencies.
+
+### Added
+- `lightmotif-tfmpvalue` crate implementing the TFMPvalue for computing p-values for a `ScoringMatrix`.
+- `DenseMatrix::from_rows` method to create a dense matrix from an iterable of rows.
+- `PartialEq` implementation for matrices in `lightmotif`.
+- Methods to compute the minimum and maximum scores of a `ScoringMatrix`.
 
 
 ## [v0.2.0] - 2023-05-15

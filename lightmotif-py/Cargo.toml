@@ -1,6 +1,6 @@
 [package]
 name = "lightmotif-py"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Martin Larralde <martin.larralde@embl.de>"]
 edition = "2021"
 license = "MIT"
@@ -17,7 +17,7 @@ path = "lightmotif/lib.rs"
 
 [dependencies.lightmotif]
 path = "../lightmotif"
-version = "0.2.0"
+version = "0.3.0"
 [dependencies]
 pyo3 = "0.18.3"
 generic-array = "0.14"
