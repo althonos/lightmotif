@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 
+#[cfg(not(feature = "fnv"))]
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
@@ -8,6 +9,14 @@ use lightmotif::abc::Alphabet;
 use lightmotif::dense::DenseMatrix;
 use lightmotif::num::Unsigned;
 use lightmotif::pwm::ScoringMatrix;
+
+#[cfg(feature = "fnv")]
+use fnv::FnvHashMap;
+
+#[cfg(feature = "fnv")]
+type Map<K, V> = FnvHashMap<K, V>;
+#[cfg(not(feature = "fnv"))]
+type Map<K, V> = HashMap<K, V>;
 
 /// The TFMPvalue algorithm.
 #[derive(Debug)]
@@ -115,7 +124,7 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
     }
 
     /// Compute the score distribution between `min` and `max`.
-    fn distribution(&self, min: i64, max: i64) -> Vec<HashMap<i64, f64>> {
+    fn distribution(&self, min: i64, max: i64) -> Vec<Map<i64, f64>> {
         let M: usize = self.matrix.len();
         let K: usize = <A as Alphabet>::K::USIZE;
 
@@ -123,7 +132,7 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
         let bg = self.matrix.background().frequencies();
 
         // maps for each steps of the computation
-        let mut qvalues = vec![HashMap::new(); M + 1];
+        let mut qvalues = vec![Map::default(); M + 1];
 
         // maximum score reachable with the suffix matrix from i to M-1
         let mut maxs = vec![0; M + 1];
@@ -179,7 +188,7 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
         let qvalues = self.distribution(min, max);
 
         // Compute p-values
-        let mut pvalues = HashMap::new();
+        let mut pvalues = Map::default();
         let mut s = max + 1;
         let mut sum = qvalues[0].get(&(max + 1)).cloned().unwrap_or_default();
         for &first in qvalues[M - 1].keys() {
@@ -214,7 +223,7 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
 
         // compute q values
         let qvalues = self.distribution(min, max);
-        let mut pvalues = HashMap::new();
+        let mut pvalues = Map::default();
 
         // find most likely scores at the end of the matrix
         let mut keys = qvalues[M - 1].keys().cloned().collect::<Vec<_>>();
