@@ -1,10 +1,7 @@
 #![doc = include_str!("../README.md")]
 
-use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::hash::BuildHasher;
-use std::hash::Hasher;
 use std::ops::RangeInclusive;
 
 use lightmotif::abc::Alphabet;
@@ -12,14 +9,7 @@ use lightmotif::dense::DenseMatrix;
 use lightmotif::num::Unsigned;
 use lightmotif::pwm::ScoringMatrix;
 
-/// Configuration for the iterative search.
-#[derive(Debug, Clone)]
-pub struct Config {
-    granularity: f64,
-    target: f64,
-    decay: f64,
-}
-
+/// The TFMPvalue algorithm.
 #[derive(Debug)]
 pub struct TfmPvalue<'pssm, A: Alphabet> {
     /// The granularity with which the matrix has been built.
@@ -45,6 +35,7 @@ pub struct TfmPvalue<'pssm, A: Alphabet> {
     min_score_rows: Vec<i64>,
 }
 
+#[allow(non_snake_case)]
 impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
     /// Initialize the TFM-Pvalue algorithm for the given scoring matrix.
     pub fn new(matrix: &'pssm ScoringMatrix<A>) -> Self {
@@ -63,9 +54,7 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
     }
 
     /// Compute the approximate score matrix with the given granularity.
-    #[allow(non_snake_case)]
     fn recompute(&mut self, granularity: f64) {
-        // matrix dimensions
         let M: usize = self.matrix.len();
         let K: usize = <A as Alphabet>::K::USIZE;
 
@@ -126,9 +115,7 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
     }
 
     /// Compute the score distribution between `min` and `max`.
-    #[allow(non_snake_case)]
     fn distribution(&self, min: i64, max: i64) -> Vec<HashMap<i64, f64>> {
-        // matrix dimensions
         let M: usize = self.matrix.len();
         let K: usize = <A as Alphabet>::K::USIZE;
 
@@ -178,11 +165,9 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
     }
 
     /// Search the p-value range for the given score.
-    #[allow(non_snake_case)]
     fn lookup_pvalue(&self, score: f64) -> RangeInclusive<f64> {
         assert!(!self.granularity.is_nan());
         let M: usize = self.matrix.len();
-        let K: usize = <A as Alphabet>::K::USIZE;
 
         // Compute the integer score range from the given score.
         let scaled = score * self.scale + self.offset as f64;
@@ -191,7 +176,7 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
         let min = (scaled - self.error_max - 1.0).floor() as i64;
 
         // Compute q values for the given scores
-        let mut qvalues = self.distribution(min, max);
+        let qvalues = self.distribution(min, max);
 
         // Compute p-values
         let mut pvalues = HashMap::new();
@@ -219,13 +204,9 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
     }
 
     /// Search the score and p-value range for a given p-value.
-    #[allow(non_snake_case)]
-    fn lookup_score(&self, pvalue: f64, range: RangeInclusive<i64>) -> (i64, f64, f64) {
+    fn lookup_score(&self, pvalue: f64, range: RangeInclusive<i64>) -> (i64, RangeInclusive<f64>) {
         assert!(!self.granularity.is_nan());
-
-        // matrix dimensions
         let M: usize = self.matrix.len();
-        let K: usize = <A as Alphabet>::K::USIZE;
 
         // compute score range for target pvalue
         let min = *range.start();
@@ -235,7 +216,7 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
         // println!("min_s: {}", min);
 
         // compute q values
-        let mut qvalues = self.distribution(min, max);
+        let qvalues = self.distribution(min, max);
         let mut pvalues = HashMap::new();
 
         let mut keys = qvalues[M - 1].keys().cloned().collect::<Vec<_>>();
@@ -243,8 +224,8 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
 
         let mut sum = 0.0;
         let mut riter = keys.len() - 1;
-        let mut alpha = keys[riter] + 1;
-        let mut alpha_e = alpha;
+        let alpha;
+        let alpha_e;
 
         while riter > 0 {
             sum += qvalues[M - 1][&keys[riter]];
@@ -271,13 +252,13 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
         }
 
         if (alpha - alpha_e) as f64 > self.error_max {
-            alpha_e = alpha;
+            (alpha, RangeInclusive::new(pvalues[&alpha], pvalues[&alpha]))
+        } else {
+            (
+                alpha,
+                RangeInclusive::new(pvalues[&alpha_e], pvalues[&alpha]),
+            )
         }
-
-        // let smax = nbocc[M][&alpha];
-        // let smin = nbocc[M][&alpha_e];
-        // RangeInclusive::new(smin, smax)
-        (alpha, pvalues[&alpha_e], pvalues[&alpha])
     }
 
     /// Compute the exact P-value for the given score.
@@ -288,7 +269,9 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
     /// some scoring matrices. Use `approximate_pvalue` directly to add
     /// limits on the number of iterations or on the granularity.
     pub fn pvalue(&mut self, score: f64) -> f64 {
-        *self.approximate_pvalue(score).last().unwrap().range.start()
+        let it = self.approximate_pvalue(score).last().unwrap();
+        assert!(it.converged); // algorithm should always converge
+        *it.range.start()
     }
 
     /// Iterate with decreasing granularity to compute an approximate P-value for a score.
@@ -311,7 +294,9 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
     /// some scoring matrices. Use `approximate_score` directly to add
     /// limits on the number of iterations or on the granularity.
     pub fn score(&mut self, pvalue: f64) -> f64 {
-        self.approximate_score(pvalue).last().unwrap().score
+        let it = self.approximate_score(pvalue).last().unwrap();
+        assert!(it.converged); // algorithm should always converge
+        it.score
     }
 
     /// Iterate with decreasing granularity to compute an approximate score for a P-value.
@@ -331,6 +316,16 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
 }
 
 #[derive(Debug)]
+pub struct Iteration {
+    pub score: f64,
+    pub range: RangeInclusive<f64>,
+    pub granularity: f64,
+    pub converged: bool,
+    #[allow(unused)]
+    _hidden: (),
+}
+
+#[derive(Debug)]
 pub struct PvaluesIterator<'pssm, 'tfmp, A: Alphabet> {
     tfmp: &'tfmp mut TfmPvalue<'pssm, A>,
     score: f64,
@@ -340,14 +335,8 @@ pub struct PvaluesIterator<'pssm, 'tfmp, A: Alphabet> {
     converged: bool,
 }
 
-#[derive(Debug)]
-pub struct PvaluesIteration {
-    range: RangeInclusive<f64>,
-    granularity: f64,
-}
-
 impl<'pssm, 'tfmp, A: Alphabet> Iterator for PvaluesIterator<'pssm, 'tfmp, A> {
-    type Item = PvaluesIteration;
+    type Item = Iteration;
     fn next(&mut self) -> Option<Self::Item> {
         if self.converged || self.granularity <= self.target {
             return None;
@@ -356,14 +345,19 @@ impl<'pssm, 'tfmp, A: Alphabet> Iterator for PvaluesIterator<'pssm, 'tfmp, A> {
         self.tfmp.recompute(self.granularity);
         let granularity = self.granularity;
         let range = self.tfmp.lookup_pvalue(self.score);
-        let converged = range.start() == range.end();
 
         self.granularity *= self.decay;
-        if converged {
+        if range.start() == range.end() {
             self.converged = true;
         }
 
-        Some(PvaluesIteration { range, granularity })
+        Some(Iteration {
+            range,
+            granularity,
+            converged: self.converged,
+            score: self.score,
+            _hidden: (),
+        })
     }
 }
 
@@ -380,14 +374,8 @@ pub struct ScoresIterator<'pssm, 'tfmp, A: Alphabet> {
     max: i64,
 }
 
-pub struct ScoresIteration {
-    score: f64,
-    range: RangeInclusive<f64>,
-    granularity: f64,
-}
-
 impl<'pssm, 'tfmp, A: Alphabet> Iterator for ScoresIterator<'pssm, 'tfmp, A> {
-    type Item = ScoresIteration;
+    type Item = Iteration;
     fn next(&mut self) -> Option<Self::Item> {
         if self.converged || self.granularity <= self.target {
             return None;
@@ -395,25 +383,25 @@ impl<'pssm, 'tfmp, A: Alphabet> Iterator for ScoresIterator<'pssm, 'tfmp, A> {
 
         self.tfmp.recompute(self.granularity);
         let granularity = self.granularity;
-
-        let (iscore, pmin, pmax) = self
+        let (iscore, range) = self
             .tfmp
             .lookup_score(self.pvalue, RangeInclusive::new(self.min, self.max));
-        if pmin == pmax {
-            self.converged = true;
-        }
 
         self.granularity *= self.decay;
         self.min =
             ((iscore as f64 - (self.tfmp.error_max + 0.5).ceil()) / self.decay).floor() as i64;
         self.max =
             ((iscore as f64 + (self.tfmp.error_max + 0.5).ceil()) / self.decay).floor() as i64;
+        if range.start() == range.end() {
+            self.converged = true;
+        }
 
-        let score = (iscore - self.tfmp.offset) as f64 / self.tfmp.scale;
-        Some(ScoresIteration {
-            score,
+        Some(Iteration {
             granularity,
-            range: RangeInclusive::new(pmin, pmax),
+            range,
+            score: (iscore - self.tfmp.offset) as f64 / self.tfmp.scale,
+            converged: self.converged,
+            _hidden: (),
         })
     }
 }
@@ -504,12 +492,10 @@ impl<'pssm, 'tfmp, A: Alphabet> Iterator for ScoresIterator<'pssm, 'tfmp, A> {
 #[cfg(test)]
 mod test {
     use lightmotif::abc::Alphabet;
-    use lightmotif::abc::Background;
     use lightmotif::abc::Dna;
     use lightmotif::abc::Nucleotide;
     use lightmotif::abc::Symbol;
     use lightmotif::dense::DenseMatrix;
-    use lightmotif::num::Unsigned;
     use lightmotif::pwm::CountMatrix;
 
     use super::*;
