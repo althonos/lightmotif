@@ -1,5 +1,7 @@
 //! Storage types for the different stages of a PSSM construction.
 
+use std::ops::Index;
+
 use typenum::marker_traits::Unsigned;
 
 use super::abc::Alphabet;
@@ -10,6 +12,28 @@ use super::abc::Symbol;
 use super::dense::DenseMatrix;
 use super::err::InvalidData;
 use super::seq::EncodedSequence;
+
+macro_rules! matrix_traits {
+    ($mx:ident, $t:ty) => {
+        impl<A: Alphabet> AsRef<$mx<A>> for $mx<A> {
+            fn as_ref(&self) -> &Self {
+                self
+            }
+        }
+        impl<A: Alphabet> AsRef<DenseMatrix<$t, A::K>> for $mx<A> {
+            fn as_ref(&self) -> &DenseMatrix<$t, A::K> {
+                &self.data
+            }
+        }
+        impl<A: Alphabet> Index<usize> for $mx<A> {
+            type Output = <DenseMatrix<$t, A::K> as Index<usize>>::Output;
+            #[inline]
+            fn index(&self, index: usize) -> &Self::Output {
+                self.data.index(index)
+            }
+        }
+    };
+}
 
 // --- CountMatrix -------------------------------------------------------------
 
@@ -121,12 +145,6 @@ impl<A: ComplementableAlphabet> CountMatrix<A> {
     }
 }
 
-impl<A: Alphabet> AsRef<DenseMatrix<u32, A::K>> for CountMatrix<A> {
-    fn as_ref(&self) -> &DenseMatrix<u32, A::K> {
-        &self.data
-    }
-}
-
 impl<A: Alphabet> FromIterator<EncodedSequence<A>> for Result<CountMatrix<A>, InvalidData> {
     fn from_iter<I>(iter: I) -> Self
     where
@@ -135,6 +153,8 @@ impl<A: Alphabet> FromIterator<EncodedSequence<A>> for Result<CountMatrix<A>, In
         CountMatrix::from_sequences(iter)
     }
 }
+
+matrix_traits!(CountMatrix, u32);
 
 // --- FrequencyMatrix ---------------------------------------------------------
 
@@ -155,6 +175,11 @@ impl<A: Alphabet> FrequencyMatrix<A> {
     }
 
     /// Convert to a weight matrix using the given background frequencies.
+    ///
+    /// # Note
+    /// By convention, columns with null background frequencies receive an
+    /// odds-ratio of zero, which will then translate into a log-odds-ratio
+    /// of `-f32::INFINITY` in the resulting scoring matrix.
     pub fn to_weight<B>(&self, background: B) -> WeightMatrix<A>
     where
         B: Into<Option<Background<A>>>,
@@ -163,13 +188,21 @@ impl<A: Alphabet> FrequencyMatrix<A> {
         let mut weight = DenseMatrix::new(self.data.rows());
         for (src, dst) in self.data.iter().zip(weight.iter_mut()) {
             for (j, (&x, &f)) in src.iter().zip(bg.frequencies()).enumerate() {
-                dst[j] = x / f;
+                if f <= 0.0 {
+                    dst[j] = 0.0;
+                } else {
+                    dst[j] = x / f;
+                }
             }
         }
         WeightMatrix::new_unchecked(bg, weight)
     }
 
     /// Convert to a scoring matrix using the given background frequencies.
+    ///
+    /// # Note
+    /// By convention, columns with null background frequencies receive a
+    /// log-odds-ratio of `-f32::INFINITY`.
     pub fn to_scoring<B>(&self, background: B) -> ScoringMatrix<A>
     where
         B: Into<Option<Background<A>>>,
@@ -178,21 +211,19 @@ impl<A: Alphabet> FrequencyMatrix<A> {
         let mut scores = DenseMatrix::new(self.data.rows());
         for (src, dst) in self.data.iter().zip(scores.iter_mut()) {
             for (j, (&x, &f)) in src.iter().zip(bg.frequencies()).enumerate() {
-                dst[j] = (x / f).log2();
+                if f <= 0.0 {
+                    dst[j] = -f32::INFINITY;
+                } else {
+                    dst[j] = (x / f).log2();
+                }
             }
         }
         ScoringMatrix::new(bg, scores)
     }
 }
 
-impl<A: Alphabet> AsRef<DenseMatrix<f32, A::K>> for FrequencyMatrix<A> {
-    fn as_ref(&self) -> &DenseMatrix<f32, A::K> {
-        &self.data
-    }
-}
-
 impl<A: ComplementableAlphabet> FrequencyMatrix<A> {
-    /// Get the reverse-complement of this count matrix.
+    /// Get the reverse-complement of this frequency matrix.
     pub fn reverse_complement(&self) -> Self {
         let mut data = DenseMatrix::new(self.data.rows());
         for (i, row) in self.data.iter().rev().enumerate() {
@@ -203,6 +234,8 @@ impl<A: ComplementableAlphabet> FrequencyMatrix<A> {
         Self::new_unchecked(data)
     }
 }
+
+matrix_traits!(FrequencyMatrix, f32);
 
 // --- WeightMatrix ------------------------------------------------------------
 
@@ -275,7 +308,7 @@ impl<A: Alphabet> WeightMatrix<A> {
 }
 
 impl<A: ComplementableAlphabet> WeightMatrix<A> {
-    /// Get the reverse-complement of this count matrix.
+    /// Get the reverse-complement of this weight matrix.
     pub fn reverse_complement(&self) -> Self {
         let mut data = DenseMatrix::new(self.data.rows());
         for (i, row) in self.data.iter().rev().enumerate() {
@@ -284,18 +317,6 @@ impl<A: ComplementableAlphabet> WeightMatrix<A> {
             }
         }
         Self::new_unchecked(self.background.clone(), data)
-    }
-}
-
-impl<A: Alphabet> AsRef<WeightMatrix<A>> for WeightMatrix<A> {
-    fn as_ref(&self) -> &Self {
-        self
-    }
-}
-
-impl<A: Alphabet> AsRef<DenseMatrix<f32, A::K>> for WeightMatrix<A> {
-    fn as_ref(&self) -> &DenseMatrix<f32, A::K> {
-        &self.data
     }
 }
 
@@ -312,6 +333,8 @@ impl<A: Alphabet> From<ScoringMatrix<A>> for WeightMatrix<A> {
     }
 }
 
+matrix_traits!(WeightMatrix, f32);
+
 // --- ScoringMatrix -----------------------------------------------------------
 
 /// A matrix storing odds ratio of symbol occurences at each position.
@@ -322,7 +345,7 @@ pub struct ScoringMatrix<A: Alphabet> {
 }
 
 impl<A: ComplementableAlphabet> ScoringMatrix<A> {
-    /// Get the reverse-complement of this count matrix.
+    /// Get the reverse-complement of this scoring matrix.
     pub fn reverse_complement(&self) -> Self {
         let mut data = DenseMatrix::new(self.data.rows());
         for (i, row) in self.data.iter().rev().enumerate() {
@@ -375,27 +398,10 @@ impl<A: Alphabet> ScoringMatrix<A> {
     }
 }
 
-impl<A: Alphabet> AsRef<ScoringMatrix<A>> for ScoringMatrix<A> {
-    fn as_ref(&self) -> &Self {
-        self
-    }
-}
-
-impl<A: Alphabet> AsRef<DenseMatrix<f32, A::K>> for ScoringMatrix<A> {
-    fn as_ref(&self) -> &DenseMatrix<f32, A::K> {
-        &self.data
-    }
-}
-
 impl<A: Alphabet> From<WeightMatrix<A>> for ScoringMatrix<A> {
     fn from(pwm: WeightMatrix<A>) -> Self {
-        let background = pwm.background;
-        let mut data = pwm.data;
-        for row in data.iter_mut() {
-            for item in row.iter_mut() {
-                *item = item.log2();
-            }
-        }
-        ScoringMatrix { background, data }
+        pwm.to_scoring()
     }
 }
+
+matrix_traits!(ScoringMatrix, f32);
