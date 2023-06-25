@@ -212,21 +212,19 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
         let min = *range.start();
         let max = *range.end();
 
-        // println!("max_s: {}", max);
-        // println!("min_s: {}", min);
-
         // compute q values
         let qvalues = self.distribution(min, max);
         let mut pvalues = HashMap::new();
 
+        // find most likely scores at the end of the matrix
         let mut keys = qvalues[M - 1].keys().cloned().collect::<Vec<_>>();
         keys.sort_unstable_by(|x, y| x.partial_cmp(&y).unwrap());
 
+        // compute pvalues
         let mut sum = 0.0;
         let mut riter = keys.len() - 1;
         let alpha;
         let alpha_e;
-
         while riter > 0 {
             sum += qvalues[M - 1][&keys[riter]];
             pvalues.insert(keys[riter], sum);
@@ -287,7 +285,7 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
     }
 
     /// Compute the exact score associated with a given P-value.
-    ///     
+    ///
     /// # Caution
     /// This method internally calls `approximate_score` without bounds on
     /// the granularity, which may require a very large amount of memory for
@@ -315,11 +313,17 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
     }
 }
 
+/// The result of an iteration of the TFMPvalue algorithm.
 #[derive(Debug)]
 pub struct Iteration {
+    /// The score computed for the current iteration, or the query score
+    /// if approximating p-value.
     pub score: f64,
+    /// The p-value range for the current iteration.
     pub range: RangeInclusive<f64>,
+    /// The granularity with which scores and p-values were computed.
     pub granularity: f64,
+    /// A flag to mark whether the approximation converged on this iteration.
     pub converged: bool,
     #[allow(unused)]
     _hidden: (),
@@ -406,89 +410,6 @@ impl<'pssm, 'tfmp, A: Alphabet> Iterator for ScoresIterator<'pssm, 'tfmp, A> {
     }
 }
 
-// impl<'tfmp, 'pssm: 'tfmp, A: Alphabet> PvaluesIterator<'pssm, 'tfmp, A> {
-
-// }
-
-// fn score2pval<A: Alphabet>(matrix: &ScoringMatrix<A>, score: f64) -> f64 {
-//     let mut granularity = 0.1;
-//     let max_granularity = 1e-10;
-//     let dec_granularity = 0.1;
-
-//     let mut pmin = f64::NAN;
-//     let mut pmax = f64::NAN;
-//     let mut tfmp = TfmPvalue::new(matrix);
-
-//     while granularity > max_granularity && pmin != pmax {
-//         tfmp.recompute(granularity);
-
-//         // println!("mat: {:?}", tfmp.matrix.weights());
-//         // println!("matInt: {:?}", tfmp.int_matrix);
-//         // println!("error_max: {:?}", tfmp.error_max);
-//         // println!("offset: {:?}", tfmp.offsets.iter().sum::<i64>());
-//         // println!("offsets: {:?}", tfmp.offsets);
-
-//         (pmin, pmax) = tfmp.lookup_pvalue(score).into_inner();
-//         // println!("{:?}: {:?}", granularity, (pmin, pmax));
-//         if pmin == pmax {
-//             break;
-//         }
-
-//         // break;
-
-//         // let avg_s = score * matrix.granularity + matrix.offset;
-//         // let max_s = avg_s + matrix.error_max + 1;
-//         // let min_s = avg_s - matrix.error_max - 1;
-
-//         // look_for_pvalue(matrix, avg_s, min_s, max_s);
-//         granularity *= dec_granularity;
-//     }
-
-//     pmax
-// }
-
-// fn pval2score<A: Alphabet>(matrix: &ScoringMatrix<A>, pvalue: f64) -> f64 {
-//     let mut granularity = 0.1;
-//     let max_granularity = 1e-10;
-//     let dec_granularity = 0.1;
-
-//     let mut score = 0;
-//     let mut fmin = 0.0;
-//     let mut fmax = 0.0;
-
-//     let mut tfmp = TfmPvalue::new(matrix);
-//     tfmp.recompute(granularity);
-
-//     let mut min = tfmp.min_score_rows.iter().sum::<i64>();
-//     let mut max = tfmp.max_score_rows.iter().sum::<i64>() + (tfmp.error_max + 0.5).ceil() as i64;
-
-//     while granularity > max_granularity {
-//         // println!("mat: {:?}", tfmp.matrix.weights());
-//         // println!("matInt: {:?}", tfmp.int_matrix);
-//         // println!("error_max: {:?}", tfmp.error_max);
-//         // println!("offset: {:?}", tfmp.offsets.iter().sum::<i64>());
-//         // println!("offsets: {:?}", tfmp.offsets);
-
-//         (score, fmin, fmax) = tfmp.lookup_score(pvalue, RangeInclusive::new(min, max));
-//         // println!("score={:?} fmin={:?} fmax={:?}", score, fmin, fmax);
-//         if fmin == fmax {
-//             break;
-//         }
-
-//         // let avg_s = score * matrix.granularity + matrix.offset;
-//         // let max_s = avg_s + matrix.error_max + 1;
-//         // let min_s = avg_s - matrix.error_max - 1;
-
-//         // look_for_pvalue(matrix, avg_s, min_s, max_s);
-//         min = ((score as f64 - (tfmp.error_max + 0.5).ceil()) / dec_granularity).floor() as i64;
-//         max = ((score as f64 + (tfmp.error_max + 0.5).ceil()) / dec_granularity).floor() as i64;
-//         granularity *= dec_granularity;
-//         tfmp.recompute(granularity);
-//     }
-
-//     (score - tfmp.offset) as f64 / tfmp.scale
-// }
-
 #[cfg(test)]
 mod test {
     use lightmotif::abc::Alphabet;
@@ -531,7 +452,7 @@ mod test {
     }
 
     #[test]
-    fn test_score2pval() {
+    fn score2pval() {
         let pssm = build_ma0045();
         let mut tfmp = TfmPvalue::new(&pssm);
 
@@ -541,7 +462,7 @@ mod test {
     }
 
     #[test]
-    fn test_pval2score() {
+    fn pval2score() {
         let pssm = build_ma0045();
         let mut tfmp = TfmPvalue::new(&pssm);
 
