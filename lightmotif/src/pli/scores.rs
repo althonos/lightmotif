@@ -26,8 +26,8 @@ impl<C: Unsigned + NonZero> StripedScores<C> {
     }
 
     /// Create an empty score matrix with the given length and row count.
-    pub fn empty(length: usize, rows: usize) -> Self {
-        Self::new(length, DenseMatrix::new(rows))
+    pub fn empty() -> Self {
+        Self::new(0, DenseMatrix::new(0))
     }
 
     /// Return the number of scored positions.
@@ -45,34 +45,11 @@ impl<C: Unsigned + NonZero> StripedScores<C> {
         &mut self.data
     }
 
-    /// Create a new matrix large enough to store the scores of `pssm` applied to `seq`.
-    pub fn new_for<S, M, A>(seq: S, pssm: M) -> Self
-    where
-        A: Alphabet,
-        S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<ScoringMatrix<A>>,
-    {
-        let seq = seq.as_ref();
-        let pssm = pssm.as_ref();
-        Self::empty(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap)
-    }
-
-    /// Resize the striped scores storage to the given length and number of rows.
+    /// Resize the striped scores storage to the given length and row number.
+    #[doc(hidden)]
     pub fn resize(&mut self, length: usize, rows: usize) {
         self.length = length;
         self.data.resize(rows);
-    }
-
-    /// Resize the striped scores storage to store the scores of `pssm` applied to `seq`.
-    pub fn resize_for<S, M, A>(&mut self, seq: S, pssm: M)
-    where
-        A: Alphabet,
-        S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<ScoringMatrix<A>>,
-    {
-        let seq = seq.as_ref();
-        let pssm = pssm.as_ref();
-        self.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
     }
 
     /// Iterate over scores of individual sequence positions.
@@ -95,6 +72,12 @@ impl<C: Unsigned + NonZero> AsRef<DenseMatrix<f32, C>> for StripedScores<C> {
 impl<C: Unsigned + NonZero> AsMut<DenseMatrix<f32, C>> for StripedScores<C> {
     fn as_mut(&mut self) -> &mut DenseMatrix<f32, C> {
         self.matrix_mut()
+    }
+}
+
+impl<C: Unsigned + NonZero> Default for StripedScores<C> {
+    fn default() -> Self {
+        StripedScores::empty()
     }
 }
 

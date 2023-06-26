@@ -37,7 +37,7 @@ fn bench_lightmotif<C: StrictlyPositive, P: Score<Dna, C> + BestPosition<C>>(
     let pssm = pbm.to_scoring(bg);
 
     striped.configure(&pssm);
-    let mut scores = StripedScores::new_for(&striped, &pssm);
+    let mut scores = StripedScores::empty();
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
         pli.score_into(&striped, &pssm, &mut scores);

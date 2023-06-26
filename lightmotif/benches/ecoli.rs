@@ -28,7 +28,7 @@ fn bench<C: StrictlyPositive, P: Score<Dna, C>>(bencher: &mut test::Bencher, pli
     let pssm = pbm.to_scoring(None);
 
     striped.configure(&pssm);
-    let mut scores = StripedScores::new_for(&striped, &pssm);
+    let mut scores = StripedScores::empty();
     bencher.bytes = SEQUENCE.len() as u64;
     bencher.iter(|| {
         pli.score_into(&striped, &pssm, &mut scores);
