@@ -37,7 +37,7 @@ macro_rules! matrix_traits {
 
 // --- CountMatrix -------------------------------------------------------------
 
-/// A matrix storing symbol occurences at each position.
+/// A matrix storing symbol occurrences at each position.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CountMatrix<A: Alphabet> {
     /// The alphabet of the count matrix.
@@ -239,7 +239,7 @@ matrix_traits!(FrequencyMatrix, f32);
 
 // --- WeightMatrix ------------------------------------------------------------
 
-/// A matrix storing odds ratio of symbol occurences at each position.
+/// A matrix storing odds ratio of symbol occurrences at each position.
 #[derive(Clone, Debug, PartialEq)]
 pub struct WeightMatrix<A: Alphabet> {
     background: Background<A>,
@@ -337,7 +337,7 @@ matrix_traits!(WeightMatrix, f32);
 
 // --- ScoringMatrix -----------------------------------------------------------
 
-/// A matrix storing odds ratio of symbol occurences at each position.
+/// A matrix storing odds ratio of symbol occurrences at each position.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ScoringMatrix<A: Alphabet> {
     background: Background<A>,

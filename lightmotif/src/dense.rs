@@ -34,7 +34,7 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
 
     /// Create a new *uninitialized* matrix with the given number of rows.
     pub unsafe fn uninitialized(rows: usize) -> Self {
-        // alway over-allocate columns to avoid alignment issues.
+        // Always over-allocate columns to avoid alignment issues.
         let c = C::USIZE.next_power_of_two();
 
         // NOTE: this is unsafe but given that we require `T` to be
@@ -96,7 +96,7 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
 
     /// Change the number of rows of the matrix.
     pub fn resize(&mut self, rows: usize) {
-        // alway over-allocate columns to avoid alignment issues.
+        // Always over-allocate columns to avoid alignment issues.
         let c = C::USIZE.next_power_of_two();
 
         //
