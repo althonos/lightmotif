@@ -60,10 +60,7 @@ jobs:
         - pp39-manylinux_x86_64
     steps:
     - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
+    - uses: dtolnay/rust-toolchain@stable
     - name: Build manylinux wheels
       uses: pypa/cibuildwheel@v2.11.3
       env:
@@ -97,10 +94,7 @@ jobs:
         - pp39-macosx_x86_64
     steps:
     - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
+    - uses: dtolnay/rust-toolchain@stable
     - name: Build manylinux wheels
       uses: pypa/cibuildwheel@v2.11.3
       env:
@@ -131,11 +125,9 @@ jobs:
         - cp311-macosx_arm64
     steps:
     - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
+    - uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: stable
-        override: true
-        target: aarch64-apple-darwin
+        targets: aarch64-apple-darwin
     - name: Build manylinux wheels
       uses: pypa/cibuildwheel@v2.11.3
       env:
@@ -169,10 +161,7 @@ jobs:
         - pp39-win_amd64
     steps:
     - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
+    - uses: dtolnay/rust-toolchain@stable
     - name: Build manylinux wheels
       uses: pypa/cibuildwheel@v2.11.3
       env:
