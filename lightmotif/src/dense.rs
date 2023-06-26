@@ -99,31 +99,35 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
         // Always over-allocate columns to avoid alignment issues.
         let c = C::USIZE.next_power_of_two();
 
-        //
+        // Cache previous dimensions
         let previous_rows = self.rows();
         let previous_offset = if self.rows() == 0 { 0 } else { self.indices[0] };
 
-        // allocate data block
-        self.data.resize_with((rows + 1) * c, T::default);
-
-        // compute offset to aligned memory
-        let mut offset = 0;
-        while self.data[offset..].as_ptr() as usize % c > 0 {
-            offset += 1
-        }
-
-        // copy data in case alignment offset changed
-        if previous_offset != offset {
-            self.data.as_mut_slice().copy_within(
-                previous_offset..previous_offset + (previous_rows * c),
-                offset,
-            );
-        }
-
-        // record row coordinates
-        self.indices.resize(rows, 0);
-        for i in 0..rows {
-            self.indices[i] = offset + i * c;
+        // Only reallocate if needed
+        if previous_rows > rows {
+            // Truncate rows
+            self.data.truncate((rows + 1) * c);
+            self.indices.truncate(rows);
+        } else if previous_rows < rows {
+            // Allocate data block
+            self.data.resize_with((rows + 1) * c, T::default);
+            // Compute offset to aligned memory
+            let mut offset = 0;
+            while self.data[offset..].as_ptr() as usize % c > 0 {
+                offset += 1
+            }
+            // Copy data in case alignment offset changed
+            if previous_offset != offset {
+                self.data.as_mut_slice().copy_within(
+                    previous_offset..previous_offset + (previous_rows * c),
+                    offset,
+                );
+            }
+            // Record row coordinates
+            self.indices.resize(rows, 0);
+            for i in 0..rows {
+                self.indices[i] = offset + i * c;
+            }
         }
     }
 
