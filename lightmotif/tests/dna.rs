@@ -95,6 +95,10 @@ fn test_threshold<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(pli: &P)
     let mut positions = pli.threshold(&result, -10.0);
     positions.sort_unstable();
     assert_eq!(positions, vec![18, 27, 32]);
+
+    let mut positions = pli.threshold(&result, -15.0);
+    positions.sort_unstable();
+    assert_eq!(positions, vec![10, 13, 14, 18, 24, 27, 32, 35, 40, 47]);
 }
 
 #[test]

@@ -8,7 +8,6 @@ use std::ops::Div;
 use std::ops::Rem;
 
 use typenum::consts::U16;
-use typenum::consts::U4;
 use typenum::marker_traits::Unsigned;
 use typenum::marker_traits::Zero;
 
@@ -234,7 +233,7 @@ where
                     ((offset + 12) * data.rows()) as i32,
                 );
                 // Process rows iteratively
-                for (i, row) in data.iter().enumerate() {
+                for row in data.iter() {
                     // load scores for the current row
                     let r1 = _mm_load_ps(row[offset + 0x00..].as_ptr());
                     let r2 = _mm_load_ps(row[offset + 0x04..].as_ptr());
