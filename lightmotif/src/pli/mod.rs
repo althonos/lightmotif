@@ -183,7 +183,17 @@ where
     }
 }
 
-impl<A: Alphabet, C: StrictlyPositive> Threshold<C> for Pipeline<A, Sse2> {}
+impl<A: Alphabet, C: StrictlyPositive> Threshold<C> for Pipeline<A, Sse2>
+where
+    A: Alphabet,
+    C: StrictlyPositive + Rem<U16> + Div<U16>,
+    <C as Rem<U16>>::Output: Zero,
+    <C as Div<U16>>::Output: Unsigned,
+{
+    fn threshold(&self, scores: &StripedScores<C>, threshold: f32) -> Vec<usize> {
+        Sse2::threshold(scores, threshold)
+    }
+}
 
 // --- AVX2 pipeline -----------------------------------------------------------
 
@@ -217,6 +227,7 @@ impl<A: Alphabet> BestPosition<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
         Avx2::best_position(scores)
     }
 }
+
 impl<A: Alphabet> Threshold<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {}
 
 // --- NEON pipeline -----------------------------------------------------------
