@@ -9,6 +9,7 @@ use lightmotif::num::U32;
 use lightmotif::pli::BestPosition;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
+use lightmotif::pli::Threshold;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::seq::EncodedSequence;
 use lightmotif::seq::StripedSequence;
@@ -77,6 +78,25 @@ fn test_best_position<C: StrictlyPositive, P: Score<Dna, C> + BestPosition<C>>(p
     assert_eq!(pli.best_position(&result), Some(18));
 }
 
+fn test_threshold<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(pli: &P) {
+    let mut striped = StripedSequence::<Dna, C>::encode(SEQUENCE).unwrap();
+
+    let cm = CountMatrix::<Dna>::from_sequences(
+        PATTERNS.iter().map(|x| EncodedSequence::encode(x).unwrap()),
+    )
+    .unwrap();
+    let pbm = cm.to_freq(0.1);
+    let pwm = pbm.to_weight(None);
+    let pssm = pwm.into();
+
+    striped.configure(&pssm);
+    let result = pli.score(&striped, &pssm);
+
+    let mut positions = pli.threshold(&result, -10.0);
+    positions.sort_unstable();
+    assert_eq!(positions, vec![18, 27, 32]);
+}
+
 #[test]
 fn test_score_generic() {
     let pli = Pipeline::generic();
@@ -89,6 +109,12 @@ fn test_best_position_generic() {
     let pli = Pipeline::generic();
     test_best_position::<U32, _>(&pli);
     test_best_position::<U1, _>(&pli);
+}
+
+#[test]
+fn test_threshold_generic() {
+    let pli = Pipeline::generic();
+    test_threshold::<U32, _>(&pli);
 }
 
 #[cfg(target_feature = "sse2")]
@@ -107,6 +133,13 @@ fn test_best_position_sse2() {
 
 #[cfg(target_feature = "sse2")]
 #[test]
+fn test_threshold_sse2() {
+    let pli = Pipeline::sse2().unwrap();
+    test_threshold::<U16, _>(&pli);
+}
+
+#[cfg(target_feature = "sse2")]
+#[test]
 fn test_score_sse2_32() {
     let pli = Pipeline::sse2().unwrap();
     test_score::<U32, _>(&pli);
@@ -117,6 +150,13 @@ fn test_score_sse2_32() {
 fn test_best_position_sse2_32() {
     let pli = Pipeline::sse2().unwrap();
     test_best_position::<U32, _>(&pli);
+}
+
+#[cfg(target_feature = "sse2")]
+#[test]
+fn test_threshold_sse2_32() {
+    let pli = Pipeline::sse2().unwrap();
+    test_threshold::<U32, _>(&pli);
 }
 
 #[cfg(target_feature = "avx2")]
@@ -133,6 +173,13 @@ fn test_best_position_avx2() {
     test_best_position(&pli);
 }
 
+#[cfg(target_feature = "avx2")]
+#[test]
+fn test_threshold_avx2() {
+    let pli = Pipeline::avx2().unwrap();
+    test_threshold::<U32, _>(&pli);
+}
+
 #[cfg(target_feature = "neon")]
 #[test]
 fn test_score_neon() {
@@ -145,4 +192,11 @@ fn test_score_neon() {
 fn test_best_position_neon() {
     let pli = Pipeline::neon().unwrap();
     test_best_position::<U16, _>(&pli);
+}
+
+#[cfg(target_feature = "neon")]
+#[test]
+fn test_threshold_neon() {
+    let pli = Pipeline::neon().unwrap();
+    test_threshold::<U16, _>(&pli);
 }

@@ -81,19 +81,34 @@ pub trait BestPosition<C: StrictlyPositive> {
             return None;
         }
 
-        let data = scores.matrix();
         let mut best_pos = 0;
-        let mut best_score = data[0][0];
-        for i in 0..scores.len() {
-            let col = i / data.rows();
-            let row = i % data.rows();
-            if data[row][col] > best_score {
-                best_score = data[row][col];
+        let mut best_score = scores[0];
+        for i in 1..scores.len() {
+            if scores[i] > best_score {
+                best_score = scores[i];
                 best_pos = i;
             }
         }
 
         Some(best_pos)
+    }
+}
+
+/// Generic trait for finding positions above a score threshold in a striped score matrix.
+pub trait Threshold<C: StrictlyPositive> {
+    /// Return the indices of positions with score equal to or greater than the threshold.
+    ///
+    /// # Note
+    ///
+    /// The indices may or may not be sorted, depending on the implementation.
+    fn threshold(&self, scores: &StripedScores<C>, threshold: f32) -> Vec<usize> {
+        let mut positions = Vec::new();
+        for i in 0..scores.len() {
+            if scores[i] >= threshold {
+                positions.push(i);
+            }
+        }
+        positions
     }
 }
 
@@ -121,6 +136,8 @@ impl<A: Alphabet> Pipeline<A, Generic> {
 impl<A: Alphabet, C: StrictlyPositive> Score<A, C> for Pipeline<A, Generic> {}
 
 impl<A: Alphabet, C: StrictlyPositive> BestPosition<C> for Pipeline<A, Generic> {}
+
+impl<A: Alphabet, C: StrictlyPositive> Threshold<C> for Pipeline<A, Generic> {}
 
 // --- SSE2 pipeline -----------------------------------------------------------
 
@@ -166,6 +183,8 @@ where
     }
 }
 
+impl<A: Alphabet, C: StrictlyPositive> Threshold<C> for Pipeline<A, Sse2> {}
+
 // --- AVX2 pipeline -----------------------------------------------------------
 
 impl<A: Alphabet> Pipeline<A, Avx2> {
@@ -198,6 +217,7 @@ impl<A: Alphabet> BestPosition<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
         Avx2::best_position(scores)
     }
 }
+impl<A: Alphabet> Threshold<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {}
 
 // --- NEON pipeline -----------------------------------------------------------
 
@@ -233,6 +253,15 @@ where
 }
 
 impl<A, C> BestPosition<C> for Pipeline<A, Neon>
+where
+    A: Alphabet,
+    C: StrictlyPositive + Rem<U16> + Div<U16>,
+    <C as Rem<U16>>::Output: Zero,
+    <C as Div<U16>>::Output: Unsigned,
+{
+}
+
+impl<A, C> Threshold<C> for Pipeline<A, Neon>
 where
     A: Alphabet,
     C: StrictlyPositive + Rem<U16> + Div<U16>,

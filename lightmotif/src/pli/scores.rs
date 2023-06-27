@@ -7,10 +7,7 @@ use std::ops::Range;
 use typenum::marker_traits::NonZero;
 use typenum::marker_traits::Unsigned;
 
-use crate::abc::Alphabet;
 use crate::dense::DenseMatrix;
-use crate::pwm::ScoringMatrix;
-use crate::seq::StripedSequence;
 
 /// Striped matrix storing scores for an equally striped sequence.
 #[derive(Clone, Debug)]
