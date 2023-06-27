@@ -197,40 +197,40 @@ where
         Vec::new()
     } else {
         let data = scores.matrix();
-        let mut indices = vec![0; data.columns() * data.rows()];
-
+        let rows = data.rows();
+        let mut indices = vec![0; data.columns() * rows];
         unsafe {
-            // NOTE(@althonos): `u32::MAX` is used as a sentinel for which
-            //                  the indices will be removed
+            // NOTE(@althonos): Using `u32::MAX` as a sentinel instead of `0`
+            //                  because `0` may be a valid index.
             let max = _mm_set1_epi32(u32::MAX as i32);
             let t = _mm_set1_ps(threshold);
-            let mut dst = indices.as_mut_ptr();
-
+            let ones = _mm_set1_epi32(1);
+            let mut dst = indices.as_mut_ptr() as *mut __m128i;
             for offset in (0..<C as Div<U16>>::Output::USIZE).map(|i| i * 16) {
-                // compute real sequence index for each row of the striped scores
+                // compute real sequence index for each column of the striped scores
                 let mut x1 = _mm_set_epi32(
-                    ((offset + 3) * data.rows()) as i32,
-                    ((offset + 2) * data.rows()) as i32,
-                    ((offset + 1) * data.rows()) as i32,
-                    ((offset + 0) * data.rows()) as i32,
+                    ((offset + 3) * rows) as i32,
+                    ((offset + 2) * rows) as i32,
+                    ((offset + 1) * rows) as i32,
+                    ((offset + 0) * rows) as i32,
                 );
                 let mut x2 = _mm_set_epi32(
-                    ((offset + 7) * data.rows()) as i32,
-                    ((offset + 6) * data.rows()) as i32,
-                    ((offset + 5) * data.rows()) as i32,
-                    ((offset + 4) * data.rows()) as i32,
+                    ((offset + 7) * rows) as i32,
+                    ((offset + 6) * rows) as i32,
+                    ((offset + 5) * rows) as i32,
+                    ((offset + 4) * rows) as i32,
                 );
                 let mut x3 = _mm_set_epi32(
-                    ((offset + 11) * data.rows()) as i32,
-                    ((offset + 10) * data.rows()) as i32,
-                    ((offset + 9) * data.rows()) as i32,
-                    ((offset + 8) * data.rows()) as i32,
+                    ((offset + 11) * rows) as i32,
+                    ((offset + 10) * rows) as i32,
+                    ((offset + 9) * rows) as i32,
+                    ((offset + 8) * rows) as i32,
                 );
                 let mut x4 = _mm_set_epi32(
-                    ((offset + 15) * data.rows()) as i32,
-                    ((offset + 14) * data.rows()) as i32,
-                    ((offset + 13) * data.rows()) as i32,
-                    ((offset + 12) * data.rows()) as i32,
+                    ((offset + 15) * rows) as i32,
+                    ((offset + 14) * rows) as i32,
+                    ((offset + 13) * rows) as i32,
+                    ((offset + 12) * rows) as i32,
                 );
                 // Process rows iteratively
                 for row in data.iter() {
@@ -254,19 +254,21 @@ where
                     let i3 = _mm_or_si128(_mm_and_si128(x3, m3), _mm_andnot_si128(m3, max));
                     let i4 = _mm_or_si128(_mm_and_si128(x4, m4), _mm_andnot_si128(m4, max));
                     // Store masked indices into the destination vector
-                    _mm_storeu_si128(dst.add(0x00) as *mut __m128i, i1);
-                    _mm_storeu_si128(dst.add(0x04) as *mut __m128i, i2);
-                    _mm_storeu_si128(dst.add(0x08) as *mut __m128i, i3);
-                    _mm_storeu_si128(dst.add(0x0c) as *mut __m128i, i4);
+                    _mm_storeu_si128(dst, i1);
+                    _mm_storeu_si128(dst.add(1), i2);
+                    _mm_storeu_si128(dst.add(2), i3);
+                    _mm_storeu_si128(dst.add(3), i4);
                     // Advance result buffer to next row
-                    dst = dst.add(16);
+                    dst = dst.add(4);
                     // Advance sequence indices to next row
-                    x1 = _mm_add_epi32(x1, _mm_set1_epi32(1));
-                    x2 = _mm_add_epi32(x2, _mm_set1_epi32(1));
-                    x3 = _mm_add_epi32(x3, _mm_set1_epi32(1));
-                    x4 = _mm_add_epi32(x4, _mm_set1_epi32(1));
+                    x1 = _mm_add_epi32(x1, ones);
+                    x2 = _mm_add_epi32(x2, ones);
+                    x3 = _mm_add_epi32(x3, ones);
+                    x4 = _mm_add_epi32(x4, ones);
                 }
             }
+            // Remove indices of the last padding elements.
+            indices.set_len(scores.len());
         }
 
         // NOTE: Benchmarks suggest that `indices.retain(...)` is faster than
