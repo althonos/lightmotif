@@ -80,6 +80,7 @@ impl<C: Unsigned + NonZero> Default for StripedScores<C> {
 
 impl<C: Unsigned + NonZero> Index<usize> for StripedScores<C> {
     type Output = f32;
+    #[inline]
     fn index(&self, index: usize) -> &f32 {
         let col = index / self.data.rows();
         let row = index % self.data.rows();
