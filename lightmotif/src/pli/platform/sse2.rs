@@ -198,7 +198,7 @@ where
     } else {
         let data = scores.matrix();
         let rows = data.rows();
-        let mut indices = vec![0; data.columns() * rows];
+        let mut indices = vec![0u32; data.columns() * rows];
         unsafe {
             // NOTE(@althonos): Using `u32::MAX` as a sentinel instead of `0`
             //                  because `0` may be a valid index.
@@ -267,8 +267,6 @@ where
                     x4 = _mm_add_epi32(x4, ones);
                 }
             }
-            // Remove indices of the last padding elements.
-            indices.set_len(scores.len());
         }
 
         // NOTE: Benchmarks suggest that `indices.retain(...)` is faster than
@@ -282,7 +280,7 @@ where
         //        clipping the vector with `indices.set_len`.
 
         // Remove all masked items and convert the indices to usize
-        indices.retain(|&x| x < u32::MAX);
+        indices.retain(|&x| (x as usize) < scores.len());
         indices.into_iter().map(|i| i as usize).collect()
     }
 }

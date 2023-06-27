@@ -228,7 +228,15 @@ impl<A: Alphabet> BestPosition<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
     }
 }
 
-impl<A: Alphabet> Threshold<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {}
+impl<A: Alphabet> Threshold<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
+    fn threshold(
+        &self,
+        scores: &StripedScores<<Avx2 as Backend>::LANES>,
+        threshold: f32,
+    ) -> Vec<usize> {
+        Avx2::threshold(scores, threshold)
+    }
+}
 
 // --- NEON pipeline -----------------------------------------------------------
 

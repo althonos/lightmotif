@@ -179,6 +179,119 @@ unsafe fn best_position_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -
     }
 }
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx2")]
+unsafe fn threshold_avx2(
+    scores: &StripedScores<<Avx2 as Backend>::LANES>,
+    threshold: f32,
+) -> Vec<usize> {
+    if scores.len() >= u32::MAX as usize {
+        panic!(
+            "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
+            u32::MAX, scores.len()
+        );
+    } else if scores.len() == 0 {
+        Vec::new()
+    } else {
+        let data = scores.matrix();
+        let rows = data.rows();
+        let mut indices = vec![0u32; data.columns() * rows];
+        unsafe {
+            // NOTE(@althonos): Using `u32::MAX` as a sentinel instead of `0`
+            //                  because `0` may be a valid index.
+            let max = _mm256_set1_epi32(u32::MAX as i32);
+            let t = _mm256_set1_ps(threshold);
+            let ones = _mm256_set1_epi32(1);
+            let mut dst = indices.as_mut_ptr() as *mut __m256i;
+            // compute real sequence index for each column of the striped scores
+            let mut x1 = _mm256_set_epi32(
+                (7 * rows) as i32,
+                (6 * rows) as i32,
+                (5 * rows) as i32,
+                (4 * rows) as i32,
+                (3 * rows) as i32,
+                (2 * rows) as i32,
+                (1 * rows) as i32,
+                (0 * rows) as i32,
+            );
+            let mut x2 = _mm256_set_epi32(
+                (15 * rows) as i32,
+                (14 * rows) as i32,
+                (13 * rows) as i32,
+                (12 * rows) as i32,
+                (11 * rows) as i32,
+                (10 * rows) as i32,
+                (9 * rows) as i32,
+                (8 * rows) as i32,
+            );
+            let mut x3 = _mm256_set_epi32(
+                (23 * rows) as i32,
+                (22 * rows) as i32,
+                (21 * rows) as i32,
+                (20 * rows) as i32,
+                (19 * rows) as i32,
+                (18 * rows) as i32,
+                (17 * rows) as i32,
+                (16 * rows) as i32,
+            );
+            let mut x4 = _mm256_set_epi32(
+                (31 * rows) as i32,
+                (30 * rows) as i32,
+                (29 * rows) as i32,
+                (28 * rows) as i32,
+                (27 * rows) as i32,
+                (26 * rows) as i32,
+                (25 * rows) as i32,
+                (24 * rows) as i32,
+            );
+            // Process rows iteratively
+            for row in data.iter() {
+                // load scores for the current row
+                let r1 = _mm256_load_ps(row[0x00..].as_ptr());
+                let r2 = _mm256_load_ps(row[0x08..].as_ptr());
+                let r3 = _mm256_load_ps(row[0x10..].as_ptr());
+                let r4 = _mm256_load_ps(row[0x18..].as_ptr());
+                // check whether scores are greater or equal to the threshold
+                let m1 = _mm256_castps_si256(_mm256_cmp_ps(r1, t, _CMP_LT_OS));
+                let m2 = _mm256_castps_si256(_mm256_cmp_ps(r2, t, _CMP_LT_OS));
+                let m3 = _mm256_castps_si256(_mm256_cmp_ps(r3, t, _CMP_LT_OS));
+                let m4 = _mm256_castps_si256(_mm256_cmp_ps(r4, t, _CMP_LT_OS));
+                // Mask indices that should be removed
+                let i1 = _mm256_blendv_epi8(x1, max, m1);
+                let i2 = _mm256_blendv_epi8(x2, max, m2);
+                let i3 = _mm256_blendv_epi8(x3, max, m3);
+                let i4 = _mm256_blendv_epi8(x4, max, m4);
+                // Store masked indices into the destination vector
+                _mm256_storeu_si256(dst, i1);
+                _mm256_storeu_si256(dst.add(1), i2);
+                _mm256_storeu_si256(dst.add(2), i3);
+                _mm256_storeu_si256(dst.add(3), i4);
+                // Advance result buffer to next row
+                dst = dst.add(4);
+                // Advance sequence indices to next row
+                x1 = _mm256_add_epi32(x1, ones);
+                x2 = _mm256_add_epi32(x2, ones);
+                x3 = _mm256_add_epi32(x3, ones);
+                x4 = _mm256_add_epi32(x4, ones);
+            }
+        }
+
+        // NOTE: Benchmarks suggest that `indices.retain(...)` is faster than
+        //       `indices.into_iter().filter(...).
+
+        // FIXME: The `Vec::retain` implementation may not be optimal for this,
+        //        since it takes extra care of the vector elements deallocation
+        //        because they may implement `Drop`. It may be faster to use
+        //        a double-pointer algorithm, swapping sentinels and concrete
+        //        values until the end of the vector is reached, and then
+        //        clipping the vector with `indices.set_len`.
+
+        // Remove all masked items and convert the indices to usize
+        indices.retain(|&x| (x as usize) < scores.len());
+        indices.into_iter().map(|i| i as usize).collect()
+    }
+}
+
 /// Intel 256-bit vector implementation, for 32 elements column width.
 impl Avx2 {
     #[allow(unused)]
@@ -211,6 +324,19 @@ impl Avx2 {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             best_position_avx2(scores)
+        }
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        panic!("attempting to run AVX2 code on a non-x86 host")
+    }
+
+    #[allow(unused)]
+    pub fn threshold(
+        scores: &StripedScores<<Avx2 as Backend>::LANES>,
+        threshold: f32,
+    ) -> Vec<usize> {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        unsafe {
+            threshold_avx2(scores, threshold)
         }
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
         panic!("attempting to run AVX2 code on a non-x86 host")
