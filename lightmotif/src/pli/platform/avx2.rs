@@ -113,7 +113,12 @@ unsafe fn score_avx2(
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 unsafe fn best_position_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
-    if scores.len() == 0 {
+    if scores.len() > u32::MAX as usize {
+        panic!(
+            "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
+            u32::MAX, scores.len()
+        );
+    } else if scores.len() == 0 {
         None
     } else {
         let data = scores.matrix();

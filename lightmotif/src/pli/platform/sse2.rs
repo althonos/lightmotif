@@ -94,7 +94,12 @@ where
     <C as Rem<U16>>::Output: Zero,
     <C as Div<U16>>::Output: Unsigned,
 {
-    if scores.len() == 0 {
+    if scores.len() > u32::MAX as usize {
+        panic!(
+            "This implementation only supports sequences with at most {} positions, found a equence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
+            u32::MAX, scores.len()
+        );
+    } else if scores.len() == 0 {
         None
     } else {
         let data = scores.matrix();
