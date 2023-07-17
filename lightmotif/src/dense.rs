@@ -9,18 +9,29 @@ use std::ptr::NonNull;
 
 use typenum::marker_traits::Unsigned;
 
+// --- DefaultAlignment --------------------------------------------------------
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+type _DefaultAlignment = typenum::consts::U32;
+#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+type _DefaultAlignment = typenum::consts::U16;
+
+/// The default alignment used in dense matrices.
+pub type DefaultAlignment = _DefaultAlignment;
+
 // --- DenseMatrix -------------------------------------------------------------
 
 /// An aligned dense matrix of with a constant number of columns.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DenseMatrix<T: Default + Copy, C: Unsigned> {
+pub struct DenseMatrix<T: Default + Copy, C: Unsigned, A: Unsigned = DefaultAlignment> {
     data: Vec<T>,
     offset: usize,
     rows: usize,
     _columns: std::marker::PhantomData<C>,
+    _alignment: std::marker::PhantomData<A>,
 }
 
-impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
+impl<T: Default + Copy, C: Unsigned, A: Unsigned> DenseMatrix<T, C, A> {
     /// Create a new matrix with the given number of rows.
     pub fn new(rows: usize) -> Self {
         let data = Vec::new();
@@ -29,6 +40,7 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
             offset: 0,
             rows: 0,
             _columns: std::marker::PhantomData,
+            _alignment: std::marker::PhantomData,
         };
         matrix.resize(rows);
         matrix
@@ -37,7 +49,7 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
     /// Create a new *uninitialized* matrix with the given number of rows.
     pub unsafe fn uninitialized(rows: usize) -> Self {
         // Always over-allocate columns to avoid alignment issues.
-        let c = C::USIZE.next_power_of_two();
+        let c = C::USIZE + (A::USIZE - C::USIZE % A::USIZE) * (C::USIZE % A::USIZE > 0) as usize;
 
         // NOTE: this is unsafe but given that we require `T` to be
         //       copy, this should be fine, as `Copy` prevents the
@@ -57,6 +69,7 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
             offset,
             rows,
             _columns: std::marker::PhantomData,
+            _alignment: std::marker::PhantomData,
         }
     }
 
@@ -88,6 +101,15 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
         C::USIZE
     }
 
+    /// The effective number of columns in the matrix, counting alignment.
+    #[inline]
+    const fn columns_effective(&self) -> usize {
+        let x = std::mem::size_of::<T>();
+        let c = C::USIZE * x;
+        let b = c + (A::USIZE - c % A::USIZE) * ((c % A::USIZE) > 0) as usize;
+        b / x + ((b % x) > 0) as usize
+    }
+
     /// The number of rows of the matrix.
     #[inline]
     pub fn rows(&self) -> usize {
@@ -97,7 +119,7 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
     /// Change the number of rows of the matrix.
     pub fn resize(&mut self, rows: usize) {
         // Always over-allocate columns to avoid alignment issues.
-        let c = C::USIZE.next_power_of_two();
+        let c: usize = self.columns_effective();
 
         // Cache previous dimensions
         let previous_rows = self.rows;
@@ -130,48 +152,50 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
 
     /// Iterate over the rows of the matrix.
     #[inline]
-    pub fn iter(&self) -> Iter<'_, T, C> {
+    pub fn iter(&self) -> Iter<'_, T, C, A> {
         Iter::new(self)
     }
 
     /// Returns an iterator that allows modifying each row.
     #[inline]
-    pub fn iter_mut(&mut self) -> IterMut<'_, T, C> {
+    pub fn iter_mut(&mut self) -> IterMut<'_, T, C, A> {
         IterMut::new(self)
     }
 }
 
-impl<T: Default + Copy, C: Unsigned> Index<usize> for DenseMatrix<T, C> {
+impl<T: Default + Copy, C: Unsigned, A: Unsigned> Index<usize> for DenseMatrix<T, C, A> {
     type Output = [T];
     #[inline]
     fn index(&self, index: usize) -> &Self::Output {
-        let c = C::USIZE.next_power_of_two();
+        let c = self.columns_effective();
         let row = self.offset + c * index;
         &self.data[row..row + C::USIZE]
     }
 }
 
-impl<T: Default + Copy, C: Unsigned> IndexMut<usize> for DenseMatrix<T, C> {
+impl<T: Default + Copy, C: Unsigned, A: Unsigned> IndexMut<usize> for DenseMatrix<T, C, A> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        let c = C::USIZE.next_power_of_two();
+        let c = self.columns_effective();
         let row = self.offset + c * index;
         &mut self.data[row..row + C::USIZE]
     }
 }
 
-impl<'a, T: Default + Copy, C: Unsigned> IntoIterator for &'a DenseMatrix<T, C> {
+impl<'a, T: Default + Copy, C: Unsigned, A: Unsigned> IntoIterator for &'a DenseMatrix<T, C, A> {
     type Item = &'a [T];
-    type IntoIter = Iter<'a, T, C>;
+    type IntoIter = Iter<'a, T, C, A>;
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
         Iter::new(self)
     }
 }
 
-impl<'a, T: Default + Copy, C: Unsigned> IntoIterator for &'a mut DenseMatrix<T, C> {
+impl<'a, T: Default + Copy, C: Unsigned, A: Unsigned> IntoIterator
+    for &'a mut DenseMatrix<T, C, A>
+{
     type Item = &'a mut [T];
-    type IntoIter = IterMut<'a, T, C>;
+    type IntoIter = IterMut<'a, T, C, A>;
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
         IterMut::new(self)
@@ -180,22 +204,24 @@ impl<'a, T: Default + Copy, C: Unsigned> IntoIterator for &'a mut DenseMatrix<T,
 
 // --- Iter --------------------------------------------------------------------
 
-pub struct Iter<'a, T, C>
+pub struct Iter<'a, T, C, A>
 where
     T: 'a + Default + Copy,
     C: Unsigned,
+    A: Unsigned,
 {
-    matrix: &'a DenseMatrix<T, C>,
+    matrix: &'a DenseMatrix<T, C, A>,
     indices: Range<usize>,
     data: std::ptr::NonNull<T>,
 }
 
-impl<'a, T, C> Iter<'a, T, C>
+impl<'a, T, C, A> Iter<'a, T, C, A>
 where
     T: 'a + Default + Copy,
     C: Unsigned,
+    A: Unsigned,
 {
-    fn new(matrix: &'a DenseMatrix<T, C>) -> Self {
+    fn new(matrix: &'a DenseMatrix<T, C, A>) -> Self {
         let indices = 0..matrix.rows();
         let data = unsafe { NonNull::new_unchecked(matrix.data.as_ptr() as *mut T) };
         Self {
@@ -207,7 +233,7 @@ where
 
     #[inline]
     fn get(&mut self, i: usize) -> &'a [T] {
-        let c = C::USIZE.next_power_of_two();
+        let c = self.matrix.columns_effective();
         let row = self.matrix.offset + c * i;
         unsafe { std::slice::from_raw_parts(self.data.as_ptr().add(row), C::USIZE) }
     }
@@ -215,22 +241,24 @@ where
 
 // --- IterMut -----------------------------------------------------------------
 
-pub struct IterMut<'a, T, C>
+pub struct IterMut<'a, T, C, A>
 where
     T: 'a + Default + Copy,
     C: Unsigned,
+    A: Unsigned,
 {
-    matrix: &'a mut DenseMatrix<T, C>,
+    matrix: &'a mut DenseMatrix<T, C, A>,
     indices: Range<usize>,
     data: std::ptr::NonNull<T>,
 }
 
-impl<'a, T, C> IterMut<'a, T, C>
+impl<'a, T, C, A> IterMut<'a, T, C, A>
 where
     T: 'a + Default + Copy,
     C: Unsigned,
+    A: Unsigned,
 {
-    fn new(matrix: &'a mut DenseMatrix<T, C>) -> Self {
+    fn new(matrix: &'a mut DenseMatrix<T, C, A>) -> Self {
         let indices = 0..matrix.rows();
         let data = unsafe { NonNull::new_unchecked(matrix.data.as_mut_ptr()) };
         Self {
@@ -242,7 +270,7 @@ where
 
     #[inline]
     fn get(&mut self, i: usize) -> &'a mut [T] {
-        let c = C::USIZE.next_power_of_two();
+        let c = self.matrix.columns_effective();
         let row = self.matrix.offset + c * i;
         unsafe { std::slice::from_raw_parts_mut(self.data.as_ptr().add(row), C::USIZE) }
     }
@@ -252,10 +280,11 @@ where
 
 macro_rules! iterator {
     ($t:ident, $T:ident, $($item:tt)*) => {
-        impl<'a, $T, C> Iterator for $t<'a, $T, C>
+        impl<'a, $T, C, A> Iterator for $t<'a, $T, C, A>
         where
             $T: Default + Copy,
             C: Unsigned,
+            A: Unsigned,
         {
             type Item = &'a $($item)*;
             fn next(&mut self) -> Option<Self::Item> {
@@ -263,10 +292,11 @@ macro_rules! iterator {
             }
         }
 
-        impl<'a, $T, C> ExactSizeIterator for $t<'a, $T, C>
+        impl<'a, $T, C, A> ExactSizeIterator for $t<'a, $T, C, A>
         where
             $T: Default + Copy,
             C: Unsigned,
+            A: Unsigned,
         {
             #[inline]
             fn len(&self) -> usize {
@@ -274,16 +304,18 @@ macro_rules! iterator {
             }
         }
 
-        impl<'a, $T, C> FusedIterator for $t<'a, $T, C>
+        impl<'a, $T, C, A> FusedIterator for $t<'a, $T, C, A>
         where
             $T: Default + Copy,
             C: Unsigned,
+            A: Unsigned,
         {}
 
-        impl<'a, $T, C> DoubleEndedIterator for $t<'a, $T, C>
+        impl<'a, $T, C, A> DoubleEndedIterator for $t<'a, $T, C, A>
         where
             $T: Default + Copy,
             C: Unsigned,
+            A: Unsigned,
         {
             fn next_back(&mut self) -> Option<Self::Item> {
                 self.indices.next_back().map(|i| self.get(i))
@@ -297,9 +329,37 @@ iterator!(IterMut, T, mut [T]);
 
 #[cfg(test)]
 mod test {
+    use typenum::consts::U15;
+    use typenum::consts::U16;
+    use typenum::consts::U3;
     use typenum::consts::U32;
+    use typenum::consts::U8;
 
     use super::*;
+
+    #[test]
+    fn test_columns_effective() {
+        let d1 = DenseMatrix::<u8, U32, U32>::new(0);
+        assert_eq!(d1.columns_effective(), 32);
+
+        let d2 = DenseMatrix::<u8, U16, U32>::new(0);
+        assert_eq!(d2.columns_effective(), 32);
+
+        let d3 = DenseMatrix::<u32, U32, U32>::new(0);
+        assert_eq!(d3.columns_effective(), 32);
+
+        let d4 = DenseMatrix::<u32, U8, U32>::new(0);
+        assert_eq!(d4.columns_effective(), 8);
+
+        let d5 = DenseMatrix::<u32, U16, U32>::new(0);
+        assert_eq!(d5.columns_effective(), 16);
+
+        let d6 = DenseMatrix::<u32, U3, U16>::new(0);
+        assert_eq!(d6.columns_effective(), 4);
+
+        let d7 = DenseMatrix::<u8, U15, U8>::new(0);
+        assert_eq!(d7.columns_effective(), 16);
+    }
 
     #[test]
     fn test_resize() {
