@@ -50,10 +50,13 @@ unsafe fn score_neon<A, C>(
         for i in 0..seq.data.rows() - seq.wrap {
             // reset sums for current position
             let mut s = float32x4x4_t(zero_f32, zero_f32, zero_f32, zero_f32);
+            // reset position
+            let mut dataptr = seq.data[i].as_ptr().add(offset);
+            let mut pssmptr = pssm.weights()[0].as_ptr();
             // advance position in the position weight matrix
-            for j in 0..pssm.len() {
+            for _ in 0..pssm.len() {
                 // load sequence row and broadcast to f32
-                let x = vld1q_u8(seq.data[i + j].as_ptr().add(offset) as *const u8);
+                let x = vld1q_u8(dataptr as *const u8);
                 let z = vzipq_u8(x, zero_u8);
                 let lo = vzipq_u8(z.0, zero_u8);
                 let hi = vzipq_u8(z.1, zero_u8);
@@ -61,12 +64,10 @@ unsafe fn score_neon<A, C>(
                 let x2 = vreinterpretq_u32_u8(lo.1);
                 let x3 = vreinterpretq_u32_u8(hi.0);
                 let x4 = vreinterpretq_u32_u8(hi.1);
-                // load row for current weight matrix position
-                let row = pssm.weights()[j].as_ptr();
                 // index lookup table with each bases incrementally
                 for k in 0..A::K::USIZE {
                     let sym = vdupq_n_u32(k as u32);
-                    let lut = vreinterpretq_u32_f32(vld1q_dup_f32(row.add(k)));
+                    let lut = vreinterpretq_u32_f32(vld1q_dup_f32(pssmptr.add(k)));
                     let p1 = vceqq_u32(x1, sym);
                     let p2 = vceqq_u32(x2, sym);
                     let p3 = vceqq_u32(x3, sym);
@@ -76,6 +77,9 @@ unsafe fn score_neon<A, C>(
                     s.2 = vaddq_f32(s.2, vreinterpretq_f32_u32(vandq_u32(lut, p3)));
                     s.3 = vaddq_f32(s.3, vreinterpretq_f32_u32(vandq_u32(lut, p4)));
                 }
+                // advance to next row in sequence and PSSM matrices
+                dataptr = dataptr.add(seq.data.columns_effective());
+                pssmptr = pssmptr.add(pssm.weights().columns_effective());
             }
             // record the score for the current position
             let row = &mut data[i];

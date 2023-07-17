@@ -62,18 +62,20 @@ unsafe fn score_avx2(
         let mut s2 = _mm256_setzero_ps();
         let mut s3 = _mm256_setzero_ps();
         let mut s4 = _mm256_setzero_ps();
+        // reset pointers to row
+        let mut seqptr = seq.data[i].as_ptr();
+        let mut pssmptr = pssm.weights()[0].as_ptr();
         // advance position in the position weight matrix
-        for j in 0..pssm.len() {
+        for _ in 0..pssm.len() {
             // load sequence row and broadcast to f32
-            let x = _mm256_load_si256(seq.data[i + j].as_ptr() as *const __m256i);
+            let x = _mm256_load_si256(seqptr as *const __m256i);
             let x1 = _mm256_shuffle_epi8(x, m1);
             let x2 = _mm256_shuffle_epi8(x, m2);
             let x3 = _mm256_shuffle_epi8(x, m3);
             let x4 = _mm256_shuffle_epi8(x, m4);
             // load row for current weight matrix position
-            let row = pssm.weights()[j].as_ptr();
-            let t = _mm256_broadcast_ps(&*(row as *const __m128));
-            let u = _mm256_broadcast_ss(&*(row.add(crate::abc::Nucleotide::N.as_index())));
+            let t = _mm256_broadcast_ps(&*(pssmptr as *const __m128));
+            let u = _mm256_broadcast_ss(&*(pssmptr.add(crate::abc::Nucleotide::N.as_index())));
             // check which bases from the sequence are unknown
             let mask = _mm256_cmpeq_epi8(x, n);
             let unk1 = _mm256_castsi256_ps(_mm256_shuffle_epi8(mask, m1));
@@ -95,6 +97,9 @@ unsafe fn score_avx2(
             s2 = _mm256_add_ps(s2, b2);
             s3 = _mm256_add_ps(s3, b3);
             s4 = _mm256_add_ps(s4, b4);
+            // advance to next row in PSSM and sequence matrices
+            seqptr = seqptr.add(seq.data.columns_effective());
+            pssmptr = pssmptr.add(pssm.weights().columns_effective());
         }
         // permute lanes so that scores are in the right order
         let r1 = _mm256_permute2f128_ps(s1, s2, 0x20);
@@ -136,14 +141,15 @@ unsafe fn best_position_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -
             let mut s3 = _mm256_load_ps(data[0][0x10..].as_ptr());
             let mut s4 = _mm256_load_ps(data[0][0x18..].as_ptr());
             // process all rows iteratively
-            for (i, row) in data.iter().enumerate() {
+            let mut dataptr = data[0].as_ptr();
+            for i in 0..data.rows() {
                 // record the current row index
                 let index = _mm256_castsi256_ps(_mm256_set1_epi32(i as i32));
                 // load scores for the current row
-                let r1 = _mm256_load_ps(row[0x00..].as_ptr());
-                let r2 = _mm256_load_ps(row[0x08..].as_ptr());
-                let r3 = _mm256_load_ps(row[0x10..].as_ptr());
-                let r4 = _mm256_load_ps(row[0x18..].as_ptr());
+                let r1 = _mm256_load_ps(dataptr.add(0x00));
+                let r2 = _mm256_load_ps(dataptr.add(0x08));
+                let r3 = _mm256_load_ps(dataptr.add(0x10));
+                let r4 = _mm256_load_ps(dataptr.add(0x18));
                 // compare scores to local maximums
                 let c1 = _mm256_cmp_ps(s1, r1, _CMP_LT_OS);
                 let c2 = _mm256_cmp_ps(s2, r2, _CMP_LT_OS);
@@ -159,6 +165,8 @@ unsafe fn best_position_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -
                 s2 = _mm256_blendv_ps(s2, r2, c2);
                 s3 = _mm256_blendv_ps(s3, r3, c3);
                 s4 = _mm256_blendv_ps(s4, r4, c4);
+                // advance to next row
+                dataptr = dataptr.add(data.columns_effective());
             }
             // find the global maximum across all columns
             let mut x: [u32; 32] = [0; 32];
@@ -242,12 +250,13 @@ unsafe fn threshold_avx2(
                 (24 * rows) as i32,
             );
             // Process rows iteratively
-            for row in data.iter() {
+            let mut dataptr = data[0].as_ptr();
+            for _ in 0..data.rows() {
                 // load scores for the current row
-                let r1 = _mm256_load_ps(row[0x00..].as_ptr());
-                let r2 = _mm256_load_ps(row[0x08..].as_ptr());
-                let r3 = _mm256_load_ps(row[0x10..].as_ptr());
-                let r4 = _mm256_load_ps(row[0x18..].as_ptr());
+                let r1 = _mm256_load_ps(dataptr.add(0x00));
+                let r2 = _mm256_load_ps(dataptr.add(0x08));
+                let r3 = _mm256_load_ps(dataptr.add(0x10));
+                let r4 = _mm256_load_ps(dataptr.add(0x18));
                 // check whether scores are greater or equal to the threshold
                 let m1 = _mm256_castps_si256(_mm256_cmp_ps(r1, t, _CMP_GE_OS));
                 let m2 = _mm256_castps_si256(_mm256_cmp_ps(r2, t, _CMP_GE_OS));
@@ -265,6 +274,8 @@ unsafe fn threshold_avx2(
                 x2 = _mm256_add_epi32(x2, ones);
                 x3 = _mm256_add_epi32(x3, ones);
                 x4 = _mm256_add_epi32(x4, ones);
+                // Advance data pointer to next row
+                dataptr = dataptr.add(data.columns_effective());
             }
         }
 

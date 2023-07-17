@@ -50,22 +50,23 @@ unsafe fn score_sse2<A, C>(
             let mut s2 = _mm_setzero_ps();
             let mut s3 = _mm_setzero_ps();
             let mut s4 = _mm_setzero_ps();
+            // reset position
+            let mut dataptr = seq.data[i].as_ptr().add(offset);
+            let mut pssmptr = pssm.weights()[0].as_ptr();
             // advance position in the position weight matrix
-            for j in 0..pssm.len() {
+            for _ in 0..pssm.len() {
                 // load sequence row and broadcast to f32
-                let x = _mm_load_si128(seq.data[i + j].as_ptr().add(offset) as *const __m128i);
+                let x = _mm_load_si128(dataptr as *const __m128i);
                 let hi = _mm_unpackhi_epi8(x, zero);
                 let lo = _mm_unpacklo_epi8(x, zero);
                 let x1 = _mm_unpacklo_epi8(lo, zero);
                 let x2 = _mm_unpackhi_epi8(lo, zero);
                 let x3 = _mm_unpacklo_epi8(hi, zero);
                 let x4 = _mm_unpackhi_epi8(hi, zero);
-                // load row for current weight matrix position
-                let row = pssm.weights()[j].as_ptr();
                 // index lookup table with each bases incrementally
                 for k in 0..A::K::USIZE {
                     let sym = _mm_set1_epi32(k as i32);
-                    let lut = _mm_load1_ps(row.add(k));
+                    let lut = _mm_load1_ps(pssmptr.add(k));
                     let p1 = _mm_castsi128_ps(_mm_cmpeq_epi32(x1, sym));
                     let p2 = _mm_castsi128_ps(_mm_cmpeq_epi32(x2, sym));
                     let p3 = _mm_castsi128_ps(_mm_cmpeq_epi32(x3, sym));
@@ -75,6 +76,9 @@ unsafe fn score_sse2<A, C>(
                     s3 = _mm_add_ps(s3, _mm_and_ps(lut, p3));
                     s4 = _mm_add_ps(s4, _mm_and_ps(lut, p4));
                 }
+                // advance to next row in sequence and PSSM matrices
+                dataptr = dataptr.add(seq.data.columns_effective());
+                pssmptr = pssmptr.add(pssm.weights().columns_effective());
             }
             // record the score for the current position
             let row = &mut data[i];
@@ -121,14 +125,15 @@ where
                 let mut s3 = _mm_load_ps(data[0][offset + 0x08..].as_ptr());
                 let mut s4 = _mm_load_ps(data[0][offset + 0x0c..].as_ptr());
                 // process all rows iteratively
-                for (i, row) in data.iter().enumerate() {
+                let mut dataptr = data[0].as_ptr();
+                for i in 0..data.rows() {
                     // record the current row index
                     let index = _mm_castsi128_ps(_mm_set1_epi32(i as i32));
                     // load scores for the current row
-                    let r1 = _mm_load_ps(row[offset + 0x00..].as_ptr());
-                    let r2 = _mm_load_ps(row[offset + 0x04..].as_ptr());
-                    let r3 = _mm_load_ps(row[offset + 0x08..].as_ptr());
-                    let r4 = _mm_load_ps(row[offset + 0x0c..].as_ptr());
+                    let r1 = _mm_load_ps(dataptr.add(offset + 0x00));
+                    let r2 = _mm_load_ps(dataptr.add(offset + 0x04));
+                    let r3 = _mm_load_ps(dataptr.add(offset + 0x08));
+                    let r4 = _mm_load_ps(dataptr.add(offset + 0x0c));
                     // compare scores to local maxima
                     let c1 = _mm_cmplt_ps(s1, r1);
                     let c2 = _mm_cmplt_ps(s2, r2);
@@ -148,6 +153,8 @@ where
                     s2 = _mm_or_ps(_mm_andnot_ps(c2, s2), _mm_and_ps(r2, c2));
                     s3 = _mm_or_ps(_mm_andnot_ps(c3, s3), _mm_and_ps(r3, c3));
                     s4 = _mm_or_ps(_mm_andnot_ps(c4, s4), _mm_and_ps(r4, c4));
+                    // advance to next row
+                    dataptr = dataptr.add(data.columns_effective());
                 }
                 // find the global maximum across all columns
                 _mm_storeu_si128(
@@ -233,12 +240,13 @@ where
                     ((offset + 12) * rows) as i32,
                 );
                 // Process rows iteratively
-                for row in data.iter() {
+                let mut dataptr = data[0].as_ptr();
+                for _ in 0..data.rows() {
                     // load scores for the current row
-                    let r1 = _mm_load_ps(row[offset + 0x00..].as_ptr());
-                    let r2 = _mm_load_ps(row[offset + 0x04..].as_ptr());
-                    let r3 = _mm_load_ps(row[offset + 0x08..].as_ptr());
-                    let r4 = _mm_load_ps(row[offset + 0x0c..].as_ptr());
+                    let r1 = _mm_load_ps(dataptr.add(offset + 0x00));
+                    let r2 = _mm_load_ps(dataptr.add(offset + 0x04));
+                    let r3 = _mm_load_ps(dataptr.add(offset + 0x08));
+                    let r4 = _mm_load_ps(dataptr.add(offset + 0x0c));
                     // check whether scores are greater or equal to the threshold
                     let m1 = _mm_castps_si128(_mm_cmplt_ps(t, r1));
                     let m2 = _mm_castps_si128(_mm_cmplt_ps(t, r2));
@@ -265,6 +273,8 @@ where
                     x2 = _mm_add_epi32(x2, ones);
                     x3 = _mm_add_epi32(x3, ones);
                     x4 = _mm_add_epi32(x4, ones);
+                    // Advance data pointer to next row
+                    dataptr = dataptr.add(data.columns_effective());
                 }
             }
         }

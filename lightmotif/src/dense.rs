@@ -103,7 +103,7 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned> DenseMatrix<T, C, A> {
 
     /// The effective number of columns in the matrix, counting alignment.
     #[inline]
-    const fn columns_effective(&self) -> usize {
+    pub const fn columns_effective(&self) -> usize {
         let x = std::mem::size_of::<T>();
         let c = C::USIZE * x;
         let b = c + (A::USIZE - c % A::USIZE) * ((c % A::USIZE) > 0) as usize;
