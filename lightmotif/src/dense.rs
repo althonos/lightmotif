@@ -4,6 +4,7 @@ use std::iter::ExactSizeIterator;
 use std::iter::FusedIterator;
 use std::ops::Index;
 use std::ops::IndexMut;
+use std::ops::Range;
 use std::ptr::NonNull;
 
 use typenum::marker_traits::Unsigned;
@@ -14,7 +15,8 @@ use typenum::marker_traits::Unsigned;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DenseMatrix<T: Default + Copy, C: Unsigned> {
     data: Vec<T>,
-    indices: Vec<usize>,
+    offset: usize,
+    rows: usize,
     _columns: std::marker::PhantomData<C>,
 }
 
@@ -22,10 +24,10 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
     /// Create a new matrix with the given number of rows.
     pub fn new(rows: usize) -> Self {
         let data = Vec::new();
-        let indices = Vec::new();
         let mut matrix = Self {
             data,
-            indices,
+            offset: 0,
+            rows: 0,
             _columns: std::marker::PhantomData,
         };
         matrix.resize(rows);
@@ -50,12 +52,10 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
             offset += 1
         }
 
-        // record indices to each rows
-        let indices = (0..rows).map(|i| offset + i * c).collect();
-
         Self {
             data,
-            indices,
+            offset,
+            rows,
             _columns: std::marker::PhantomData,
         }
     }
@@ -91,7 +91,7 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
     /// The number of rows of the matrix.
     #[inline]
     pub fn rows(&self) -> usize {
-        self.indices.len()
+        self.rows
     }
 
     /// Change the number of rows of the matrix.
@@ -100,35 +100,32 @@ impl<T: Default + Copy, C: Unsigned> DenseMatrix<T, C> {
         let c = C::USIZE.next_power_of_two();
 
         // Cache previous dimensions
-        let previous_rows = self.rows();
-        let previous_offset = if self.rows() == 0 { 0 } else { self.indices[0] };
+        let previous_rows = self.rows;
+        let previous_offset = self.offset;
 
         // Only reallocate if needed
         if previous_rows > rows {
             // Truncate rows
             self.data.truncate((rows + 1) * c);
-            self.indices.truncate(rows);
         } else if previous_rows < rows {
             // Allocate data block
             self.data.resize_with((rows + 1) * c, T::default);
             // Compute offset to aligned memory
-            let mut offset = 0;
-            while self.data[offset..].as_ptr() as usize % c > 0 {
-                offset += 1
+            self.offset = 0;
+            while self.data[self.offset..].as_ptr() as usize % c > 0 {
+                self.offset += 1
             }
             // Copy data in case alignment offset changed
-            if previous_offset != offset {
+            if previous_offset != self.offset {
                 self.data.as_mut_slice().copy_within(
                     previous_offset..previous_offset + (previous_rows * c),
-                    offset,
+                    self.offset,
                 );
             }
-            // Record row coordinates
-            self.indices.resize(rows, 0);
-            for i in 0..rows {
-                self.indices[i] = offset + i * c;
-            }
         }
+
+        // Update row count
+        self.rows = rows;
     }
 
     /// Iterate over the rows of the matrix.
@@ -148,7 +145,8 @@ impl<T: Default + Copy, C: Unsigned> Index<usize> for DenseMatrix<T, C> {
     type Output = [T];
     #[inline]
     fn index(&self, index: usize) -> &Self::Output {
-        let row = self.indices[index];
+        let c = C::USIZE.next_power_of_two();
+        let row = self.offset + c * index;
         &self.data[row..row + C::USIZE]
     }
 }
@@ -156,7 +154,8 @@ impl<T: Default + Copy, C: Unsigned> Index<usize> for DenseMatrix<T, C> {
 impl<T: Default + Copy, C: Unsigned> IndexMut<usize> for DenseMatrix<T, C> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        let row = self.indices[index];
+        let c = C::USIZE.next_power_of_two();
+        let row = self.offset + c * index;
         &mut self.data[row..row + C::USIZE]
     }
 }
@@ -164,6 +163,7 @@ impl<T: Default + Copy, C: Unsigned> IndexMut<usize> for DenseMatrix<T, C> {
 impl<'a, T: Default + Copy, C: Unsigned> IntoIterator for &'a DenseMatrix<T, C> {
     type Item = &'a [T];
     type IntoIter = Iter<'a, T, C>;
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         Iter::new(self)
     }
@@ -172,6 +172,7 @@ impl<'a, T: Default + Copy, C: Unsigned> IntoIterator for &'a DenseMatrix<T, C> 
 impl<'a, T: Default + Copy, C: Unsigned> IntoIterator for &'a mut DenseMatrix<T, C> {
     type Item = &'a mut [T];
     type IntoIter = IterMut<'a, T, C>;
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         IterMut::new(self)
     }
@@ -184,9 +185,9 @@ where
     T: 'a + Default + Copy,
     C: Unsigned,
 {
-    indices: std::slice::Iter<'a, usize>,
+    matrix: &'a DenseMatrix<T, C>,
+    indices: Range<usize>,
     data: std::ptr::NonNull<T>,
-    _columns: std::marker::PhantomData<C>,
 }
 
 impl<'a, T, C> Iter<'a, T, C>
@@ -195,17 +196,20 @@ where
     C: Unsigned,
 {
     fn new(matrix: &'a DenseMatrix<T, C>) -> Self {
-        let indices = matrix.indices.iter();
+        let indices = 0..matrix.rows();
         let data = unsafe { NonNull::new_unchecked(matrix.data.as_ptr() as *mut T) };
         Self {
             indices,
+            matrix,
             data,
-            _columns: std::marker::PhantomData,
         }
     }
 
+    #[inline]
     fn get(&mut self, i: usize) -> &'a [T] {
-        unsafe { std::slice::from_raw_parts(self.data.as_ptr().add(i), C::USIZE) }
+        let c = C::USIZE.next_power_of_two();
+        let row = self.matrix.offset + c * i;
+        unsafe { std::slice::from_raw_parts(self.data.as_ptr().add(row), C::USIZE) }
     }
 }
 
@@ -216,9 +220,9 @@ where
     T: 'a + Default + Copy,
     C: Unsigned,
 {
-    indices: std::slice::Iter<'a, usize>,
+    matrix: &'a mut DenseMatrix<T, C>,
+    indices: Range<usize>,
     data: std::ptr::NonNull<T>,
-    _columns: std::marker::PhantomData<C>,
 }
 
 impl<'a, T, C> IterMut<'a, T, C>
@@ -227,17 +231,20 @@ where
     C: Unsigned,
 {
     fn new(matrix: &'a mut DenseMatrix<T, C>) -> Self {
-        let indices = matrix.indices.iter();
+        let indices = 0..matrix.rows();
         let data = unsafe { NonNull::new_unchecked(matrix.data.as_mut_ptr()) };
         Self {
             indices,
             data,
-            _columns: std::marker::PhantomData,
+            matrix,
         }
     }
 
+    #[inline]
     fn get(&mut self, i: usize) -> &'a mut [T] {
-        unsafe { std::slice::from_raw_parts_mut(self.data.as_ptr().add(i), C::USIZE) }
+        let c = C::USIZE.next_power_of_two();
+        let row = self.matrix.offset + c * i;
+        unsafe { std::slice::from_raw_parts_mut(self.data.as_ptr().add(row), C::USIZE) }
     }
 }
 
@@ -252,7 +259,7 @@ macro_rules! iterator {
         {
             type Item = &'a $($item)*;
             fn next(&mut self) -> Option<Self::Item> {
-                self.indices.next().map(|&i| self.get(i))
+                self.indices.next().map(|i| self.get(i))
             }
         }
 
@@ -261,6 +268,7 @@ macro_rules! iterator {
             $T: Default + Copy,
             C: Unsigned,
         {
+            #[inline]
             fn len(&self) -> usize {
                 self.indices.len()
             }
@@ -278,7 +286,7 @@ macro_rules! iterator {
             C: Unsigned,
         {
             fn next_back(&mut self) -> Option<Self::Item> {
-                self.indices.next_back().map(|&i| self.get(i))
+                self.indices.next_back().map(|i| self.get(i))
             }
         }
     };
