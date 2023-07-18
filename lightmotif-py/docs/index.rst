@@ -11,7 +11,7 @@ LightMotif |Stars|
 
 *A lightweight* `platform-accelerated <https://en.wikipedia.org/wiki/Single_instruction,_multiple_data>`_ *library for* `biological motif <https://en.wikipedia.org/wiki/Sequence_motif>`_ *scanning using* `position weight matrices <https://en.wikipedia.org/wiki/Position_weight_matrix>`_.
 
-|Actions| |Coverage| |License| |Crate| |PyPI| |Wheel| |Bioconda| |Python Versions| |Python Impls| |Source| |Mirror| |Issues| |Changelog| |Downloads|
+|Actions| |Coverage| |License| |Docs| |Crate| |PyPI| |Wheel| |Bioconda| |Python Versions| |Python Impls| |Source| |Mirror| |Issues| |Changelog| |Downloads|
 
 .. |Actions| image:: https://img.shields.io/github/actions/workflow/status/althonos/lightmotif/python.yml?branch=main&logo=github&style=flat-square&maxAge=300
    :target: https://github.com/althonos/lightmotif/actions
@@ -21,6 +21,9 @@ LightMotif |Stars|
 
 .. |License| image:: https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square&maxAge=2678400
    :target: https://choosealicense.com/licenses/mit/
+
+.. |Docs| image:: https://img.shields.io/readthedocs/lightmotif/latest?style=flat-square&maxAge=600
+   :target: https://lightmotif.readthedocs.io
 
 .. |Crate| image:: https://img.shields.io/crates/v/lightmotif-py.svg?maxAge=600&style=flat-square
    :target: https://crates.io/crates/lightmotif-py

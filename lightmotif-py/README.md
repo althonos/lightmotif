@@ -5,6 +5,7 @@
 [![Actions](https://img.shields.io/github/actions/workflow/status/althonos/lightmotif/python.yml?branch=main&logo=github&style=flat-square&maxAge=300)](https://github.com/althonos/lightmotif/actions)
 [![Coverage](https://img.shields.io/codecov/c/gh/althonos/lightmotif?logo=codecov&style=flat-square&maxAge=3600)](https://codecov.io/gh/althonos/lightmotif/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square&maxAge=2678400)](https://choosealicense.com/licenses/mit/)
+[![Docs](https://img.shields.io/readthedocs/lightmotif/latest?style=flat-square&maxAge=600)](https://lightmotif.readthedocs.io)
 [![Crate](https://img.shields.io/crates/v/lightmotif-py.svg?maxAge=600&style=flat-square)](https://crates.io/crates/lightmotif-py)
 [![PyPI](https://img.shields.io/pypi/v/lightmotif.svg?style=flat-square&maxAge=600)](https://pypi.org/project/lightmotif)
 [![Wheel](https://img.shields.io/pypi/wheel/lightmotif.svg?style=flat-square&maxAge=2678400)](https://pypi.org/project/lightmotif/#files)

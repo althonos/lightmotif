@@ -38,6 +38,11 @@ of sequences:
   inspired by Michael Farrar[\[3\]](#ref3).
 - Vectorized matrix row look-up using `permute` instructions of [AVX2](https://fr.wikipedia.org/wiki/Advanced_Vector_Extensions).
 
+Other crates from the ecosystem provide additional features if needed:
+
+- [`lightmotif-tfmpvalue`](https://crates.io/crates/lightmotif-tfmpvalue) is an exact reimplementation of the TFMPvalue[\[4\]](#ref4) algorithm for converting between a score and a P-value for a given scoring matrix.
+- [`lightmotif-transfac`](https://crates.io/crates/lightmotif-transfac) is a parser for position-specific scoring matrices in the [TRANSFAC](https://en.wikipedia.org/wiki/TRANSFAC) format.
+
 *This is the Rust version, there is a [Python package](https://pypi.org/project/lightmotif) available as well.*
 
 ## 💡 Example
@@ -83,7 +88,7 @@ is supported on the local platform.
 ## ⏱️ Benchmarks
 
 Both benchmarks use the [MX000001](https://www.prodoric.de/matrix/MX000001.html)
-motif from [PRODORIC](https://www.prodoric.de/)[\[4\]](#ref4), and the
+motif from [PRODORIC](https://www.prodoric.de/)[\[5\]](#ref5), and the
 [complete genome](https://www.ncbi.nlm.nih.gov/nuccore/U00096) of an
 *Escherichia coli K12* strain.
 *Benchmarks were run on a [i7-10710U CPU](https://ark.intel.com/content/www/us/en/ark/products/196448/intel-core-i7-10710u-processor-12m-cache-up-to-4-70-ghz.html) running @1.10GHz, compiled with `--target-cpu=native`*.
@@ -141,4 +146,5 @@ in the [Zeller team](https://github.com/zellerlab).*
 - <a id="ref1">\[1\]</a> Eddy, Sean R. ‘Accelerated Profile HMM Searches’. PLOS Computational Biology 7, no. 10 (20 October 2011): e1002195. [doi:10.1371/journal.pcbi.1002195](https://doi.org/10.1371/journal.pcbi.1002195).
 - <a id="ref2">\[2\]</a> Grant, Charles E., Timothy L. Bailey, and William Stafford Noble. ‘FIMO: Scanning for Occurrences of a given Motif’. Bioinformatics 27, no. 7 (1 April 2011): 1017–18. [doi:10.1093/bioinformatics/btr064](https://doi.org/10.1093/bioinformatics/btr064).
 - <a id="ref3">\[3\]</a> Farrar, Michael. ‘Striped Smith–Waterman Speeds Database Searches Six Times over Other SIMD Implementations’. Bioinformatics 23, no. 2 (15 January 2007): 156–61. [doi:10.1093/bioinformatics/btl582](https://doi.org/10.1093/bioinformatics/btl582).
-- <a id="ref4">\[4\]</a> Dudek, Christian-Alexander, and Dieter Jahn. ‘PRODORIC: State-of-the-Art Database of Prokaryotic Gene Regulation’. Nucleic Acids Research 50, no. D1 (7 January 2022): D295–302. [doi:10.1093/nar/gkab1110](https://doi.org/10.1093/nar/gkab1110).
+- <a id="ref4">\[4\]</a> Touzet, Hélène, and Jean-Stéphane Varré. ‘Efficient and Accurate P-Value Computation for Position Weight Matrices’. Algorithms for Molecular Biology 2, no. 1 (2007): 1–12. [doi:10.1186/1748-7188-2-15](https://doi.org/10.1186/1748-7188-2-15).
+- <a id="ref5">\[5\]</a> Dudek, Christian-Alexander, and Dieter Jahn. ‘PRODORIC: State-of-the-Art Database of Prokaryotic Gene Regulation’. Nucleic Acids Research 50, no. D1 (7 January 2022): D295–302. [doi:10.1093/nar/gkab1110](https://doi.org/10.1093/nar/gkab1110).
