@@ -5,12 +5,15 @@ extern crate lightmotif;
 extern crate pyo3;
 
 use lightmotif::abc::Alphabet;
+use lightmotif::abc::Dna;
 use lightmotif::abc::Symbol;
 use lightmotif::dense::DenseMatrix;
+use lightmotif::num::StrictlyPositive;
 use lightmotif::num::Unsigned;
 use lightmotif::pli::platform::Backend;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
+use lightmotif::pli::Threshold;
 
 use pyo3::exceptions::PyBufferError;
 use pyo3::exceptions::PyIndexError;
@@ -286,6 +289,10 @@ impl ScoringMatrix {
     ///     of the input sequence, stored into a striped matrix for fast
     ///     vectorized operations.
     ///
+    /// Note:
+    ///     This method uses the best implementation for the local platform,
+    ///     prefering AVX2 if available.
+    ///
     pub fn calculate(
         slf: PyRef<'_, Self>,
         sequence: &mut StripedSequence,
@@ -377,6 +384,37 @@ impl StripedScores {
         (*view).internal = std::ptr::null_mut();
 
         Ok(())
+    }
+
+    /// Return all positions with a score greater or equal to the threshold.
+    ///
+    /// Returns:
+    ///     `list` of `int`: The indices of the position with a score greater or
+    ///     equal to the given threshold. Note that the indices may or may not
+    ///     be sorted, depending on the implementation.
+    ///
+    /// Note:
+    ///     This method uses the best implementation for the local platform,
+    ///     prefering AVX2 if available.
+    ///
+    pub fn threshold(slf: PyRef<'_, Self>, threshold: f32) -> PyResult<Vec<usize>> {
+        let scores = &slf.scores;
+        let indices = slf.py().allow_threads(|| {
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            if let Ok(pli) = Pipeline::<Dna, _>::avx2() {
+                return pli.threshold(scores, threshold);
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            if let Ok(pli) = Pipeline::<Dna, _>::sse2() {
+                return pli.threshold(scores, threshold);
+            }
+            #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+            if let Ok(pli) = Pipeline::<Dna, _>::neon() {
+                return pli.threshold(scores, threshold);
+            }
+            Pipeline::<Dna, _>::generic().threshold(scores, threshold)
+        });
+        Ok(indices)
     }
 }
 
