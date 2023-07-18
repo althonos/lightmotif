@@ -67,6 +67,7 @@ fn dict_to_alphabet_array<'py, A: lightmotif::Alphabet>(
 
 // --- EncodedSequence ---------------------------------------------------------
 
+/// A biological sequence encoded as digits.
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct EncodedSequence {
@@ -102,6 +103,7 @@ impl EncodedSequence {
 
 // --- StripedSequence ---------------------------------------------------------
 
+/// An encoded biological sequence stored in a column-major matrix.
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct StripedSequence {
@@ -110,6 +112,7 @@ pub struct StripedSequence {
 
 // --- CountMatrix -------------------------------------------------------------
 
+/// A matrix storing the count of a motif letters at each position.
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct CountMatrix {
@@ -157,6 +160,23 @@ impl CountMatrix {
         }
     }
 
+    /// Normalize this count matrix to obtain a position weight matrix.
+    ///
+    /// This method converts the count matrix to a weight matrix. Each row
+    /// from the matrix is normalized so that they sum to ``1.0``. Each element
+    /// is then divided by a uniform background probability to obtain
+    /// odds-ratio at every position of the motif. Pseudocounts can be given
+    /// to prevent zero elements, which may translate into -∞ scores in the
+    /// final position-specific scoring matrix.
+    ///
+    /// Arguments:
+    ///     pseudocount (`float`, `dict` or `None`): The pseudocounts to apply
+    ///         before normalizing the count matrix. If a `float` is given,
+    ///         then a similar pseudocount is applied to every column of the
+    ///         matrix (excluding the default symbol). Otherwise, a `dict`
+    ///         may be given to map each symbol of the alphabet to a distinct
+    ///         pseudocount. If `None` given, no pseudocount is used.
+    ///
     pub fn normalize(&self, pseudocount: Option<PyObject>) -> PyResult<WeightMatrix> {
         let pseudo = Python::with_gil(|py| {
             if let Some(obj) = pseudocount {
@@ -183,8 +203,9 @@ impl From<lightmotif::CountMatrix<lightmotif::Dna>> for CountMatrix {
     }
 }
 
-// --- FrequencyMatrix ---------------------------------------------------------
+// --- WeightMatrix ------------------------------------------------------------
 
+/// A matrix storing position-specific odds-ratio for a motif.
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct WeightMatrix {
@@ -202,6 +223,13 @@ impl WeightMatrix {
         }
     }
 
+    /// Log-scale this weight matrix to obtain a position-specific scoring matrix.
+    ///
+    /// Arguments:
+    ///     background (`dict` or `None`): The background frequencies to use for
+    ///         rescaling the weight matrix before computing log-odds-ratio. If
+    ///         `None` given, uniform background frequencies will be used.
+    ///
     pub fn log_odds(&self, background: Option<PyObject>) -> PyResult<ScoringMatrix> {
         // extract the background from the method argument
         let bg = Python::with_gil(|py| {
@@ -234,6 +262,7 @@ impl From<lightmotif::WeightMatrix<lightmotif::Dna>> for WeightMatrix {
 
 // --- ScoringMatrix -----------------------------------------------------------
 
+/// A matrix storing position-specific odds-ratio for a motif.
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct ScoringMatrix {
@@ -251,7 +280,13 @@ impl ScoringMatrix {
         }
     }
 
-    /// Return the PSSM score for all positions of the given sequence.
+    /// Compute the PSSM score for all positions of the given sequence.
+    ///
+    /// Returns:
+    ///     `~lightmotif.StripedScores`: The PSSM scores for every position
+    ///     of the input sequence, stored into a striped matrix for fast
+    ///     vectorized operations.
+    ///
     pub fn calculate(
         slf: PyRef<'_, Self>,
         sequence: &mut StripedSequence,
@@ -288,6 +323,7 @@ impl From<lightmotif::ScoringMatrix<lightmotif::Dna>> for ScoringMatrix {
 
 // --- Scores ------------------------------------------------------------------
 
+/// A striped matrix storing scores obtained with a scoring matrix.
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct StripedScores {
@@ -389,6 +425,17 @@ pub struct Motif {
 // --- Module ------------------------------------------------------------------
 
 /// Create a new motif from an iterable of sequences.
+///
+/// All sequences must have the same length, and must contain only valid DNA
+/// symbols (*A*, *T*, *G*, *C*, or *N* as a wildcard).
+///
+/// Example:
+///     >>> sequences = ["TATAAT", "TATAAA", "TATATT", "TATAAT"]
+///     >>> motif = lightmotif.create(sequences)
+///
+/// Returns:
+///     `~lightmotif.Motif`: The motif corresponding to the given sequences.
+///
 #[pyfunction]
 pub fn create<'py>(sequences: &'py PyAny) -> PyResult<Motif> {
     let py = sequences.py();
@@ -445,6 +492,10 @@ pub fn init(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<CountMatrix>()?;
     m.add_class::<WeightMatrix>()?;
     m.add_class::<ScoringMatrix>()?;
+
+    m.add_class::<StripedScores>()?;
+
+    m.add_class::<Motif>()?;
 
     m.add_function(wrap_pyfunction!(create, m)?)?;
     m.add_function(wrap_pyfunction!(stripe, m)?)?;
