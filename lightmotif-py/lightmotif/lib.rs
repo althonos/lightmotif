@@ -124,22 +124,18 @@ impl CountMatrix {
         let mut data: Option<DenseMatrix<u32, <lightmotif::Dna as Alphabet>::K>> = None;
         for s in lightmotif::Dna::symbols() {
             let key = String::from(s.as_char());
-            let column = values
-                .get_item(&key)
-                .ok_or(PyKeyError::new_err(key))?
-                .downcast::<PyList>()?;
-
-            if data.is_none() {
-                data = Some(DenseMatrix::new(column.len()));
-            }
-
-            let matrix = data.as_mut().unwrap();
-            if matrix.rows() != column.len() {
-                return Err(PyValueError::new_err("Invalid number of rows"));
-            }
-
-            for (i, x) in column.iter().enumerate() {
-                matrix[i][s.as_index()] = x.extract::<u32>()?;
+            if let Some(res) = values.get_item(&key) {
+                let column = res.downcast::<PyList>()?;
+                if data.is_none() {
+                    data = Some(DenseMatrix::new(column.len()));
+                }
+                let matrix = data.as_mut().unwrap();
+                if matrix.rows() != column.len() {
+                    return Err(PyValueError::new_err("Invalid number of rows"));
+                }
+                for (i, x) in column.iter().enumerate() {
+                    matrix[i][s.as_index()] = x.extract::<u32>()?;
+                }
             }
         }
 
