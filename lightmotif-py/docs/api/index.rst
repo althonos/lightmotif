@@ -36,6 +36,25 @@ Matrices
     lightmotif.WeightMatrix
     lightmotif.ScoringMatrix
 
+
+Motif
+-----
+
+.. autosummary::
+    :nosignatures:
+
+    lightmotif.Motif
+
+
+Score
+-----
+
+.. autosummary::
+    :nosignatures:
+
+    lightmotif.StripedScores
+
+
 Functions
 ---------
 
