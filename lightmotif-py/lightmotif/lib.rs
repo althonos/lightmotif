@@ -14,7 +14,6 @@ use lightmotif::pli::Score;
 
 use pyo3::exceptions::PyBufferError;
 use pyo3::exceptions::PyIndexError;
-use pyo3::exceptions::PyKeyError;
 use pyo3::exceptions::PyTypeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::ffi::Py_ssize_t;
@@ -390,7 +389,7 @@ impl From<lightmotif::pli::StripedScores<C>> for StripedScores {
         let shape = [cols as Py_ssize_t, rows as Py_ssize_t];
         let strides = [
             std::mem::size_of::<f32>() as Py_ssize_t,
-            (cols.next_power_of_two() * std::mem::size_of::<f32>()) as Py_ssize_t,
+            (scores.matrix().stride() * std::mem::size_of::<f32>()) as Py_ssize_t,
         ];
         // mask the remaining positions that are outside the sequence length
         let length = scores.len();

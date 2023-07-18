@@ -78,8 +78,8 @@ unsafe fn score_neon<A, C>(
                     s.3 = vaddq_f32(s.3, vreinterpretq_f32_u32(vandq_u32(lut, p4)));
                 }
                 // advance to next row in sequence and PSSM matrices
-                dataptr = dataptr.add(seq.data.columns_effective());
-                pssmptr = pssmptr.add(pssm.weights().columns_effective());
+                dataptr = dataptr.add(seq.data.stride());
+                pssmptr = pssmptr.add(pssm.weights().stride());
             }
             // record the score for the current position
             let row = &mut data[i];

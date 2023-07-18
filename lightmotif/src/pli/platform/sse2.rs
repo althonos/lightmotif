@@ -77,8 +77,8 @@ unsafe fn score_sse2<A, C>(
                     s4 = _mm_add_ps(s4, _mm_and_ps(lut, p4));
                 }
                 // advance to next row in sequence and PSSM matrices
-                dataptr = dataptr.add(seq.data.columns_effective());
-                pssmptr = pssmptr.add(pssm.weights().columns_effective());
+                dataptr = dataptr.add(seq.data.stride());
+                pssmptr = pssmptr.add(pssm.weights().stride());
             }
             // record the score for the current position
             let row = &mut data[i];
@@ -154,7 +154,7 @@ where
                     s3 = _mm_or_ps(_mm_andnot_ps(c3, s3), _mm_and_ps(r3, c3));
                     s4 = _mm_or_ps(_mm_andnot_ps(c4, s4), _mm_and_ps(r4, c4));
                     // advance to next row
-                    dataptr = dataptr.add(data.columns_effective());
+                    dataptr = dataptr.add(data.stride());
                 }
                 // find the global maximum across all columns
                 _mm_storeu_si128(
@@ -274,7 +274,7 @@ where
                     x3 = _mm_add_epi32(x3, ones);
                     x4 = _mm_add_epi32(x4, ones);
                     // Advance data pointer to next row
-                    dataptr = dataptr.add(data.columns_effective());
+                    dataptr = dataptr.add(data.stride());
                 }
             }
         }

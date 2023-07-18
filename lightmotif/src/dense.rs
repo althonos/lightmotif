@@ -21,7 +21,7 @@ pub type DefaultAlignment = _DefaultAlignment;
 
 // --- DenseMatrix -------------------------------------------------------------
 
-/// An aligned dense matrix of with a constant number of columns.
+/// A memory-aligned dense matrix with a constant number of columns.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DenseMatrix<T: Default + Copy, C: Unsigned, A: Unsigned = DefaultAlignment> {
     data: Vec<T>,
@@ -101,9 +101,21 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned> DenseMatrix<T, C, A> {
         C::USIZE
     }
 
-    /// The effective number of columns in the matrix, counting alignment.
+    /// The stride of the matrix, as a number of elements.
+    ///
+    /// This may be different from the number of columns to account for memory
+    /// alignment constraints. Multiply by `std::mem::size_of::<T>()` to obtain
+    /// the stride in bytes.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use typenum::{U43, U32};
+    /// # use lightmotif::dense::DenseMatrix;
+    /// let d = DenseMatrix::<u8, U43, U32>::new(0);
+    /// assert_eq!(d.stride(), 64);
+    /// ```
     #[inline]
-    pub const fn columns_effective(&self) -> usize {
+    pub const fn stride(&self) -> usize {
         let x = std::mem::size_of::<T>();
         let c = C::USIZE * x;
         let b = c + (A::USIZE - c % A::USIZE) * ((c % A::USIZE) > 0) as usize;
@@ -119,7 +131,7 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned> DenseMatrix<T, C, A> {
     /// Change the number of rows of the matrix.
     pub fn resize(&mut self, rows: usize) {
         // Always over-allocate columns to avoid alignment issues.
-        let c: usize = self.columns_effective();
+        let c: usize = self.stride();
 
         // Cache previous dimensions
         let previous_rows = self.rows;
@@ -167,7 +179,7 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned> Index<usize> for DenseMatrix<T
     type Output = [T];
     #[inline]
     fn index(&self, index: usize) -> &Self::Output {
-        let c = self.columns_effective();
+        let c = self.stride();
         let row = self.offset + c * index;
         &self.data[row..row + C::USIZE]
     }
@@ -176,7 +188,7 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned> Index<usize> for DenseMatrix<T
 impl<T: Default + Copy, C: Unsigned, A: Unsigned> IndexMut<usize> for DenseMatrix<T, C, A> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        let c = self.columns_effective();
+        let c = self.stride();
         let row = self.offset + c * index;
         &mut self.data[row..row + C::USIZE]
     }
@@ -233,7 +245,7 @@ where
 
     #[inline]
     fn get(&mut self, i: usize) -> &'a [T] {
-        let c = self.matrix.columns_effective();
+        let c = self.matrix.stride();
         let row = self.matrix.offset + c * i;
         unsafe { std::slice::from_raw_parts(self.data.as_ptr().add(row), C::USIZE) }
     }
@@ -270,7 +282,7 @@ where
 
     #[inline]
     fn get(&mut self, i: usize) -> &'a mut [T] {
-        let c = self.matrix.columns_effective();
+        let c = self.matrix.stride();
         let row = self.matrix.offset + c * i;
         unsafe { std::slice::from_raw_parts_mut(self.data.as_ptr().add(row), C::USIZE) }
     }
@@ -338,27 +350,27 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_columns_effective() {
+    fn test_stride() {
         let d1 = DenseMatrix::<u8, U32, U32>::new(0);
-        assert_eq!(d1.columns_effective(), 32);
+        assert_eq!(d1.stride(), 32);
 
         let d2 = DenseMatrix::<u8, U16, U32>::new(0);
-        assert_eq!(d2.columns_effective(), 32);
+        assert_eq!(d2.stride(), 32);
 
         let d3 = DenseMatrix::<u32, U32, U32>::new(0);
-        assert_eq!(d3.columns_effective(), 32);
+        assert_eq!(d3.stride(), 32);
 
         let d4 = DenseMatrix::<u32, U8, U32>::new(0);
-        assert_eq!(d4.columns_effective(), 8);
+        assert_eq!(d4.stride(), 8);
 
         let d5 = DenseMatrix::<u32, U16, U32>::new(0);
-        assert_eq!(d5.columns_effective(), 16);
+        assert_eq!(d5.stride(), 16);
 
         let d6 = DenseMatrix::<u32, U3, U16>::new(0);
-        assert_eq!(d6.columns_effective(), 4);
+        assert_eq!(d6.stride(), 4);
 
         let d7 = DenseMatrix::<u8, U15, U8>::new(0);
-        assert_eq!(d7.columns_effective(), 16);
+        assert_eq!(d7.stride(), 16);
     }
 
     #[test]

@@ -98,8 +98,8 @@ unsafe fn score_avx2(
             s3 = _mm256_add_ps(s3, b3);
             s4 = _mm256_add_ps(s4, b4);
             // advance to next row in PSSM and sequence matrices
-            seqptr = seqptr.add(seq.data.columns_effective());
-            pssmptr = pssmptr.add(pssm.weights().columns_effective());
+            seqptr = seqptr.add(seq.data.stride());
+            pssmptr = pssmptr.add(pssm.weights().stride());
         }
         // permute lanes so that scores are in the right order
         let r1 = _mm256_permute2f128_ps(s1, s2, 0x20);
@@ -166,7 +166,7 @@ unsafe fn best_position_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -
                 s3 = _mm256_blendv_ps(s3, r3, c3);
                 s4 = _mm256_blendv_ps(s4, r4, c4);
                 // advance to next row
-                dataptr = dataptr.add(data.columns_effective());
+                dataptr = dataptr.add(data.stride());
             }
             // find the global maximum across all columns
             let mut x: [u32; 32] = [0; 32];
@@ -275,7 +275,7 @@ unsafe fn threshold_avx2(
                 x3 = _mm256_add_epi32(x3, ones);
                 x4 = _mm256_add_epi32(x4, ones);
                 // Advance data pointer to next row
-                dataptr = dataptr.add(data.columns_effective());
+                dataptr = dataptr.add(data.stride());
             }
         }
 
