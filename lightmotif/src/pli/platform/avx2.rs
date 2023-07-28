@@ -32,6 +32,7 @@ unsafe fn score_avx2(
     scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
 ) {
     let data = scores.matrix_mut();
+    let mut rowptr = data[0].as_mut_ptr();
     // constant vector for comparing unknown bases
     let n = _mm256_set1_epi8(Nucleotide::N as i8);
     // mask vectors for broadcasting uint8x32_t to uint32x8_t to floatx8_t
@@ -107,11 +108,11 @@ unsafe fn score_avx2(
         let r3 = _mm256_permute2f128_ps(s1, s2, 0x31);
         let r4 = _mm256_permute2f128_ps(s3, s4, 0x31);
         // record the score for the current position
-        let row = &mut data[i];
-        _mm256_store_ps(row[0x00..].as_mut_ptr(), r1);
-        _mm256_store_ps(row[0x08..].as_mut_ptr(), r2);
-        _mm256_store_ps(row[0x10..].as_mut_ptr(), r3);
-        _mm256_store_ps(row[0x18..].as_mut_ptr(), r4);
+        _mm256_stream_ps(rowptr.add(0x00), r1);
+        _mm256_stream_ps(rowptr.add(0x08), r2);
+        _mm256_stream_ps(rowptr.add(0x10), r3);
+        _mm256_stream_ps(rowptr.add(0x18), r4);
+        rowptr = rowptr.add(data.stride());
     }
 }
 

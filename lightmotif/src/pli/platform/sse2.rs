@@ -82,10 +82,10 @@ unsafe fn score_sse2<A, C>(
             }
             // record the score for the current position
             let row = &mut data[i];
-            _mm_storeu_ps(row[offset..].as_mut_ptr(), s1);
-            _mm_storeu_ps(row[offset + 4..].as_mut_ptr(), s2);
-            _mm_storeu_ps(row[offset + 8..].as_mut_ptr(), s3);
-            _mm_storeu_ps(row[offset + 12..].as_mut_ptr(), s4);
+            _mm_stream_ps(row[offset..].as_mut_ptr(), s1);
+            _mm_stream_ps(row[offset + 4..].as_mut_ptr(), s2);
+            _mm_stream_ps(row[offset + 8..].as_mut_ptr(), s3);
+            _mm_stream_ps(row[offset + 12..].as_mut_ptr(), s4);
         }
     }
 }
