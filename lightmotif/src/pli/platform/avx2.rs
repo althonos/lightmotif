@@ -215,6 +215,7 @@ unsafe fn best_position_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -
     } else {
         let data = scores.matrix();
         unsafe {
+            let mut dataptr = data[0].as_ptr();
             // the row index for the best score in each column
             // (these are 32-bit integers but for use with `_mm256_blendv_ps`
             // they get stored in 32-bit float vectors).
@@ -223,12 +224,11 @@ unsafe fn best_position_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -
             let mut p3 = _mm256_setzero_ps();
             let mut p4 = _mm256_setzero_ps();
             // store the best scores for each column
-            let mut s1 = _mm256_load_ps(data[0][0x00..].as_ptr());
-            let mut s2 = _mm256_load_ps(data[0][0x08..].as_ptr());
-            let mut s3 = _mm256_load_ps(data[0][0x10..].as_ptr());
-            let mut s4 = _mm256_load_ps(data[0][0x18..].as_ptr());
+            let mut s1 = _mm256_load_ps(dataptr.add(0x00));
+            let mut s2 = _mm256_load_ps(dataptr.add(0x08));
+            let mut s3 = _mm256_load_ps(dataptr.add(0x10));
+            let mut s4 = _mm256_load_ps(dataptr.add(0x18));
             // process all rows iteratively
-            let mut dataptr = data[0].as_ptr();
             for i in 0..data.rows() {
                 // record the current row index
                 let index = _mm256_castsi256_ps(_mm256_set1_epi32(i as i32));

@@ -43,6 +43,7 @@ unsafe fn score_sse2<A, C>(
     // process columns of the striped matrix, any multiple of 16 is supported
     let data = scores.matrix_mut();
     for offset in (0..<C as Div<U16>>::Output::USIZE).map(|i| i * U16::USIZE) {
+        let mut rowptr = data[0].as_mut_ptr().add(offset);
         // process every position of the sequence data
         for i in 0..seq.data.rows() - seq.wrap {
             // reset sums for current position
@@ -81,11 +82,11 @@ unsafe fn score_sse2<A, C>(
                 pssmptr = pssmptr.add(pssm.weights().stride());
             }
             // record the score for the current position
-            let row = &mut data[i];
-            _mm_stream_ps(row[offset..].as_mut_ptr(), s1);
-            _mm_stream_ps(row[offset + 4..].as_mut_ptr(), s2);
-            _mm_stream_ps(row[offset + 8..].as_mut_ptr(), s3);
-            _mm_stream_ps(row[offset + 12..].as_mut_ptr(), s4);
+            _mm_stream_ps(rowptr.add(0x00), s1);
+            _mm_stream_ps(rowptr.add(0x04), s2);
+            _mm_stream_ps(rowptr.add(0x08), s3);
+            _mm_stream_ps(rowptr.add(0x0c), s4);
+            rowptr = rowptr.add(data.stride());
         }
     }
 }
@@ -112,6 +113,7 @@ where
             let mut best_pos = 0;
             let mut best_score = -f32::INFINITY;
             for offset in (0..<C as Div<U16>>::Output::USIZE).map(|i| i * 16) {
+                let mut dataptr = data[0].as_ptr().add(offset);
                 // the row index for the best score in each column
                 // (these are 32-bit integers but for use with `_mm256_blendv_ps`
                 // they get stored in 32-bit float vectors).
@@ -120,20 +122,19 @@ where
                 let mut p3 = _mm_setzero_ps();
                 let mut p4 = _mm_setzero_ps();
                 // store the best scores for each column
-                let mut s1 = _mm_load_ps(data[0][offset + 0x00..].as_ptr());
-                let mut s2 = _mm_load_ps(data[0][offset + 0x04..].as_ptr());
-                let mut s3 = _mm_load_ps(data[0][offset + 0x08..].as_ptr());
-                let mut s4 = _mm_load_ps(data[0][offset + 0x0c..].as_ptr());
+                let mut s1 = _mm_load_ps(dataptr.add(0x00));
+                let mut s2 = _mm_load_ps(dataptr.add(0x04));
+                let mut s3 = _mm_load_ps(dataptr.add(0x08));
+                let mut s4 = _mm_load_ps(dataptr.add(0x0c));
                 // process all rows iteratively
-                let mut dataptr = data[0].as_ptr();
                 for i in 0..data.rows() {
                     // record the current row index
                     let index = _mm_castsi128_ps(_mm_set1_epi32(i as i32));
                     // load scores for the current row
-                    let r1 = _mm_load_ps(dataptr.add(offset + 0x00));
-                    let r2 = _mm_load_ps(dataptr.add(offset + 0x04));
-                    let r3 = _mm_load_ps(dataptr.add(offset + 0x08));
-                    let r4 = _mm_load_ps(dataptr.add(offset + 0x0c));
+                    let r1 = _mm_load_ps(dataptr.add(0x00));
+                    let r2 = _mm_load_ps(dataptr.add(0x04));
+                    let r3 = _mm_load_ps(dataptr.add(0x08));
+                    let r4 = _mm_load_ps(dataptr.add(0x0c));
                     // compare scores to local maxima
                     let c1 = _mm_cmplt_ps(s1, r1);
                     let c2 = _mm_cmplt_ps(s2, r2);
