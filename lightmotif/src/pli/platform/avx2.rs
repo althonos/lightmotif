@@ -134,8 +134,6 @@ unsafe fn score_avx2_gather<A>(
 {
     let data = scores.matrix_mut();
     let mut rowptr = data[0].as_mut_ptr();
-    // constant vector for comparing unknown bases
-    let n = _mm256_set1_epi8(A::default_symbol().as_index() as i8);
     // mask vectors for broadcasting uint8x32_t to uint32x8_t to floatx8_t
     #[rustfmt::skip]
     let m1 = _mm256_set_epi32(
