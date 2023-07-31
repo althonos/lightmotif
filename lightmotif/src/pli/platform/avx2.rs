@@ -9,6 +9,7 @@ use typenum::consts::U32;
 use typenum::consts::U5;
 use typenum::IsLessOrEqual;
 use typenum::NonZero;
+use typenum::Unsigned;
 
 use super::Backend;
 use crate::abc::Alphabet;
@@ -40,7 +41,7 @@ unsafe fn score_avx2_permute<A>(
     let data = scores.matrix_mut();
     let mut rowptr = data[0].as_mut_ptr();
     // constant vector for comparing unknown bases
-    let n = _mm256_set1_epi8(A::default_symbol().as_index() as i8);
+    let n = _mm256_set1_epi8(<A as Alphabet>::K::I8 - 1);
     // mask vectors for broadcasting uint8x32_t to uint32x8_t to floatx8_t
     #[rustfmt::skip]
     let m1 = _mm256_set_epi32(
@@ -82,7 +83,7 @@ unsafe fn score_avx2_permute<A>(
             let x4 = _mm256_shuffle_epi8(x, m4);
             // load row for current weight matrix position
             let t = _mm256_broadcast_ps(&*(pssmptr as *const __m128));
-            let u = _mm256_broadcast_ss(&*(pssmptr.add(A::default_symbol().as_index())));
+            let u = _mm256_broadcast_ss(&*(pssmptr.add(<A as Alphabet>::K::USIZE - 1)));
             // check which bases from the sequence are unknown
             let mask = _mm256_cmpeq_epi8(x, n);
             let unk1 = _mm256_castsi256_ps(_mm256_shuffle_epi8(mask, m1));
