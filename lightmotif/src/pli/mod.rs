@@ -12,6 +12,7 @@ use self::platform::Neon;
 use self::platform::Sse2;
 use super::abc::Alphabet;
 use super::abc::Dna;
+use super::abc::Protein;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
 use super::err::UnsupportedBackend;
@@ -218,7 +219,21 @@ impl Score<Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
         S: AsRef<StripedSequence<Dna, <Avx2 as Backend>::LANES>>,
         M: AsRef<ScoringMatrix<Dna>>,
     {
-        Avx2::score_into(seq, pssm, scores)
+        Avx2::score_into_permute(seq, pssm, scores)
+    }
+}
+
+impl Score<Protein, <Avx2 as Backend>::LANES> for Pipeline<Protein, Avx2> {
+    fn score_into<S, M>(
+        &self,
+        seq: S,
+        pssm: M,
+        scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
+    ) where
+        S: AsRef<StripedSequence<Protein, <Avx2 as Backend>::LANES>>,
+        M: AsRef<ScoringMatrix<Protein>>,
+    {
+        Avx2::score_into_gather(seq, pssm, scores)
     }
 }
 

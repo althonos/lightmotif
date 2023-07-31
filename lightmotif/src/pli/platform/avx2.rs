@@ -6,10 +6,12 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 use typenum::consts::U32;
+use typenum::consts::U5;
+use typenum::IsLessOrEqual;
+use typenum::NonZero;
 
 use super::Backend;
-use crate::abc::Dna;
-use crate::abc::Nucleotide;
+use crate::abc::Alphabet;
 use crate::abc::Symbol;
 use crate::pli::scores::StripedScores;
 use crate::pwm::ScoringMatrix;
@@ -26,15 +28,19 @@ impl Backend for Avx2 {
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 #[allow(overflowing_literals)]
-unsafe fn score_avx2(
-    seq: &StripedSequence<Dna, <Avx2 as Backend>::LANES>,
-    pssm: &ScoringMatrix<Dna>,
+unsafe fn score_avx2_permute<A>(
+    seq: &StripedSequence<A, <Avx2 as Backend>::LANES>,
+    pssm: &ScoringMatrix<A>,
     scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
-) {
+) where
+    A: Alphabet,
+    <A as Alphabet>::K: IsLessOrEqual<U5>,
+    <<A as Alphabet>::K as IsLessOrEqual<U5>>::Output: NonZero,
+{
     let data = scores.matrix_mut();
     let mut rowptr = data[0].as_mut_ptr();
     // constant vector for comparing unknown bases
-    let n = _mm256_set1_epi8(Nucleotide::N as i8);
+    let n = _mm256_set1_epi8(A::default_symbol().as_index() as i8);
     // mask vectors for broadcasting uint8x32_t to uint32x8_t to floatx8_t
     #[rustfmt::skip]
     let m1 = _mm256_set_epi32(
@@ -76,7 +82,7 @@ unsafe fn score_avx2(
             let x4 = _mm256_shuffle_epi8(x, m4);
             // load row for current weight matrix position
             let t = _mm256_broadcast_ps(&*(pssmptr as *const __m128));
-            let u = _mm256_broadcast_ss(&*(pssmptr.add(crate::abc::Nucleotide::N.as_index())));
+            let u = _mm256_broadcast_ss(&*(pssmptr.add(A::default_symbol().as_index())));
             // check which bases from the sequence are unknown
             let mask = _mm256_cmpeq_epi8(x, n);
             let unk1 = _mm256_castsi256_ps(_mm256_shuffle_epi8(mask, m1));
@@ -93,6 +99,87 @@ unsafe fn score_avx2(
             let b2 = _mm256_blendv_ps(p2, u, unk2);
             let b3 = _mm256_blendv_ps(p3, u, unk3);
             let b4 = _mm256_blendv_ps(p4, u, unk4);
+            // add log odds to the running sum
+            s1 = _mm256_add_ps(s1, b1);
+            s2 = _mm256_add_ps(s2, b2);
+            s3 = _mm256_add_ps(s3, b3);
+            s4 = _mm256_add_ps(s4, b4);
+            // advance to next row in PSSM and sequence matrices
+            seqptr = seqptr.add(seq.data.stride());
+            pssmptr = pssmptr.add(pssm.weights().stride());
+        }
+        // permute lanes so that scores are in the right order
+        let r1 = _mm256_permute2f128_ps(s1, s2, 0x20);
+        let r2 = _mm256_permute2f128_ps(s3, s4, 0x20);
+        let r3 = _mm256_permute2f128_ps(s1, s2, 0x31);
+        let r4 = _mm256_permute2f128_ps(s3, s4, 0x31);
+        // record the score for the current position
+        _mm256_stream_ps(rowptr.add(0x00), r1);
+        _mm256_stream_ps(rowptr.add(0x08), r2);
+        _mm256_stream_ps(rowptr.add(0x10), r3);
+        _mm256_stream_ps(rowptr.add(0x18), r4);
+        rowptr = rowptr.add(data.stride());
+    }
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx2")]
+#[allow(overflowing_literals)]
+unsafe fn score_avx2_gather<A>(
+    seq: &StripedSequence<A, <Avx2 as Backend>::LANES>,
+    pssm: &ScoringMatrix<A>,
+    scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
+) where
+    A: Alphabet,
+{
+    let data = scores.matrix_mut();
+    let mut rowptr = data[0].as_mut_ptr();
+    // constant vector for comparing unknown bases
+    let n = _mm256_set1_epi8(A::default_symbol().as_index() as i8);
+    // mask vectors for broadcasting uint8x32_t to uint32x8_t to floatx8_t
+    #[rustfmt::skip]
+    let m1 = _mm256_set_epi32(
+        0xFFFFFF03, 0xFFFFFF02, 0xFFFFFF01, 0xFFFFFF00,
+        0xFFFFFF03, 0xFFFFFF02, 0xFFFFFF01, 0xFFFFFF00,
+    );
+    #[rustfmt::skip]
+    let m2 = _mm256_set_epi32(
+        0xFFFFFF07, 0xFFFFFF06, 0xFFFFFF05, 0xFFFFFF04,
+        0xFFFFFF07, 0xFFFFFF06, 0xFFFFFF05, 0xFFFFFF04,
+    );
+    #[rustfmt::skip]
+    let m3 = _mm256_set_epi32(
+        0xFFFFFF0B, 0xFFFFFF0A, 0xFFFFFF09, 0xFFFFFF08,
+        0xFFFFFF0B, 0xFFFFFF0A, 0xFFFFFF09, 0xFFFFFF08,
+    );
+    #[rustfmt::skip]
+    let m4 = _mm256_set_epi32(
+        0xFFFFFF0F, 0xFFFFFF0E, 0xFFFFFF0D, 0xFFFFFF0C,
+        0xFFFFFF0F, 0xFFFFFF0E, 0xFFFFFF0D, 0xFFFFFF0C,
+    );
+    // process every position of the sequence data
+    for i in 0..seq.data.rows() - seq.wrap {
+        // reset sums for current position
+        let mut s1 = _mm256_setzero_ps();
+        let mut s2 = _mm256_setzero_ps();
+        let mut s3 = _mm256_setzero_ps();
+        let mut s4 = _mm256_setzero_ps();
+        // reset pointers to row
+        let mut seqptr = seq.data[i].as_ptr();
+        let mut pssmptr = pssm.weights()[0].as_ptr();
+        // advance position in the position weight matrix
+        for _ in 0..pssm.len() {
+            // load sequence row and broadcast to f32
+            let x = _mm256_load_si256(seqptr as *const __m256i);
+            let x1 = _mm256_shuffle_epi8(x, m1);
+            let x2 = _mm256_shuffle_epi8(x, m2);
+            let x3 = _mm256_shuffle_epi8(x, m3);
+            let x4 = _mm256_shuffle_epi8(x, m4);
+            // gather scores for the sequence elements
+            let b1 = _mm256_i32gather_ps(pssmptr, x1, std::mem::size_of::<f32>() as i32);
+            let b2 = _mm256_i32gather_ps(pssmptr, x2, std::mem::size_of::<f32>() as i32);
+            let b3 = _mm256_i32gather_ps(pssmptr, x3, std::mem::size_of::<f32>() as i32);
+            let b4 = _mm256_i32gather_ps(pssmptr, x4, std::mem::size_of::<f32>() as i32);
             // add log odds to the running sum
             s1 = _mm256_add_ps(s1, b1);
             s2 = _mm256_add_ps(s2, b2);
@@ -292,10 +379,16 @@ unsafe fn threshold_avx2(
 /// Intel 256-bit vector implementation, for 32 elements column width.
 impl Avx2 {
     #[allow(unused)]
-    pub fn score_into<S, M>(seq: S, pssm: M, scores: &mut StripedScores<<Avx2 as Backend>::LANES>)
-    where
-        S: AsRef<StripedSequence<Dna, <Avx2 as Backend>::LANES>>,
-        M: AsRef<ScoringMatrix<Dna>>,
+    pub fn score_into_permute<A, S, M>(
+        seq: S,
+        pssm: M,
+        scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
+    ) where
+        A: Alphabet,
+        <A as Alphabet>::K: IsLessOrEqual<U5>,
+        <<A as Alphabet>::K as IsLessOrEqual<U5>>::Output: NonZero,
+        S: AsRef<StripedSequence<A, <Avx2 as Backend>::LANES>>,
+        M: AsRef<ScoringMatrix<A>>,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
@@ -310,7 +403,36 @@ impl Avx2 {
         scores.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
-            score_avx2(seq, pssm, scores)
+            score_avx2_permute(seq, pssm, scores)
+        };
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        panic!("attempting to run AVX2 code on a non-x86 host")
+    }
+
+    #[allow(unused)]
+    pub fn score_into_gather<A, S, M>(
+        seq: S,
+        pssm: M,
+        scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
+    ) where
+        A: Alphabet,
+        S: AsRef<StripedSequence<A, <Avx2 as Backend>::LANES>>,
+        M: AsRef<ScoringMatrix<A>>,
+    {
+        let seq = seq.as_ref();
+        let pssm = pssm.as_ref();
+
+        if seq.wrap < pssm.len() - 1 {
+            panic!(
+                "not enough wrapping rows for motif of length {}",
+                pssm.len()
+            );
+        }
+
+        scores.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        unsafe {
+            score_avx2_gather(seq, pssm, scores)
         };
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
         panic!("attempting to run AVX2 code on a non-x86 host")
