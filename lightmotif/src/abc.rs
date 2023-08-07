@@ -19,9 +19,21 @@ pub trait Symbol: Default + Sized + Copy {
     /// View this symbol as a zero-based index.
     fn as_index(&self) -> usize;
     /// View this symbol as a string character.
-    fn as_char(&self) -> char;
+    fn as_char(&self) -> char {
+        self.as_ascii() as char
+    }
     /// Parse a string character into a symbol.
-    fn from_char(c: char) -> Result<Self, InvalidSymbol>;
+    fn from_char(c: char) -> Result<Self, InvalidSymbol> {
+        if c.is_ascii() {
+            Self::from_ascii(c as u8)
+        } else {
+            Err(InvalidSymbol(c))
+        }
+    }
+    /// View this symbol as an ASCII charater.
+    fn as_ascii(&self) -> u8;
+    /// Parse an ASCII character into a symbol.
+    fn from_ascii(c: u8) -> Result<Self, InvalidSymbol>;
 }
 
 /// A symbol that can be complemented.
@@ -120,24 +132,24 @@ impl Symbol for Nucleotide {
         *self as usize
     }
 
-    fn as_char(&self) -> char {
+    fn as_ascii(&self) -> u8 {
         match self {
-            Nucleotide::A => 'A',
-            Nucleotide::C => 'C',
-            Nucleotide::T => 'T',
-            Nucleotide::G => 'G',
-            Nucleotide::N => 'N',
+            Nucleotide::A => b'A',
+            Nucleotide::C => b'C',
+            Nucleotide::T => b'T',
+            Nucleotide::G => b'G',
+            Nucleotide::N => b'N',
         }
     }
 
-    fn from_char(c: char) -> Result<Self, InvalidSymbol> {
+    fn from_ascii(c: u8) -> Result<Self, InvalidSymbol> {
         match c {
-            'A' => Ok(Nucleotide::A),
-            'C' => Ok(Nucleotide::C),
-            'T' => Ok(Nucleotide::T),
-            'G' => Ok(Nucleotide::G),
-            'N' => Ok(Nucleotide::N),
-            _ => Err(InvalidSymbol(c)),
+            b'A' => Ok(Nucleotide::A),
+            b'C' => Ok(Nucleotide::C),
+            b'T' => Ok(Nucleotide::T),
+            b'G' => Ok(Nucleotide::G),
+            b'N' => Ok(Nucleotide::N),
+            _ => Err(InvalidSymbol(c as char)),
         }
     }
 }
@@ -230,56 +242,56 @@ impl Symbol for AminoAcid {
         *self as usize
     }
 
-    fn as_char(&self) -> char {
+    fn as_ascii(&self) -> u8 {
         match self {
-            AminoAcid::A => 'A',
-            AminoAcid::C => 'C',
-            AminoAcid::D => 'D',
-            AminoAcid::E => 'E',
-            AminoAcid::F => 'F',
-            AminoAcid::G => 'G',
-            AminoAcid::H => 'H',
-            AminoAcid::I => 'I',
-            AminoAcid::K => 'K',
-            AminoAcid::L => 'L',
-            AminoAcid::M => 'M',
-            AminoAcid::N => 'N',
-            AminoAcid::P => 'P',
-            AminoAcid::Q => 'Q',
-            AminoAcid::R => 'R',
-            AminoAcid::S => 'S',
-            AminoAcid::T => 'T',
-            AminoAcid::V => 'V',
-            AminoAcid::W => 'W',
-            AminoAcid::Y => 'Y',
-            AminoAcid::X => 'X',
+            AminoAcid::A => b'A',
+            AminoAcid::C => b'C',
+            AminoAcid::D => b'D',
+            AminoAcid::E => b'E',
+            AminoAcid::F => b'F',
+            AminoAcid::G => b'G',
+            AminoAcid::H => b'H',
+            AminoAcid::I => b'I',
+            AminoAcid::K => b'K',
+            AminoAcid::L => b'L',
+            AminoAcid::M => b'M',
+            AminoAcid::N => b'N',
+            AminoAcid::P => b'P',
+            AminoAcid::Q => b'Q',
+            AminoAcid::R => b'R',
+            AminoAcid::S => b'S',
+            AminoAcid::T => b'T',
+            AminoAcid::V => b'V',
+            AminoAcid::W => b'W',
+            AminoAcid::Y => b'Y',
+            AminoAcid::X => b'X',
         }
     }
 
-    fn from_char(c: char) -> Result<Self, InvalidSymbol> {
+    fn from_ascii(c: u8) -> Result<Self, InvalidSymbol> {
         match c {
-            'A' => Ok(AminoAcid::A),
-            'C' => Ok(AminoAcid::C),
-            'D' => Ok(AminoAcid::D),
-            'E' => Ok(AminoAcid::E),
-            'F' => Ok(AminoAcid::F),
-            'G' => Ok(AminoAcid::G),
-            'H' => Ok(AminoAcid::H),
-            'I' => Ok(AminoAcid::I),
-            'K' => Ok(AminoAcid::K),
-            'L' => Ok(AminoAcid::L),
-            'M' => Ok(AminoAcid::M),
-            'N' => Ok(AminoAcid::N),
-            'P' => Ok(AminoAcid::P),
-            'Q' => Ok(AminoAcid::Q),
-            'R' => Ok(AminoAcid::R),
-            'S' => Ok(AminoAcid::S),
-            'T' => Ok(AminoAcid::T),
-            'V' => Ok(AminoAcid::V),
-            'W' => Ok(AminoAcid::W),
-            'Y' => Ok(AminoAcid::Y),
-            'X' => Ok(AminoAcid::X),
-            _ => Err(InvalidSymbol(c)),
+            b'A' => Ok(AminoAcid::A),
+            b'C' => Ok(AminoAcid::C),
+            b'D' => Ok(AminoAcid::D),
+            b'E' => Ok(AminoAcid::E),
+            b'F' => Ok(AminoAcid::F),
+            b'G' => Ok(AminoAcid::G),
+            b'H' => Ok(AminoAcid::H),
+            b'I' => Ok(AminoAcid::I),
+            b'K' => Ok(AminoAcid::K),
+            b'L' => Ok(AminoAcid::L),
+            b'M' => Ok(AminoAcid::M),
+            b'N' => Ok(AminoAcid::N),
+            b'P' => Ok(AminoAcid::P),
+            b'Q' => Ok(AminoAcid::Q),
+            b'R' => Ok(AminoAcid::R),
+            b'S' => Ok(AminoAcid::S),
+            b'T' => Ok(AminoAcid::T),
+            b'V' => Ok(AminoAcid::V),
+            b'W' => Ok(AminoAcid::W),
+            b'Y' => Ok(AminoAcid::Y),
+            b'X' => Ok(AminoAcid::X),
+            _ => Err(InvalidSymbol(c as char)),
         }
     }
 }
