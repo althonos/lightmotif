@@ -6,7 +6,7 @@ use super::Backend;
 use crate::abc::Alphabet;
 
 use crate::pli::BestPosition;
-
+use crate::pli::Encode;
 use crate::pli::Score;
 
 /// A marker type for the generic implementation of the pipeline.
@@ -16,6 +16,8 @@ pub struct Generic;
 impl Backend for Generic {
     type LANES = U1;
 }
+
+impl<A: Alphabet> Encode<A> for Generic {}
 
 impl<A: Alphabet, C: NonZero + Unsigned> Score<A, C> for Generic {}
 

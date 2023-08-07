@@ -242,7 +242,15 @@ impl<A: Alphabet> Pipeline<A, Avx2> {
     }
 }
 
-impl<A: Alphabet> Encode<A> for Pipeline<A, Avx2> {}
+impl<A: Alphabet> Encode<A> for Pipeline<A, Avx2> {
+    fn encode_into<S: AsRef<[u8]>>(
+        &self,
+        seq: S,
+        dst: &mut [A::Symbol],
+    ) -> Result<(), InvalidSymbol> {
+        Avx2::encode_into::<A>(seq.as_ref(), dst)
+    }
+}
 
 impl Score<Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
     fn score_into<S, M>(

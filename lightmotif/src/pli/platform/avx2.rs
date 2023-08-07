@@ -13,7 +13,11 @@ use typenum::Unsigned;
 
 use super::Backend;
 use crate::abc::Alphabet;
+use crate::abc::Symbol;
+use crate::err::InvalidSymbol;
 use crate::pli::scores::StripedScores;
+use crate::pli::Encode;
+use crate::pli::Pipeline;
 use crate::pwm::ScoringMatrix;
 use crate::seq::StripedSequence;
 
@@ -23,6 +27,65 @@ pub struct Avx2;
 
 impl Backend for Avx2 {
     type LANES = U32;
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx2")]
+#[allow(overflowing_literals)]
+unsafe fn encode_into_avx2<A>(seq: &[u8], dst: &mut [A::Symbol]) -> Result<(), InvalidSymbol>
+where
+    A: Alphabet,
+{
+    let g = Pipeline::<A, _>::generic();
+    let l = seq.len();
+    assert_eq!(seq.len(), dst.len());
+
+    unsafe {
+        // Use raw pointers since we cannot be sure `seq` and `dst` are aligned.
+        let mut i = 0;
+        let mut src_ptr = seq.as_ptr();
+        let mut dst_ptr = dst.as_mut_ptr();
+
+        // Store a flag to know if invalid letters have been encountered.
+        let mut error = _mm256_setzero_si256();
+
+        // Process the beginning of the sequence in SIMD while possible.
+        while i + std::mem::size_of::<__m256i>() < l {
+            // Load current row and reset buffers for the encoded result.
+            let letters = _mm256_loadu_si256(src_ptr as *const __m256i);
+            let mut encoded = _mm256_setzero_si256();
+            let mut unknown = _mm256_set1_epi8(0xFF);
+            // Check symbols one by one and match them to the letters.
+            for a in A::symbols() {
+                let index = _mm256_set1_epi8(a.as_index() as i8);
+                let ascii = _mm256_set1_epi8(a.as_ascii() as i8);
+                let m = _mm256_cmpeq_epi8(letters, ascii);
+                encoded = _mm256_blendv_epi8(encoded, index, m);
+                unknown = _mm256_andnot_si256(m, unknown);
+            }
+            // Record is some symbols of the current vector are unknown.
+            error = _mm256_or_si256(error, unknown);
+            // Store the encoded result to the output buffer.
+            _mm256_storeu_si256(dst_ptr as *mut __m256i, encoded);
+            // Advance to the next addresses in input and output.
+            src_ptr = src_ptr.add(std::mem::size_of::<__m256i>());
+            dst_ptr = dst_ptr.add(std::mem::size_of::<__m256i>());
+            i += std::mem::size_of::<__m256i>();
+        }
+
+        // If an invalid symbol was encountered, recover which one.
+        // FIXME: run a vectorize the error search?
+        if _mm256_testz_si256(error, error) != 1 {
+            for i in 0..l {
+                A::Symbol::from_ascii(seq[i])?;
+            }
+        }
+
+        // Encode the rest of the sequence using the generic implementation.
+        g.encode_into(&seq[i..], &mut dst[i..])?;
+    }
+
+    Ok(())
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -376,6 +439,22 @@ unsafe fn threshold_avx2(
 
 /// Intel 256-bit vector implementation, for 32 elements column width.
 impl Avx2 {
+    #[allow(unused)]
+    pub fn encode_into<A>(seq: &[u8], dst: &mut [A::Symbol]) -> Result<(), InvalidSymbol>
+    where
+        A: Alphabet,
+    {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        unsafe {
+            return encode_into_avx2::<A>(seq, dst);
+        };
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        {
+            panic!("attempting to run AVX2 code on a non-x86 host");
+            unreachable!()
+        }
+    }
+
     #[allow(unused)]
     pub fn score_into_permute<A, S, M>(
         seq: S,

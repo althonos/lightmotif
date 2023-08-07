@@ -4,20 +4,11 @@ extern crate typenum;
 use lightmotif::abc::Dna;
 use lightmotif::abc::Nucleotide;
 use lightmotif::abc::Nucleotide::*;
-use lightmotif::num::StrictlyPositive;
-use lightmotif::num::U1;
-use lightmotif::num::U16;
-use lightmotif::num::U32;
-use lightmotif::pli::BestPosition;
 use lightmotif::pli::Encode;
 use lightmotif::pli::Pipeline;
-use lightmotif::pli::Score;
-use lightmotif::pli::Threshold;
-use lightmotif::pwm::CountMatrix;
-use lightmotif::seq::EncodedSequence;
-use lightmotif::seq::StripedSequence;
 
 const SEQUENCE: &str = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
+const UNKNOWNS: &str = "ATGTCCCAACAACGATACCNN..................NNNNNNNNATGCAGATTCCCAGGCG";
 
 // scores computed with Bio.motifs
 #[rustfmt::skip]
@@ -26,33 +17,10 @@ const EXPECTED: &[Nucleotide] = &[
 ];
 
 fn test_encode<P: Encode<Dna>>(pli: &P) {
-    let mut encoded = pli.encode(SEQUENCE).unwrap();
+    let encoded = pli.encode(SEQUENCE).unwrap();
     assert_eq!(encoded, EXPECTED);
-
-    // let mut striped = StripedSequence::<Dna, C>::encode(SEQUENCE).unwrap();
-
-    // let cm = CountMatrix::<Dna>::from_sequences(
-    //     PATTERNS.iter().map(|x| EncodedSequence::encode(x).unwrap()),
-    // )
-    // .unwrap();
-    // let pbm = cm.to_freq(0.1);
-    // let pwm = pbm.to_weight(None);
-    // let pssm = pwm.into();
-
-    // striped.configure(&pssm);
-    // let result = pli.score(&striped, &pssm);
-    // let scores = result.to_vec();
-
-    // assert_eq!(scores.len(), EXPECTED.len());
-    // for i in 0..scores.len() {
-    //     assert!(
-    //         (scores[i] - EXPECTED[i]).abs() < 1e-5,
-    //         "{} != {} at position {}",
-    //         scores[i],
-    //         EXPECTED[i],
-    //         i
-    //     );
-    // }
+    let err = pli.encode(UNKNOWNS).unwrap_err();
+    assert_eq!(err.0, '.');
 }
 
 #[test]
