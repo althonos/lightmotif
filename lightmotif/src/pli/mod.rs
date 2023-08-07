@@ -15,6 +15,7 @@ use super::abc::Dna;
 use super::abc::Protein;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
+use super::err::InvalidSymbol;
 use super::err::UnsupportedBackend;
 use super::num::StrictlyPositive;
 use super::pwm::ScoringMatrix;
@@ -28,6 +29,34 @@ pub mod platform;
 mod scores;
 
 // --- Score -------------------------------------------------------------------
+
+/// Generic trait for encoding a sequence.
+pub trait Encode<A: Alphabet> {
+    /// Encode the given sequence into a vector of symbols.
+    fn encode<S: AsRef<[u8]>>(&self, seq: S) -> Result<Vec<A::Symbol>, InvalidSymbol> {
+        let s = seq.as_ref();
+        let mut buffer = vec![A::default_symbol(); s.len()];
+        match self.encode_into(s, &mut buffer) {
+            Ok(_) => Ok(buffer),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Encode the given sequence into a buffer of symbols.
+    ///
+    /// The destination buffer is expected to be large enough to store the
+    /// entire sequence.
+    fn encode_into<S: AsRef<[u8]>>(
+        &self,
+        seq: S,
+        dst: &mut [A::Symbol],
+    ) -> Result<(), InvalidSymbol> {
+        for (i, c) in seq.as_ref().iter().enumerate() {
+            dst[i] = A::Symbol::from_ascii(*c)?;
+        }
+        Ok(())
+    }
+}
 
 /// Generic trait for computing sequence scores with a PSSM.
 pub trait Score<A: Alphabet, C: StrictlyPositive> {
@@ -134,6 +163,8 @@ impl<A: Alphabet> Pipeline<A, Generic> {
     }
 }
 
+impl<A: Alphabet> Encode<A> for Pipeline<A, Generic> {}
+
 impl<A: Alphabet, C: StrictlyPositive> Score<A, C> for Pipeline<A, Generic> {}
 
 impl<A: Alphabet, C: StrictlyPositive> BestPosition<C> for Pipeline<A, Generic> {}
@@ -155,6 +186,8 @@ impl<A: Alphabet> Pipeline<A, Sse2> {
         Err(UnsupportedBackend)
     }
 }
+
+impl<A: Alphabet> Encode<A> for Pipeline<A, Sse2> {}
 
 impl<A, C> Score<A, C> for Pipeline<A, Sse2>
 where
@@ -208,6 +241,8 @@ impl<A: Alphabet> Pipeline<A, Avx2> {
         Err(UnsupportedBackend)
     }
 }
+
+impl<A: Alphabet> Encode<A> for Pipeline<A, Avx2> {}
 
 impl Score<Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
     fn score_into<S, M>(
@@ -269,6 +304,8 @@ impl<A: Alphabet> Pipeline<A, Neon> {
         Err(UnsupportedBackend)
     }
 }
+
+impl<A: Alphabet> Encode<A> for Pipeline<A, Neon> {}
 
 impl<A, C> Score<A, C> for Pipeline<A, Neon>
 where
