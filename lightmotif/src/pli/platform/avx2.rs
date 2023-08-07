@@ -13,7 +13,6 @@ use typenum::Unsigned;
 
 use super::Backend;
 use crate::abc::Alphabet;
-use crate::abc::Symbol;
 use crate::pli::scores::StripedScores;
 use crate::pwm::ScoringMatrix;
 use crate::seq::StripedSequence;

@@ -92,6 +92,12 @@ impl<A: Alphabet> AsRef<[<A as Alphabet>::Symbol]> for EncodedSequence<A> {
     }
 }
 
+impl<A: Alphabet> Default for EncodedSequence<A> {
+    fn default() -> Self {
+        Self::new(Vec::new())
+    }
+}
+
 impl<A: Alphabet> Display for EncodedSequence<A> {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         for c in self.data.iter() {
@@ -105,6 +111,12 @@ impl<A: Alphabet> FromStr for EncodedSequence<A> {
     type Err = InvalidSymbol;
     fn from_str(seq: &str) -> Result<Self, Self::Err> {
         Self::encode(seq)
+    }
+}
+
+impl<A: Alphabet> From<Vec<A::Symbol>> for EncodedSequence<A> {
+    fn from(data: Vec<A::Symbol>) -> Self {
+        Self::new(data)
     }
 }
 
