@@ -69,6 +69,11 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
 
+        if seq.length < pssm.len() {
+            scores.resize(0, 0);
+            return;
+        }
+
         let seq_rows = seq.data.rows() - seq.wrap;
         scores.resize(seq.length - pssm.len() + 1, seq_rows);
 

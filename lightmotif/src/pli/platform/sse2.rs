@@ -322,6 +322,11 @@ impl Sse2 {
             );
         }
 
+        if seq.length < pssm.len() {
+            scores.resize(0, 0);
+            return;
+        }
+
         scores.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
