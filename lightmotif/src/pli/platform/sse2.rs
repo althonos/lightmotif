@@ -89,6 +89,11 @@ unsafe fn score_sse2<A, C>(
             rowptr = rowptr.add(data.stride());
         }
     }
+
+    // Required before returning to code that may set atomic flags that invite concurrent reads,
+    // as LLVM lowers `AtomicBool::store(flag, true, Release)` to ordinary stores on x86-64
+    // instead of SFENCE, even though SFENCE is required in the presence of nontemporal stores.
+    _mm_sfence();
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
