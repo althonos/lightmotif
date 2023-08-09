@@ -331,9 +331,11 @@ unsafe fn best_position_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -
             let mut best_pos = 0;
             let mut best_score = -f32::INFINITY;
             for (col, &row) in x.iter().enumerate() {
-                if data[row as usize][col] > best_score {
+                let pos = col * data.rows() + row as usize;
+                let score = data[row as usize][col];
+                if score > best_score || (score == best_score && pos < best_pos) {
                     best_score = data[row as usize][col];
-                    best_pos = col * data.rows() + row as usize;
+                    best_pos = pos;
                 }
             }
             Some(best_pos)

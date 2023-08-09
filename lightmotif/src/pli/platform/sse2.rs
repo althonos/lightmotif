@@ -182,9 +182,11 @@ where
                 for k in 0..U16::USIZE {
                     let row = best_col[k] as usize;
                     let col = k + offset;
-                    if data[row][col] > best_score {
+                    let pos = col * data.rows() + row as usize;
+                    let score = data[row][col];
+                    if score > best_score || (score == best_score && pos < best_pos) {
                         best_score = data[row][col];
-                        best_pos = col * data.rows() + row as usize;
+                        best_pos = pos;
                     }
                 }
             }
