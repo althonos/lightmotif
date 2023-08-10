@@ -5,8 +5,8 @@ use typenum::marker_traits::Unsigned;
 use super::Backend;
 use crate::abc::Alphabet;
 
-use crate::pli::BestPosition;
 use crate::pli::Encode;
+use crate::pli::Maximum;
 use crate::pli::Score;
 
 /// A marker type for the generic implementation of the pipeline.
@@ -21,4 +21,4 @@ impl<A: Alphabet> Encode<A> for Generic {}
 
 impl<A: Alphabet, C: NonZero + Unsigned> Score<A, C> for Generic {}
 
-impl<C: NonZero + Unsigned> BestPosition<C> for Generic {}
+impl<C: NonZero + Unsigned> Maximum<C> for Generic {}

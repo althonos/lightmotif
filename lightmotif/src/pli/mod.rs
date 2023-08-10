@@ -109,9 +109,9 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
 }
 
 /// Generic trait for finding the highest scoring site in a striped score matrix.
-pub trait BestPosition<C: StrictlyPositive> {
+pub trait Maximum<C: StrictlyPositive> {
     /// Find the sequence position with the highest score.
-    fn best_position(&self, scores: &StripedScores<C>) -> Option<usize> {
+    fn argmax(&self, scores: &StripedScores<C>) -> Option<usize> {
         if scores.len() == 0 {
             return None;
         }
@@ -126,6 +126,11 @@ pub trait BestPosition<C: StrictlyPositive> {
         }
 
         Some(best_pos)
+    }
+
+    /// Find the highest score.
+    fn max(&self, scores: &StripedScores<C>) -> Option<f32> {
+        self.argmax(scores).map(|i| scores[i])
     }
 }
 
@@ -172,7 +177,7 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Generic> {}
 
 impl<A: Alphabet, C: StrictlyPositive> Score<A, C> for Pipeline<A, Generic> {}
 
-impl<A: Alphabet, C: StrictlyPositive> BestPosition<C> for Pipeline<A, Generic> {}
+impl<A: Alphabet, C: StrictlyPositive> Maximum<C> for Pipeline<A, Generic> {}
 
 impl<A: Alphabet, C: StrictlyPositive> Threshold<C> for Pipeline<A, Generic> {}
 
@@ -210,15 +215,15 @@ where
     }
 }
 
-impl<A, C> BestPosition<C> for Pipeline<A, Sse2>
+impl<A, C> Maximum<C> for Pipeline<A, Sse2>
 where
     A: Alphabet,
     C: StrictlyPositive + Rem<U16> + Div<U16>,
     <C as Rem<U16>>::Output: Zero,
     <C as Div<U16>>::Output: Unsigned,
 {
-    fn best_position(&self, scores: &StripedScores<C>) -> Option<usize> {
-        Sse2::best_position(scores)
+    fn argmax(&self, scores: &StripedScores<C>) -> Option<usize> {
+        Sse2::argmax(scores)
     }
 }
 
@@ -285,9 +290,9 @@ impl Score<Protein, <Avx2 as Backend>::LANES> for Pipeline<Protein, Avx2> {
     }
 }
 
-impl<A: Alphabet> BestPosition<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
-    fn best_position(&self, scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
-        Avx2::best_position(scores)
+impl<A: Alphabet> Maximum<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
+    fn argmax(&self, scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
+        Avx2::argmax(scores)
     }
 }
 
@@ -336,7 +341,7 @@ where
     }
 }
 
-impl<A, C> BestPosition<C> for Pipeline<A, Neon>
+impl<A, C> Maximum<C> for Pipeline<A, Neon>
 where
     A: Alphabet,
     C: StrictlyPositive + Rem<U16> + Div<U16>,

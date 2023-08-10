@@ -6,7 +6,7 @@ use lightmotif::num::StrictlyPositive;
 use lightmotif::num::U1;
 use lightmotif::num::U16;
 use lightmotif::num::U32;
-use lightmotif::pli::BestPosition;
+use lightmotif::pli::Maximum;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
 use lightmotif::pli::Threshold;
@@ -62,7 +62,7 @@ fn test_score<C: StrictlyPositive, P: Score<Dna, C>>(pli: &P) {
     }
 }
 
-fn test_best_position<C: StrictlyPositive, P: Score<Dna, C> + BestPosition<C>>(pli: &P) {
+fn test_argmax<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(pli: &P) {
     let mut striped = StripedSequence::<Dna, C>::encode(SEQUENCE).unwrap();
 
     let cm = CountMatrix::<Dna>::from_sequences(
@@ -75,7 +75,7 @@ fn test_best_position<C: StrictlyPositive, P: Score<Dna, C> + BestPosition<C>>(p
 
     striped.configure(&pssm);
     let result = pli.score(&striped, &pssm);
-    assert_eq!(pli.best_position(&result), Some(18));
+    assert_eq!(pli.argmax(&result), Some(18));
 }
 
 fn test_threshold<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(pli: &P) {
@@ -109,10 +109,10 @@ fn test_score_generic() {
 }
 
 #[test]
-fn test_best_position_generic() {
+fn test_argmax_generic() {
     let pli = Pipeline::generic();
-    test_best_position::<U32, _>(&pli);
-    test_best_position::<U1, _>(&pli);
+    test_argmax::<U32, _>(&pli);
+    test_argmax::<U1, _>(&pli);
 }
 
 #[test]
@@ -130,9 +130,9 @@ fn test_score_sse2() {
 
 #[cfg(target_feature = "sse2")]
 #[test]
-fn test_best_position_sse2() {
+fn test_argmax_sse2() {
     let pli = Pipeline::sse2().unwrap();
-    test_best_position::<U16, _>(&pli);
+    test_argmax::<U16, _>(&pli);
 }
 
 #[cfg(target_feature = "sse2")]
@@ -151,9 +151,9 @@ fn test_score_sse2_32() {
 
 #[cfg(target_feature = "sse2")]
 #[test]
-fn test_best_position_sse2_32() {
+fn test_argmax_sse2_32() {
     let pli = Pipeline::sse2().unwrap();
-    test_best_position::<U32, _>(&pli);
+    test_argmax::<U32, _>(&pli);
 }
 
 #[cfg(target_feature = "sse2")]
@@ -172,9 +172,9 @@ fn test_score_avx2() {
 
 #[cfg(target_feature = "avx2")]
 #[test]
-fn test_best_position_avx2() {
+fn test_argmax_avx2() {
     let pli = Pipeline::avx2().unwrap();
-    test_best_position(&pli);
+    test_argmax(&pli);
 }
 
 #[cfg(target_feature = "avx2")]
@@ -193,9 +193,9 @@ fn test_score_neon() {
 
 #[cfg(target_feature = "neon")]
 #[test]
-fn test_best_position_neon() {
+fn test_argmax_neon() {
     let pli = Pipeline::neon().unwrap();
-    test_best_position::<U16, _>(&pli);
+    test_argmax::<U16, _>(&pli);
 }
 
 #[cfg(target_feature = "neon")]

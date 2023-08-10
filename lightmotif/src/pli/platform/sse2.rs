@@ -98,7 +98,7 @@ unsafe fn score_sse2<A, C>(
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn best_position_sse2<C>(scores: &StripedScores<C>) -> Option<usize>
+unsafe fn argmax_sse2<C>(scores: &StripedScores<C>) -> Option<usize>
 where
     C: StrictlyPositive + Rem<U16> + Div<U16>,
     <C as Rem<U16>>::Output: Zero,
@@ -339,7 +339,7 @@ impl Sse2 {
     }
 
     #[allow(unused)]
-    pub fn best_position<C>(scores: &StripedScores<C>) -> Option<usize>
+    pub fn argmax<C>(scores: &StripedScores<C>) -> Option<usize>
     where
         C: StrictlyPositive + Rem<U16> + Div<U16>,
         <C as Rem<U16>>::Output: Zero,
@@ -347,7 +347,7 @@ impl Sse2 {
     {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
-            best_position_sse2(scores)
+            argmax_sse2(scores)
         }
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
         panic!("attempting to run SSE2 code on a non-x86 host")

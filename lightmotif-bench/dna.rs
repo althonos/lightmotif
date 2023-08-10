@@ -10,7 +10,7 @@ use lightmotif::abc::Dna;
 use lightmotif::num::StrictlyPositive;
 use lightmotif::num::U1;
 use lightmotif::num::U16;
-use lightmotif::pli::BestPosition;
+use lightmotif::pli::Maximum;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
 use lightmotif::pli::StripedScores;
@@ -19,7 +19,7 @@ use lightmotif::seq::EncodedSequence;
 
 const SEQUENCE: &'static str = include_str!("../lightmotif/benches/ecoli.txt");
 
-fn bench_lightmotif<C: StrictlyPositive, P: Score<Dna, C> + BestPosition<C>>(
+fn bench_lightmotif<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(
     bencher: &mut test::Bencher,
     pli: &P,
 ) {
@@ -41,7 +41,7 @@ fn bench_lightmotif<C: StrictlyPositive, P: Score<Dna, C> + BestPosition<C>>(
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
         pli.score_into(&striped, &pssm, &mut scores);
-        test::black_box(pli.best_position(&scores));
+        test::black_box(pli.argmax(&scores));
     });
 }
 

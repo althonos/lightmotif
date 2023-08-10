@@ -271,7 +271,7 @@ unsafe fn score_avx2_gather<A>(
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
-unsafe fn best_position_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
+unsafe fn argmax_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
     if scores.len() > u32::MAX as usize {
         panic!(
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
@@ -528,10 +528,10 @@ impl Avx2 {
     }
 
     #[allow(unused)]
-    pub fn best_position(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
+    pub fn argmax(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
-            best_position_avx2(scores)
+            argmax_avx2(scores)
         }
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
         panic!("attempting to run AVX2 code on a non-x86 host")
