@@ -1,6 +1,6 @@
 [package]
 name = "lightmotif"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Martin Larralde <martin.larralde@embl.de>"]
 edition = "2021"
 license = "MIT"

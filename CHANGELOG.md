@@ -6,7 +6,45 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.4.0...HEAD
+
+
+## [v0.4.0] - 2023-08-10
+[v0.4.0]: https://github.com/althonos/lightmotif/compare/v0.3.0...v0.4.0
+
+### Changed
+
+#### `lightmotif`
+- Improve `DenseMatrix::resize` performance when downsizing.
+- Explicitly panic when sequence is too long to be processed with `u32` indices in AVX2 and SSE2.
+- Reorganize `DenseMatrix` column alignment and index storage.
+- Improve `Score` performance by using pointers instead of slices in SIMD loops.
+- Rename `DenseMatrix::columns_effective` to `DenseMatrix::stride`.
+- Use streaming intrinsics to store data in AVX2 and SSE2 implementations.
+- Rename `BestPosition` trait to `Maximum`.
+
+#### `lightmotif-py`
+- Avoid error on missing symbols in `CountMatrix.__init__`
+
+### Added
+
+#### `lightmotif`
+- `Threshold` trait to find all position above a certain score in a `StripedScores` matrix.
+- `Encode` trait to encode an ASCII sequence into a `Vec<Symbol>`.
+- AVX2 implementation of `Score` using `gather` instead of `permute` for protein alphabets.
+- `From<Vec<_>>` and `Default` trait implementations to `EncodedSequence`.
+- `Alphabet` methods to operate on ASCII strings.
+- `StripedScores.is_empty` method to check if a `StripedScores` contains any score.
+
+#### `lightmotif-py`
+- `StripedScores.threshold` method wrapping the `Threshold` pipeline operation.
+- `StripedScores.max` and `StripedScores.argmax` methods to get the best score and best position.
+
+### Fixed
+
+#### `lightmotif`
+- `Score` causing an overflow when given a sequence shorter than the PSSM.
+- `Maximum` trait returns the smallest position on equal maxima.
 
 
 ## [v0.3.0] - 2023-06-25
