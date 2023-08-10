@@ -32,6 +32,11 @@ impl<C: Unsigned + NonZero> StripedScores<C> {
         self.length
     }
 
+    /// Return whether the scores are empty.
+    pub fn is_empty(&self) -> bool {
+        self.length == 0
+    }
+
     /// Return a reference to the striped matrix storing the scores.
     pub fn matrix(&self) -> &DenseMatrix<f32, C> {
         &self.data
