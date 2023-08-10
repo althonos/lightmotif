@@ -11,6 +11,7 @@ use lightmotif::dense::DenseMatrix;
 use lightmotif::num::StrictlyPositive;
 use lightmotif::num::Unsigned;
 use lightmotif::pli::platform::Backend;
+use lightmotif::pli::Maximum;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
 use lightmotif::pli::Threshold;
@@ -413,6 +414,64 @@ impl StripedScores {
                 return pli.threshold(scores, threshold);
             }
             Pipeline::<Dna, _>::generic().threshold(scores, threshold)
+        });
+        Ok(indices)
+    }
+
+    /// Return the maximum score, if the score matrix is not empty.
+    ///
+    /// Returns:
+    ///     `float` or `None`: The maximum score, if any.
+    ///
+    /// Note:
+    ///     This method uses the best implementation for the local platform,
+    ///     prefering AVX2 if available.
+    ///
+    pub fn max(slf: PyRef<'_, Self>) -> PyResult<Option<f32>> {
+        let scores = &slf.scores;
+        let indices = slf.py().allow_threads(|| {
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            if let Ok(pli) = Pipeline::<Dna, _>::avx2() {
+                return pli.max(scores);
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            if let Ok(pli) = Pipeline::<Dna, _>::sse2() {
+                return pli.max(scores);
+            }
+            #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+            if let Ok(pli) = Pipeline::<Dna, _>::neon() {
+                return pli.max(scores);
+            }
+            Pipeline::<Dna, _>::generic().max(scores)
+        });
+        Ok(indices)
+    }
+
+    /// Return the position of the maximum score, if the score matrix is not empty.
+    ///
+    /// Returns:
+    ///     `int` or `None`: The position of the maximum score, if any.
+    ///
+    /// Note:
+    ///     This method uses the best implementation for the local platform,
+    ///     prefering AVX2 if available.
+    ///
+    pub fn argmax(slf: PyRef<'_, Self>) -> PyResult<Option<usize>> {
+        let scores = &slf.scores;
+        let indices = slf.py().allow_threads(|| {
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            if let Ok(pli) = Pipeline::<Dna, _>::avx2() {
+                return pli.argmax(scores);
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            if let Ok(pli) = Pipeline::<Dna, _>::sse2() {
+                return pli.argmax(scores);
+            }
+            #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+            if let Ok(pli) = Pipeline::<Dna, _>::neon() {
+                return pli.argmax(scores);
+            }
+            Pipeline::<Dna, _>::generic().argmax(scores)
         });
         Ok(indices)
     }
