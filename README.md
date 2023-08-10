@@ -76,7 +76,7 @@ assert_eq!(scores[0], -23.07094);
 assert_eq!(v[0], -23.07094);
 
 // The highest scoring position can be searched with a pipeline as well.
-let best = pli.best_position(&scores).unwrap();
+let best = pli.argmax(&scores).unwrap();
 assert_eq!(best, 18);
 
 ```
