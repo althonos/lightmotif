@@ -20,9 +20,9 @@ type Map<K, V> = HashMap<K, V>;
 
 /// The TFMPvalue algorithm.
 #[derive(Debug)]
-pub struct TfmPvalue<'pssm, A: Alphabet> {
+pub struct TfmPvalue<A: Alphabet, M: AsRef<ScoringMatrix<A>>> {
     /// A reference to the original scoring matrix.
-    matrix: &'pssm ScoringMatrix<A>,
+    matrix: M,
     /// The granularity with which the round matrix has been built.
     granularity: f64,
     /// The round matrix offsets.
@@ -38,10 +38,11 @@ pub struct TfmPvalue<'pssm, A: Alphabet> {
 }
 
 #[allow(non_snake_case)]
-impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
+impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
     /// Initialize the TFM-Pvalue algorithm for the given scoring matrix.
-    pub fn new(matrix: &'pssm ScoringMatrix<A>) -> Self {
-        let M = matrix.len();
+    pub fn new(matrix: M) -> Self {
+        let m = matrix.as_ref();
+        let M = m.len();
         Self {
             granularity: f64::NAN,
             matrix,
@@ -56,7 +57,8 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
     /// Compute the approximate score matrix with the given granularity.
     fn recompute(&mut self, granularity: f64) {
         assert!(granularity < 1.0);
-        let M: usize = self.matrix.len();
+        let matrix = self.matrix.as_ref();
+        let M: usize = matrix.len();
         let K: usize = <A as Alphabet>::K::USIZE;
 
         // compute effective granularity
@@ -65,22 +67,17 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
         // compute integer matrix
         for i in 0..M {
             for j in 0..K - 1 {
-                self.int_matrix[i][j] =
-                    (self.matrix[i][j] as f64 / self.granularity).floor() as i64;
+                self.int_matrix[i][j] = (matrix[i][j] as f64 / self.granularity).floor() as i64;
             }
         }
 
         // compute maximum error by summing max error at each row
         self.error_max = 0.0;
         for i in 1..M {
-            let mut max_e =
-                self.matrix[i][0] as f64 / self.granularity - self.int_matrix[i][0] as f64;
+            let mut max_e = matrix[i][0] as f64 / self.granularity - self.int_matrix[i][0] as f64;
             for j in 0..K - 1 {
-                if max_e
-                    < self.matrix[i][j] as f64 / self.granularity - self.int_matrix[i][j] as f64
-                {
-                    max_e =
-                        self.matrix[i][j] as f64 / self.granularity - self.int_matrix[i][j] as f64;
+                if max_e < matrix[i][j] as f64 / self.granularity - self.int_matrix[i][j] as f64 {
+                    max_e = matrix[i][j] as f64 / self.granularity - self.int_matrix[i][j] as f64;
                 }
             }
             self.error_max += max_e;
@@ -108,11 +105,12 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
 
     /// Compute the score distribution between `min` and `max`.
     fn distribution(&self, min: i64, max: i64) -> Vec<Map<i64, f64>> {
-        let M: usize = self.matrix.len();
+        let matrix = self.matrix.as_ref();
+        let M: usize = matrix.len();
         let K: usize = <A as Alphabet>::K::USIZE;
 
         // background frequencies
-        let bg = self.matrix.background().frequencies();
+        let bg = matrix.background().frequencies();
 
         // maps for each steps of the computation
         let mut qvalues = vec![Map::default(); M + 1];
@@ -159,7 +157,8 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
     /// Search the p-value range for the given score.
     fn lookup_pvalue(&self, score: f64) -> RangeInclusive<f64> {
         assert!(!self.granularity.is_nan());
-        let M: usize = self.matrix.len();
+        let matrix = self.matrix.as_ref();
+        let M: usize = matrix.len();
 
         // Compute the integer score range from the given score.
         let scaled = score / self.granularity + self.offsets.iter().sum::<i64>() as f64;
@@ -201,7 +200,8 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
     /// Search the score and p-value range for a given p-value.
     fn lookup_score(&self, pvalue: f64, range: RangeInclusive<i64>) -> (i64, RangeInclusive<f64>) {
         assert!(!self.granularity.is_nan());
-        let M: usize = self.matrix.len();
+        let matrix = self.matrix.as_ref();
+        let M: usize = matrix.len();
 
         // compute score range for target pvalue
         let min = *range.start();
@@ -268,7 +268,7 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
     }
 
     /// Iterate with decreasing granularity to compute an approximate P-value for a score.
-    pub fn approximate_pvalue(&mut self, score: f64) -> PvaluesIterator<'pssm, '_, A> {
+    pub fn approximate_pvalue(&mut self, score: f64) -> PvaluesIterator<'_, A, M> {
         PvaluesIterator {
             tfmp: self,
             score,
@@ -293,7 +293,7 @@ impl<'pssm, A: Alphabet> TfmPvalue<'pssm, A> {
     }
 
     /// Iterate with decreasing granularity to compute an approximate score for a P-value.
-    pub fn approximate_score(&mut self, pvalue: f64) -> ScoresIterator<'pssm, '_, A> {
+    pub fn approximate_score(&mut self, pvalue: f64) -> ScoresIterator<'_, A, M> {
         self.recompute(0.1);
         ScoresIterator {
             min: self.min_score_rows.iter().sum(),
@@ -325,8 +325,8 @@ pub struct Iteration {
 }
 
 #[derive(Debug)]
-pub struct PvaluesIterator<'pssm, 'tfmp, A: Alphabet> {
-    tfmp: &'tfmp mut TfmPvalue<'pssm, A>,
+pub struct PvaluesIterator<'tfmp, A: Alphabet, M: AsRef<ScoringMatrix<A>>> {
+    tfmp: &'tfmp mut TfmPvalue<A, M>,
     score: f64,
     decay: f64,
     granularity: f64,
@@ -334,7 +334,7 @@ pub struct PvaluesIterator<'pssm, 'tfmp, A: Alphabet> {
     converged: bool,
 }
 
-impl<'pssm, 'tfmp, A: Alphabet> Iterator for PvaluesIterator<'pssm, 'tfmp, A> {
+impl<'tfmp, A: Alphabet, M: AsRef<ScoringMatrix<A>>> Iterator for PvaluesIterator<'tfmp, A, M> {
     type Item = Iteration;
     fn next(&mut self) -> Option<Self::Item> {
         if self.converged || self.granularity <= self.target {
@@ -361,8 +361,8 @@ impl<'pssm, 'tfmp, A: Alphabet> Iterator for PvaluesIterator<'pssm, 'tfmp, A> {
 }
 
 #[derive(Debug)]
-pub struct ScoresIterator<'pssm, 'tfmp, A: Alphabet> {
-    tfmp: &'tfmp mut TfmPvalue<'pssm, A>,
+pub struct ScoresIterator<'tfmp, A: Alphabet, M: AsRef<ScoringMatrix<A>>> {
+    tfmp: &'tfmp mut TfmPvalue<A, M>,
     pvalue: f64,
     decay: f64,
     granularity: f64,
@@ -372,7 +372,7 @@ pub struct ScoresIterator<'pssm, 'tfmp, A: Alphabet> {
     max: i64,
 }
 
-impl<'pssm, 'tfmp, A: Alphabet> Iterator for ScoresIterator<'pssm, 'tfmp, A> {
+impl<'tfmp, A: Alphabet, M: AsRef<ScoringMatrix<A>>> Iterator for ScoresIterator<'tfmp, A, M> {
     type Item = Iteration;
     fn next(&mut self) -> Option<Self::Item> {
         if self.converged || self.granularity <= self.target {

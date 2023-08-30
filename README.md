@@ -64,14 +64,13 @@ let pssm = counts.to_freq(0.1).to_scoring(None);
 /// Create a pipeline to run tasks with platform acceleration
 let pli = Pipeline::dispatch();
 
-// Encode the target sequence into a striped matrix
+// Use the pipeline to encode the target sequence into a striped matrix
 let seq = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
 let encoded = pli.encode(seq).unwrap();
 let mut striped = pli.stripe(encoded);
+
+// Use the pipeline to compute scores for every position of the matrix.
 striped.configure(&pssm);
-
-// Use a pipeline to compute scores for every position of the matrix.
-
 let scores = pli.score(&striped, &pssm);
 
 // Scores can be extracted into a Vec<f32>, or indexed directly.
@@ -85,8 +84,8 @@ assert_eq!(best, 18);
 
 ```
 This example uses a dynamic dispatch pipeline, which selects the best available
-backend (AVX2, SSE2, NEON, or a generic implementation) depending on
-the local platform.
+backend (AVX2, SSE2, NEON, or a generic implementation) depending on the local 
+platform.
 
 ## ⏱️ Benchmarks
 
