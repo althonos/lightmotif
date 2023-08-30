@@ -66,6 +66,13 @@ mod dna {
         let pli = Pipeline::avx2().unwrap();
         bench(bencher, &pli);
     }
+
+    #[cfg(target_feature = "neon")]
+    #[bench]
+    fn bench_neon(bencher: &mut test::Bencher) {
+        let pli = Pipeline::neon().unwrap();
+        bench::<U16, _>(bencher, &pli);
+    }
 }
 
 mod protein {
@@ -124,5 +131,12 @@ mod protein {
     fn bench_avx2(bencher: &mut test::Bencher) {
         let pli = Pipeline::avx2().unwrap();
         bench(bencher, &pli);
+    }
+
+    #[cfg(target_feature = "neon")]
+    #[bench]
+    fn bench_neon(bencher: &mut test::Bencher) {
+        let pli = Pipeline::neon().unwrap();
+        bench::<U16, _>(bencher, &pli);
     }
 }
