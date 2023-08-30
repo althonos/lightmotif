@@ -37,7 +37,8 @@ pub trait Encode<A: Alphabet> {
     /// Encode the given sequence into a vector of symbols.
     fn encode<S: AsRef<[u8]>>(&self, seq: S) -> Result<Vec<A::Symbol>, InvalidSymbol> {
         let s = seq.as_ref();
-        let mut buffer = vec![A::default_symbol(); s.len()];
+        let mut buffer = Vec::with_capacity(s.len());
+        unsafe { buffer.set_len(s.len()) };
         match self.encode_into(s, &mut buffer) {
             Ok(_) => Ok(buffer),
             Err(e) => Err(e),
