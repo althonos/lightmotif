@@ -479,7 +479,7 @@ unsafe fn stripe_avx2<A>(
             $a = _mm256_unpacklo_epi64(t, $b);
             $b = _mm256_unpackhi_epi64(t, $b);
         }};
-    };
+    }
 
     // Compute sequence and matrix dimensions
     let s = seq.as_ref();
@@ -777,7 +777,7 @@ impl Avx2 {
     }
 
     #[allow(unused)]
-    pub fn stripe<A, S>(seq: S, matrix: &mut StripedSequence<A, <Avx2 as Backend>::LANES>)
+    pub fn stripe_into<A, S>(seq: S, matrix: &mut StripedSequence<A, <Avx2 as Backend>::LANES>)
     where
         A: Alphabet,
         S: AsRef<[A::Symbol]>,
