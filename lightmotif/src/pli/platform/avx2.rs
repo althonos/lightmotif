@@ -445,6 +445,231 @@ unsafe fn threshold_avx2(
     }
 }
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx2")]
+unsafe fn stripe_avx2<A>(
+    seq: &[A::Symbol],
+    matrix: &mut StripedSequence<A, <Avx2 as Backend>::LANES>,
+) where
+    A: Alphabet,
+{
+    macro_rules! unpack {
+        (epi128, $a:ident, $b:ident) => {{
+            let t = $a;
+            $a = _mm256_permute2x128_si256(t, $b, 32);
+            $b = _mm256_permute2x128_si256(t, $b, 49);
+        }};
+        (epi8, $a:ident, $b:ident) => {{
+            let t = $a;
+            $a = _mm256_unpacklo_epi8(t, $b);
+            $b = _mm256_unpackhi_epi8(t, $b);
+        }};
+        (epi16, $a:ident, $b:ident) => {{
+            let t = $a;
+            $a = _mm256_unpacklo_epi16(t, $b);
+            $b = _mm256_unpackhi_epi16(t, $b);
+        }};
+        (epi32, $a:ident, $b:ident) => {{
+            let t = $a;
+            $a = _mm256_unpacklo_epi32(t, $b);
+            $b = _mm256_unpackhi_epi32(t, $b);
+        }};
+        (epi64, $a:ident, $b:ident) => {{
+            let t = $a;
+            $a = _mm256_unpacklo_epi64(t, $b);
+            $b = _mm256_unpackhi_epi64(t, $b);
+        }};
+    };
+
+    // Compute sequence and matrix dimensions
+    let s = seq.as_ref();
+    let mut src = s.as_ptr() as *const u8;
+    let src_stride =
+        (s.len() + (<Avx2 as Backend>::LANES::USIZE - 1)) / <Avx2 as Backend>::LANES::USIZE;
+    let mut out = matrix.data[0].as_mut_ptr();
+    let out_stride = matrix.data.stride();
+    assert_eq!(matrix.data.rows(), src_stride);
+
+    // Process sequence block by block
+    let mut i = 0;
+    while i + <Avx2 as Backend>::LANES::USIZE <= src_stride {
+        let mut r00 = _mm256_loadu_si256(src.add(00 * src_stride) as _);
+        let mut r01 = _mm256_loadu_si256(src.add(01 * src_stride) as _);
+        let mut r02 = _mm256_loadu_si256(src.add(02 * src_stride) as _);
+        let mut r03 = _mm256_loadu_si256(src.add(03 * src_stride) as _);
+        let mut r04 = _mm256_loadu_si256(src.add(04 * src_stride) as _);
+        let mut r05 = _mm256_loadu_si256(src.add(05 * src_stride) as _);
+        let mut r06 = _mm256_loadu_si256(src.add(06 * src_stride) as _);
+        let mut r07 = _mm256_loadu_si256(src.add(07 * src_stride) as _);
+        let mut r08 = _mm256_loadu_si256(src.add(08 * src_stride) as _);
+        let mut r09 = _mm256_loadu_si256(src.add(09 * src_stride) as _);
+        let mut r10 = _mm256_loadu_si256(src.add(10 * src_stride) as _);
+        let mut r11 = _mm256_loadu_si256(src.add(11 * src_stride) as _);
+        let mut r12 = _mm256_loadu_si256(src.add(12 * src_stride) as _);
+        let mut r13 = _mm256_loadu_si256(src.add(13 * src_stride) as _);
+        let mut r14 = _mm256_loadu_si256(src.add(14 * src_stride) as _);
+        let mut r15 = _mm256_loadu_si256(src.add(15 * src_stride) as _);
+        let mut r16 = _mm256_loadu_si256(src.add(16 * src_stride) as _);
+        let mut r17 = _mm256_loadu_si256(src.add(17 * src_stride) as _);
+        let mut r18 = _mm256_loadu_si256(src.add(18 * src_stride) as _);
+        let mut r19 = _mm256_loadu_si256(src.add(19 * src_stride) as _);
+        let mut r20 = _mm256_loadu_si256(src.add(20 * src_stride) as _);
+        let mut r21 = _mm256_loadu_si256(src.add(21 * src_stride) as _);
+        let mut r22 = _mm256_loadu_si256(src.add(22 * src_stride) as _);
+        let mut r23 = _mm256_loadu_si256(src.add(23 * src_stride) as _);
+        let mut r24 = _mm256_loadu_si256(src.add(24 * src_stride) as _);
+        let mut r25 = _mm256_loadu_si256(src.add(25 * src_stride) as _);
+        let mut r26 = _mm256_loadu_si256(src.add(26 * src_stride) as _);
+        let mut r27 = _mm256_loadu_si256(src.add(27 * src_stride) as _);
+        let mut r28 = _mm256_loadu_si256(src.add(28 * src_stride) as _);
+        let mut r29 = _mm256_loadu_si256(src.add(29 * src_stride) as _);
+        let mut r30 = _mm256_loadu_si256(src.add(30 * src_stride) as _);
+        let mut r31 = _mm256_loadu_si256(src.add(31 * src_stride) as _);
+
+        unpack!(epi8, r00, r01);
+        unpack!(epi8, r02, r03);
+        unpack!(epi8, r04, r05);
+        unpack!(epi8, r06, r07);
+        unpack!(epi8, r08, r09);
+        unpack!(epi8, r10, r11);
+        unpack!(epi8, r12, r13);
+        unpack!(epi8, r14, r15);
+        unpack!(epi8, r16, r17);
+        unpack!(epi8, r18, r19);
+        unpack!(epi8, r20, r21);
+        unpack!(epi8, r22, r23);
+        unpack!(epi8, r24, r25);
+        unpack!(epi8, r26, r27);
+        unpack!(epi8, r28, r29);
+        unpack!(epi8, r30, r31);
+
+        unpack!(epi16, r00, r02);
+        unpack!(epi16, r01, r03);
+        unpack!(epi16, r04, r06);
+        unpack!(epi16, r05, r07);
+        unpack!(epi16, r08, r10);
+        unpack!(epi16, r09, r11);
+        unpack!(epi16, r12, r14);
+        unpack!(epi16, r13, r15);
+        unpack!(epi16, r16, r18);
+        unpack!(epi16, r17, r19);
+        unpack!(epi16, r20, r22);
+        unpack!(epi16, r21, r23);
+        unpack!(epi16, r24, r26);
+        unpack!(epi16, r25, r27);
+        unpack!(epi16, r28, r30);
+        unpack!(epi16, r29, r31);
+
+        unpack!(epi32, r00, r04);
+        unpack!(epi32, r02, r06);
+        unpack!(epi32, r01, r05);
+        unpack!(epi32, r03, r07);
+        unpack!(epi32, r08, r12);
+        unpack!(epi32, r10, r14);
+        unpack!(epi32, r09, r13);
+        unpack!(epi32, r11, r15);
+        unpack!(epi32, r16, r20);
+        unpack!(epi32, r18, r22);
+        unpack!(epi32, r17, r21);
+        unpack!(epi32, r19, r23);
+        unpack!(epi32, r24, r28);
+        unpack!(epi32, r26, r30);
+        unpack!(epi32, r25, r29);
+        unpack!(epi32, r27, r31);
+
+        unpack!(epi64, r00, r08);
+        unpack!(epi64, r04, r12);
+        unpack!(epi64, r02, r10);
+        unpack!(epi64, r06, r14);
+        unpack!(epi64, r01, r09);
+        unpack!(epi64, r05, r13);
+        unpack!(epi64, r03, r11);
+        unpack!(epi64, r07, r15);
+        unpack!(epi64, r16, r24);
+        unpack!(epi64, r20, r28);
+        unpack!(epi64, r18, r26);
+        unpack!(epi64, r22, r30);
+        unpack!(epi64, r17, r25);
+        unpack!(epi64, r21, r29);
+        unpack!(epi64, r19, r27);
+        unpack!(epi64, r23, r31);
+
+        unpack!(epi128, r00, r16);
+        unpack!(epi128, r08, r24);
+        unpack!(epi128, r04, r20);
+        unpack!(epi128, r12, r28);
+        unpack!(epi128, r02, r18);
+        unpack!(epi128, r10, r26);
+        unpack!(epi128, r06, r22);
+        unpack!(epi128, r14, r30);
+        unpack!(epi128, r01, r17);
+        unpack!(epi128, r09, r25);
+        unpack!(epi128, r05, r21);
+        unpack!(epi128, r13, r29);
+        unpack!(epi128, r03, r19);
+        unpack!(epi128, r11, r27);
+        unpack!(epi128, r07, r23);
+        unpack!(epi128, r15, r31);
+
+        _mm256_stream_si256(out.add(0x00 * out_stride) as _, r00);
+        _mm256_stream_si256(out.add(0x01 * out_stride) as _, r08);
+        _mm256_stream_si256(out.add(0x02 * out_stride) as _, r04);
+        _mm256_stream_si256(out.add(0x03 * out_stride) as _, r12);
+        _mm256_stream_si256(out.add(0x04 * out_stride) as _, r02);
+        _mm256_stream_si256(out.add(0x05 * out_stride) as _, r10);
+        _mm256_stream_si256(out.add(0x06 * out_stride) as _, r06);
+        _mm256_stream_si256(out.add(0x07 * out_stride) as _, r14);
+        _mm256_stream_si256(out.add(0x08 * out_stride) as _, r01);
+        _mm256_stream_si256(out.add(0x09 * out_stride) as _, r09);
+        _mm256_stream_si256(out.add(0x0a * out_stride) as _, r05);
+        _mm256_stream_si256(out.add(0x0b * out_stride) as _, r13);
+        _mm256_stream_si256(out.add(0x0c * out_stride) as _, r03);
+        _mm256_stream_si256(out.add(0x0d * out_stride) as _, r11);
+        _mm256_stream_si256(out.add(0x0e * out_stride) as _, r07);
+        _mm256_stream_si256(out.add(0x0f * out_stride) as _, r15);
+        _mm256_stream_si256(out.add(0x10 * out_stride) as _, r16);
+        _mm256_stream_si256(out.add(0x11 * out_stride) as _, r24);
+        _mm256_stream_si256(out.add(0x12 * out_stride) as _, r20);
+        _mm256_stream_si256(out.add(0x13 * out_stride) as _, r28);
+        _mm256_stream_si256(out.add(0x14 * out_stride) as _, r18);
+        _mm256_stream_si256(out.add(0x15 * out_stride) as _, r26);
+        _mm256_stream_si256(out.add(0x16 * out_stride) as _, r22);
+        _mm256_stream_si256(out.add(0x17 * out_stride) as _, r30);
+        _mm256_stream_si256(out.add(0x18 * out_stride) as _, r17);
+        _mm256_stream_si256(out.add(0x19 * out_stride) as _, r25);
+        _mm256_stream_si256(out.add(0x1a * out_stride) as _, r21);
+        _mm256_stream_si256(out.add(0x1b * out_stride) as _, r29);
+        _mm256_stream_si256(out.add(0x1c * out_stride) as _, r19);
+        _mm256_stream_si256(out.add(0x1d * out_stride) as _, r27);
+        _mm256_stream_si256(out.add(0x1e * out_stride) as _, r23);
+        _mm256_stream_si256(out.add(0x1f * out_stride) as _, r31);
+
+        out = out.add(0x20 * out_stride);
+        src = src.add(0x20);
+        i += <Avx2 as Backend>::LANES::USIZE;
+    }
+
+    // Required before returning to code that may set atomic flags that invite concurrent reads,
+    // as LLVM lowers `AtomicBool::store(flag, true, Release)` to ordinary stores on x86-64
+    // instead of SFENCE, even though SFENCE is required in the presence of nontemporal stores.
+    _mm_sfence();
+
+    // Take care of remaining columns.
+    while i < matrix.data.rows() {
+        for j in 0..32 {
+            if j * src_stride + i < s.len() {
+                matrix.data[i][j] = s[j * src_stride + i];
+            }
+        }
+        i += 1;
+    }
+
+    // Fill end of the matrix after the sequence end.
+    for k in s.len()..matrix.data.columns() * matrix.data.rows() {
+        matrix.data[k % src_stride][k / src_stride] = A::default_symbol();
+    }
+}
+
 /// Intel 256-bit vector implementation, for 32 elements column width.
 impl Avx2 {
     #[allow(unused)]
@@ -546,6 +771,20 @@ impl Avx2 {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             threshold_avx2(scores, threshold)
+        }
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        panic!("attempting to run AVX2 code on a non-x86 host")
+    }
+
+    #[allow(unused)]
+    pub fn stripe<A, S>(seq: S, matrix: &mut StripedSequence<A, <Avx2 as Backend>::LANES>)
+    where
+        A: Alphabet,
+        S: AsRef<[A::Symbol]>,
+    {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        unsafe {
+            stripe_avx2(seq.as_ref(), matrix)
         }
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
         panic!("attempting to run AVX2 code on a non-x86 host")

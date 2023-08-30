@@ -62,13 +62,13 @@ fn test_stripe_generic() {
 //     test_stripe(&pli);
 // }
 
-// #[cfg(target_feature = "avx2")]
-// #[test]
-// fn test_stripe_avx2() {
-//     let pli = Pipeline::avx2().unwrap();
-//     test_stripe(&pli, S1);
-//     test_stripe(&pli, S2);
-// }
+#[cfg(target_feature = "avx2")]
+#[test]
+fn test_stripe_avx2() {
+    let pli = Pipeline::avx2().unwrap();
+    test_stripe(&pli, S1);
+    test_stripe(&pli, S2);
+}
 
 // #[cfg(target_feature = "neon")]
 // #[test]

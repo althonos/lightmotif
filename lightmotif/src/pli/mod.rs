@@ -323,6 +323,30 @@ impl Score<Protein, <Avx2 as Backend>::LANES> for Pipeline<Protein, Avx2> {
     }
 }
 
+impl<A: Alphabet> Stripe<A, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
+    /// Stripe a sequence into the given striped matrix.
+    fn stripe_into<S: AsRef<[A::Symbol]>>(
+        &self,
+        seq: S,
+        matrix: &mut StripedSequence<A, <Avx2 as Backend>::LANES>,
+    ) {
+        Avx2::stripe(seq, matrix)
+        // let s = seq.as_ref();
+        // let length = s.len();
+        // let rows = (length + (<Avx2 as Backend>::LANES::USIZE - 1)) / <Avx2 as Backend>::LANES::USIZE;
+        // matrix.data.resize(rows);
+        // matrix.length = length;
+        // matrix.wrap = 0;
+        // let data = &mut matrix.data;
+        // for (i, &x) in s.iter().enumerate() {
+        //     data[i % rows][i / rows] = x;
+        // }
+        // for i in s.len()..data.rows() * data.columns() {
+        //     data[i % rows][i / rows] = A::default_symbol();
+        // }
+    }
+}
+
 impl<A: Alphabet> Maximum<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
     fn argmax(&self, scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
         Avx2::argmax(scores)
