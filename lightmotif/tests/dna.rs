@@ -36,7 +36,8 @@ const EXPECTED: &[f32] = &[
 ];
 
 fn test_score<C: StrictlyPositive, P: Score<Dna, C>>(pli: &P) {
-    let mut striped = StripedSequence::<Dna, C>::encode(SEQUENCE).unwrap();
+    let mut encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
+    let mut striped = encoded.to_striped();
 
     let cm = CountMatrix::<Dna>::from_sequences(
         PATTERNS.iter().map(|x| EncodedSequence::encode(x).unwrap()),
@@ -63,7 +64,8 @@ fn test_score<C: StrictlyPositive, P: Score<Dna, C>>(pli: &P) {
 }
 
 fn test_argmax<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(pli: &P) {
-    let mut striped = StripedSequence::<Dna, C>::encode(SEQUENCE).unwrap();
+    let mut encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
+    let mut striped = encoded.to_striped();
 
     let cm = CountMatrix::<Dna>::from_sequences(
         PATTERNS.iter().map(|x| EncodedSequence::encode(x).unwrap()),
@@ -79,7 +81,8 @@ fn test_argmax<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(pli: &P) {
 }
 
 fn test_threshold<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(pli: &P) {
-    let mut striped = StripedSequence::<Dna, C>::encode(SEQUENCE).unwrap();
+    let mut encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
+    let mut striped = encoded.to_striped();
 
     let cm = CountMatrix::<Dna>::from_sequences(
         PATTERNS.iter().map(|x| EncodedSequence::encode(x).unwrap()),

@@ -193,6 +193,7 @@ impl<A: Alphabet, C: StrictlyPositive> StripedSequence<A, C> {
                 for j in 0..C::USIZE - 1 {
                     self.data[rows + i][j] = self.data[i][j + 1];
                 }
+                self.data[rows + i][C::USIZE - 1] = A::default_symbol();
             }
             self.wrap = m;
         }
@@ -234,9 +235,11 @@ mod test {
     fn test_configure_wrap() {
         let seq = EncodedSequence::<Dna>::from_str("ATGCA").unwrap();
         let mut striped = seq.to_striped::<U4>();
+        println!("{:?}", &striped.data);
 
         striped.configure_wrap(2);
         assert_eq!(striped.data.rows(), 4);
+        println!("{:?}", &striped.data);
         assert_eq!(&striped.data[0], &[A, G, A, N]);
         assert_eq!(&striped.data[1], &[T, C, N, N]);
         assert_eq!(&striped.data[2], &[G, A, N, N]);
