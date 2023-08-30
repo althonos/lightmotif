@@ -12,7 +12,6 @@ use lightmotif::pli::Score;
 use lightmotif::pli::Threshold;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::seq::EncodedSequence;
-use lightmotif::seq::StripedSequence;
 
 const SEQUENCE: &str = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
 const PATTERNS: &[&str] = &["GTTGACCTTATCAAC", "GTTGATCCAGTCAAC"];
@@ -36,7 +35,7 @@ const EXPECTED: &[f32] = &[
 ];
 
 fn test_score<C: StrictlyPositive, P: Score<Dna, C>>(pli: &P) {
-    let mut encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
+    let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped();
 
     let cm = CountMatrix::<Dna>::from_sequences(
@@ -64,7 +63,7 @@ fn test_score<C: StrictlyPositive, P: Score<Dna, C>>(pli: &P) {
 }
 
 fn test_argmax<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(pli: &P) {
-    let mut encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
+    let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped();
 
     let cm = CountMatrix::<Dna>::from_sequences(
@@ -81,7 +80,7 @@ fn test_argmax<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(pli: &P) {
 }
 
 fn test_threshold<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(pli: &P) {
-    let mut encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
+    let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped();
 
     let cm = CountMatrix::<Dna>::from_sequences(
@@ -122,6 +121,24 @@ fn test_argmax_generic() {
 fn test_threshold_generic() {
     let pli = Pipeline::generic();
     test_threshold::<U32, _>(&pli);
+}
+
+#[test]
+fn test_score_dispatch() {
+    let pli = Pipeline::dispatch();
+    test_score(&pli);
+}
+
+#[test]
+fn test_argmax_dispatch() {
+    let pli = Pipeline::dispatch();
+    test_argmax(&pli);
+}
+
+#[test]
+fn test_threshold_dispatch() {
+    let pli = Pipeline::dispatch();
+    test_threshold(&pli);
 }
 
 #[cfg(target_feature = "sse2")]

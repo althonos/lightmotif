@@ -28,6 +28,12 @@ mod dna {
         bench(bencher, &pli);
     }
 
+    #[bench]
+    fn bench_dispatch(bencher: &mut test::Bencher) {
+        let pli = Pipeline::dispatch();
+        bench(bencher, &pli);
+    }
+
     #[cfg(target_feature = "sse2")]
     #[bench]
     fn bench_sse2(bencher: &mut test::Bencher) {
@@ -68,6 +74,12 @@ mod protein {
     #[bench]
     fn bench_generic(bencher: &mut test::Bencher) {
         let pli = Pipeline::generic();
+        bench(bencher, &pli);
+    }
+
+    #[bench]
+    fn bench_dispatch(bencher: &mut test::Bencher) {
+        let pli = Pipeline::dispatch();
         bench(bencher, &pli);
     }
 

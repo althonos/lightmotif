@@ -11,7 +11,6 @@ use lightmotif::pli::Score;
 use lightmotif::pli::StripedScores;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::seq::EncodedSequence;
-use lightmotif::seq::StripedSequence;
 
 mod dna {
 
@@ -21,7 +20,8 @@ mod dna {
     const SEQUENCE: &str = include_str!("ecoli.txt");
 
     fn bench<C: StrictlyPositive, P: Score<Dna, C>>(bencher: &mut test::Bencher, pli: &P) {
-        let mut striped = StripedSequence::<Dna, C>::encode(SEQUENCE).unwrap();
+        let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
+        let mut striped = encoded.to_striped();
 
         let cm = CountMatrix::<Dna>::from_sequences(&[
             EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
@@ -44,6 +44,12 @@ mod dna {
     fn bench_generic(bencher: &mut test::Bencher) {
         let pli = Pipeline::generic();
         bench::<U32, _>(bencher, &pli);
+    }
+
+    #[bench]
+    fn bench_dispatch(bencher: &mut test::Bencher) {
+        let pli = Pipeline::dispatch();
+        bench(bencher, &pli);
     }
 
     #[cfg(target_feature = "sse2")]
@@ -83,7 +89,8 @@ mod protein {
     const SEQUENCE: &str = include_str!("abyB1.txt");
 
     fn bench<C: StrictlyPositive, P: Score<Protein, C>>(bencher: &mut test::Bencher, pli: &P) {
-        let mut striped = StripedSequence::<Protein, C>::encode(SEQUENCE).unwrap();
+        let encoded = EncodedSequence::<Protein>::encode(SEQUENCE).unwrap();
+        let mut striped = encoded.to_striped();
 
         let cm = CountMatrix::<Protein>::from_sequences(&[
             EncodedSequence::encode("SFKELGFDSLTAVELRNRLAAAT").unwrap(),
@@ -110,6 +117,12 @@ mod protein {
     fn bench_generic(bencher: &mut test::Bencher) {
         let pli = Pipeline::generic();
         bench::<U32, _>(bencher, &pli);
+    }
+
+    #[bench]
+    fn bench_dispatch(bencher: &mut test::Bencher) {
+        let pli = Pipeline::dispatch();
+        bench(bencher, &pli);
     }
 
     #[cfg(target_feature = "sse2")]

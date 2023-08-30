@@ -1,6 +1,4 @@
 use typenum::consts::U1;
-use typenum::marker_traits::NonZero;
-use typenum::marker_traits::Unsigned;
 
 use super::Backend;
 use crate::abc::Alphabet;

@@ -28,6 +28,12 @@ fn test_encode_generic() {
     test_encode(&pli);
 }
 
+#[test]
+fn test_encode_dispatch() {
+    let pli = Pipeline::dispatch();
+    test_encode(&pli);
+}
+
 #[cfg(target_feature = "sse2")]
 #[test]
 fn test_encode_sse2() {

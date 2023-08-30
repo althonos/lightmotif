@@ -55,6 +55,13 @@ fn test_stripe_generic() {
     test_stripe::<U16, _>(&pli, S2);
 }
 
+#[test]
+fn test_stripe_dispatch() {
+    let pli = Pipeline::dispatch();
+    test_stripe(&pli, S1);
+    test_stripe(&pli, S2);
+}
+
 // #[cfg(target_feature = "sse2")]
 // #[test]
 // fn test_stripe_sse2() {

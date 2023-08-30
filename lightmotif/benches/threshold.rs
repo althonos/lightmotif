@@ -13,7 +13,6 @@ use lightmotif::pli::StripedScores;
 use lightmotif::pli::Threshold;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::seq::EncodedSequence;
-use lightmotif::seq::StripedSequence;
 
 const SEQUENCE: &str = include_str!("ecoli.txt");
 
@@ -21,7 +20,8 @@ fn bench<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(
     bencher: &mut test::Bencher,
     pli: &P,
 ) {
-    let mut striped = StripedSequence::<Dna, C>::encode(SEQUENCE).unwrap();
+    let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
+    let mut striped = encoded.to_striped();
 
     let cm = CountMatrix::<Dna>::from_sequences(&[
         EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
@@ -45,6 +45,12 @@ fn bench<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(
 fn bench_generic(bencher: &mut test::Bencher) {
     let pli = Pipeline::generic();
     bench::<U32, _>(bencher, &pli);
+}
+
+#[bench]
+fn bench_dispatch(bencher: &mut test::Bencher) {
+    let pli = Pipeline::dispatch();
+    bench(bencher, &pli);
 }
 
 #[cfg(target_feature = "sse2")]
