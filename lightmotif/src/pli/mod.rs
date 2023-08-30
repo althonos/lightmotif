@@ -30,7 +30,7 @@ mod scores;
 
 // --- Score -------------------------------------------------------------------
 
-/// Generic trait for encoding a sequence.
+/// Used for encoding a sequence into rank-based encoding.
 pub trait Encode<A: Alphabet> {
     /// Encode the given sequence into a vector of symbols.
     fn encode<S: AsRef<[u8]>>(&self, seq: S) -> Result<Vec<A::Symbol>, InvalidSymbol> {
@@ -51,6 +51,7 @@ pub trait Encode<A: Alphabet> {
         seq: S,
         dst: &mut [A::Symbol],
     ) -> Result<(), InvalidSymbol> {
+        assert_eq!(seq.as_ref().len(), dst.len());
         for (i, c) in seq.as_ref().iter().enumerate() {
             dst[i] = A::Symbol::from_ascii(*c)?;
         }
@@ -58,7 +59,7 @@ pub trait Encode<A: Alphabet> {
     }
 }
 
-/// Generic trait for computing sequence scores with a PSSM.
+/// Used computing sequence scores with a PSSM.
 pub trait Score<A: Alphabet, C: StrictlyPositive> {
     /// Compute the PSSM scores into the given striped score matrix.
     fn score_into<S, M>(&self, seq: S, pssm: M, scores: &mut StripedScores<C>)
@@ -108,7 +109,7 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
     }
 }
 
-/// Generic trait for finding the highest scoring site in a striped score matrix.
+/// Used for finding the highest scoring site in a striped score matrix.
 pub trait Maximum<C: StrictlyPositive> {
     /// Find the sequence position with the highest score.
     fn argmax(&self, scores: &StripedScores<C>) -> Option<usize> {
@@ -134,7 +135,37 @@ pub trait Maximum<C: StrictlyPositive> {
     }
 }
 
-/// Generic trait for finding positions above a score threshold in a striped score matrix.
+/// Used for converting an encoded sequence into a striped sequence.
+pub trait Stripe<A: Alphabet, C: StrictlyPositive> {
+    /// Stripe a sequence into a striped, column-major order matrix.
+    fn stripe<S: AsRef<[A::Symbol]>>(&self, seq: S) -> StripedSequence<A, C> {
+        let s = seq.as_ref();
+        let length = s.len();
+        let rows = (length / C::USIZE) + ((length % C::USIZE > 0) as usize);
+        let mut striped = StripedSequence::new(DenseMatrix::new(rows), length);
+        self.stripe_into(s, &mut striped);
+        striped
+    }
+
+    /// Stripe a sequence into the given striped matrix.
+    fn stripe_into<S: AsRef<[A::Symbol]>>(&self, seq: S, matrix: &mut StripedSequence<A, C>) {
+        let s = seq.as_ref();
+        let length = s.len();
+        let rows = (length + (C::USIZE - 1)) / C::USIZE;
+        matrix.data.resize(rows);
+        matrix.length = length;
+        matrix.wrap = 0;
+        let data = &mut matrix.data;
+        for (i, &x) in s.iter().enumerate() {
+            data[i % rows][i / rows] = x;
+        }
+        for i in s.len()..matrix.rows() * matrix.columns() {
+            data[i % rows][i / rows] = A::default_symbol();
+        }
+    }
+}
+
+/// Used for finding positions above a score threshold in a striped score matrix.
 pub trait Threshold<C: StrictlyPositive> {
     /// Return the indices of positions with score equal to or greater than the threshold.
     ///
@@ -178,6 +209,8 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Generic> {}
 impl<A: Alphabet, C: StrictlyPositive> Score<A, C> for Pipeline<A, Generic> {}
 
 impl<A: Alphabet, C: StrictlyPositive> Maximum<C> for Pipeline<A, Generic> {}
+
+impl<A: Alphabet, C: StrictlyPositive> Stripe<A, C> for Pipeline<A, Generic> {}
 
 impl<A: Alphabet, C: StrictlyPositive> Threshold<C> for Pipeline<A, Generic> {}
 
