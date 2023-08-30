@@ -142,7 +142,7 @@ pub trait Stripe<A: Alphabet, C: StrictlyPositive> {
         let s = seq.as_ref();
         let length = s.len();
         let rows = (length / C::USIZE) + ((length % C::USIZE > 0) as usize);
-        let mut striped = StripedSequence::new(DenseMatrix::new(rows), length);
+        let mut striped = StripedSequence::new(DenseMatrix::new(rows), length).unwrap();
         self.stripe_into(s, &mut striped);
         striped
     }
@@ -159,7 +159,7 @@ pub trait Stripe<A: Alphabet, C: StrictlyPositive> {
         for (i, &x) in s.iter().enumerate() {
             data[i % rows][i / rows] = x;
         }
-        for i in s.len()..matrix.rows() * matrix.columns() {
+        for i in s.len()..data.rows() * data.columns() {
             data[i % rows][i / rows] = A::default_symbol();
         }
     }

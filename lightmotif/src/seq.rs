@@ -11,6 +11,7 @@ use typenum::marker_traits::Unsigned;
 use super::abc::Alphabet;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
+use super::err::InvalidData;
 use super::err::InvalidSymbol;
 use super::num::StrictlyPositive;
 use super::pwm::ScoringMatrix;
@@ -145,12 +146,16 @@ pub struct StripedSequence<A: Alphabet, C: StrictlyPositive> {
 
 impl<A: Alphabet, C: StrictlyPositive> StripedSequence<A, C> {
     /// Create a new striped sequence from the given dense matrix.
-    pub fn new(data: DenseMatrix<A::Symbol, C>, length: usize) -> Self {
-        Self {
-            data,
-            length,
-            wrap: 0,
-            alphabet: std::marker::PhantomData,
+    pub fn new(data: DenseMatrix<A::Symbol, C>, length: usize) -> Result<Self, InvalidData> {
+        if data.rows() * data.columns() < length {
+            Err(InvalidData)
+        } else {
+            Ok(Self {
+                data,
+                length,
+                wrap: 0,
+                alphabet: std::marker::PhantomData,
+            })
         }
     }
 
