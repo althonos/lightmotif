@@ -8,12 +8,13 @@ use lightmotif::abc::Alphabet;
 use lightmotif::abc::Dna;
 use lightmotif::abc::Symbol;
 use lightmotif::dense::DenseMatrix;
-use lightmotif::num::StrictlyPositive;
 use lightmotif::num::Unsigned;
 use lightmotif::pli::platform::Backend;
+use lightmotif::pli::Encode;
 use lightmotif::pli::Maximum;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
+use lightmotif::pli::Stripe;
 use lightmotif::pli::Threshold;
 
 use pyo3::exceptions::PyBufferError;
@@ -83,12 +84,14 @@ impl EncodedSequence {
     #[new]
     pub fn __init__(sequence: &PyString) -> PyResult<PyClassInitializer<Self>> {
         let seq = sequence.to_str()?;
-        let data = lightmotif::EncodedSequence::encode(&seq).map_err(
-            |lightmotif::err::InvalidSymbol(x)| {
+        let py = sequence.py();
+
+        let data = py
+            .allow_threads(|| Pipeline::<Dna, _>::dispatch().encode(&seq))
+            .map_err(|lightmotif::err::InvalidSymbol(x)| {
                 PyValueError::new_err(format!("Invalid symbol in input: {}", x))
-            },
-        )?;
-        Ok(EncodedSequence { data }.into())
+            })?;
+        Ok(EncodedSequence::from(data).into())
     }
 
     /// Create a copy of this sequence.
@@ -98,9 +101,14 @@ impl EncodedSequence {
 
     /// Convert this sequence into a striped matrix.
     pub fn stripe(&self) -> StripedSequence {
-        StripedSequence {
-            data: self.data.to_striped(),
-        }
+        let data = Pipeline::dispatch().stripe(&self.data);
+        StripedSequence { data }
+    }
+}
+
+impl From<Vec<<Dna as Alphabet>::Symbol>> for EncodedSequence {
+    fn from(v: Vec<<Dna as Alphabet>::Symbol>) -> Self {
+        Self { data: v.into() }
     }
 }
 
@@ -302,21 +310,9 @@ impl ScoringMatrix {
         let seq = &mut sequence.data;
         seq.configure(pssm);
 
-        let scores = slf.py().allow_threads(|| {
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            if let Ok(pli) = Pipeline::avx2() {
-                return pli.score(seq, pssm);
-            }
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            if let Ok(pli) = Pipeline::sse2() {
-                return pli.score(seq, pssm);
-            }
-            #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-            if let Ok(pli) = Pipeline::neon() {
-                return pli.score(seq, pssm);
-            }
-            Pipeline::generic().score(seq, pssm)
-        });
+        let scores = slf
+            .py()
+            .allow_threads(|| Pipeline::dispatch().score(seq, pssm));
 
         Ok(StripedScores::from(scores))
     }
@@ -400,21 +396,9 @@ impl StripedScores {
     ///
     pub fn threshold(slf: PyRef<'_, Self>, threshold: f32) -> PyResult<Vec<usize>> {
         let scores = &slf.scores;
-        let indices = slf.py().allow_threads(|| {
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            if let Ok(pli) = Pipeline::<Dna, _>::avx2() {
-                return pli.threshold(scores, threshold);
-            }
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            if let Ok(pli) = Pipeline::<Dna, _>::sse2() {
-                return pli.threshold(scores, threshold);
-            }
-            #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-            if let Ok(pli) = Pipeline::<Dna, _>::neon() {
-                return pli.threshold(scores, threshold);
-            }
-            Pipeline::<Dna, _>::generic().threshold(scores, threshold)
-        });
+        let indices = slf
+            .py()
+            .allow_threads(|| Pipeline::<Dna, _>::dispatch().threshold(scores, threshold));
         Ok(indices)
     }
 
@@ -429,21 +413,9 @@ impl StripedScores {
     ///
     pub fn max(slf: PyRef<'_, Self>) -> PyResult<Option<f32>> {
         let scores = &slf.scores;
-        let indices = slf.py().allow_threads(|| {
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            if let Ok(pli) = Pipeline::<Dna, _>::avx2() {
-                return pli.max(scores);
-            }
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            if let Ok(pli) = Pipeline::<Dna, _>::sse2() {
-                return pli.max(scores);
-            }
-            #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-            if let Ok(pli) = Pipeline::<Dna, _>::neon() {
-                return pli.max(scores);
-            }
-            Pipeline::<Dna, _>::generic().max(scores)
-        });
+        let indices = slf
+            .py()
+            .allow_threads(|| Pipeline::<Dna, _>::dispatch().max(scores));
         Ok(indices)
     }
 
@@ -458,21 +430,9 @@ impl StripedScores {
     ///
     pub fn argmax(slf: PyRef<'_, Self>) -> PyResult<Option<usize>> {
         let scores = &slf.scores;
-        let indices = slf.py().allow_threads(|| {
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            if let Ok(pli) = Pipeline::<Dna, _>::avx2() {
-                return pli.argmax(scores);
-            }
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            if let Ok(pli) = Pipeline::<Dna, _>::sse2() {
-                return pli.argmax(scores);
-            }
-            #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-            if let Ok(pli) = Pipeline::<Dna, _>::neon() {
-                return pli.argmax(scores);
-            }
-            Pipeline::<Dna, _>::generic().argmax(scores)
-        });
+        let indices = slf
+            .py()
+            .allow_threads(|| Pipeline::<Dna, _>::dispatch().argmax(scores));
         Ok(indices)
     }
 }
