@@ -323,7 +323,15 @@ impl<A: Alphabet> Pipeline<A, Neon> {
     }
 }
 
-impl<A: Alphabet> Encode<A> for Pipeline<A, Neon> {}
+impl<A: Alphabet> Encode<A> for Pipeline<A, Neon> {
+    fn encode_into<S: AsRef<[u8]>>(
+        &self,
+        seq: S,
+        dst: &mut [A::Symbol],
+    ) -> Result<(), InvalidSymbol> {
+        Neon::encode_into::<A>(seq.as_ref(), dst)
+    }
+}
 
 impl<A, C> Score<A, C> for Pipeline<A, Neon>
 where

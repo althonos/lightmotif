@@ -13,8 +13,12 @@ use typenum::marker_traits::Zero;
 
 use super::Backend;
 use crate::abc::Alphabet;
+use crate::abc::Symbol;
+use crate::err::InvalidSymbol;
 use crate::num::StrictlyPositive;
 use crate::pli::scores::StripedScores;
+use crate::pli::Encode;
+use crate::pli::Pipeline;
 use crate::pwm::ScoringMatrix;
 use crate::seq::StripedSequence;
 
@@ -24,6 +28,93 @@ pub struct Neon;
 
 impl Backend for Neon {
     type LANES = U16;
+}
+
+#[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+#[target_feature(enable = "neon")]
+#[allow(overflowing_literals)]
+unsafe fn encode_into_neon<A>(seq: &[u8], dst: &mut [A::Symbol]) -> Result<(), InvalidSymbol>
+where
+    A: Alphabet,
+{
+    let g = Pipeline::<A, _>::generic();
+    let l = seq.len();
+    assert_eq!(seq.len(), dst.len());
+
+    unsafe {
+        // Use raw pointers since we cannot be sure `seq` and `dst` are aligned.
+        let mut i = 0;
+        let mut src_ptr = seq.as_ptr();
+        let mut dst_ptr = dst.as_mut_ptr();
+
+        // Store a flag to know if invalid letters have been encountered.
+        let mut error = uint8x16x4_t(vdupq_n_u8(0), vdupq_n_u8(0), vdupq_n_u8(0), vdupq_n_u8(0));
+
+        // Process the beginning of the sequence in SIMD while possible.
+        while i + std::mem::size_of::<uint8x16_t>() * 4 < l {
+            // Load current row and reset buffers for the encoded result.
+            let letters = vld1q_u8_x4(src_ptr);
+            let mut encoded = uint8x16x4_t(
+                vdupq_n_u8(0x00),
+                vdupq_n_u8(0x00),
+                vdupq_n_u8(0x00),
+                vdupq_n_u8(0x00),
+            );
+            let mut unknown = uint8x16x4_t(
+                vdupq_n_u8(0xFF),
+                vdupq_n_u8(0xFF),
+                vdupq_n_u8(0xFF),
+                vdupq_n_u8(0xFF),
+            );
+            // Check symbols one by one and match them to the letters.
+            for a in A::symbols() {
+                let index = vdupq_n_u8(a.as_index() as u8);
+                let ascii = vdupq_n_u8(a.as_ascii());
+                let m = uint8x16x4_t(
+                    vceqq_u8(letters.0, ascii),
+                    vceqq_u8(letters.1, ascii),
+                    vceqq_u8(letters.2, ascii),
+                    vceqq_u8(letters.3, ascii),
+                );
+                encoded.0 = vbslq_u8(m.0, index, encoded.0);
+                unknown.0 = vandq_u8(unknown.0, vmvnq_u8(m.0));
+                encoded.1 = vbslq_u8(m.1, index, encoded.1);
+                unknown.1 = vandq_u8(unknown.1, vmvnq_u8(m.1));
+                encoded.2 = vbslq_u8(m.2, index, encoded.2);
+                unknown.2 = vandq_u8(unknown.2, vmvnq_u8(m.2));
+                encoded.3 = vbslq_u8(m.3, index, encoded.3);
+                unknown.3 = vandq_u8(unknown.3, vmvnq_u8(m.3));
+            }
+            // Record is some symbols of the current vector are unknown.
+            error.0 = vorrq_u8(error.0, unknown.0);
+            error.1 = vorrq_u8(error.1, unknown.1);
+            error.2 = vorrq_u8(error.2, unknown.2);
+            error.3 = vorrq_u8(error.3, unknown.3);
+            // Store the encoded result to the output buffer.
+            vst1q_u8_x4(dst_ptr as *mut u8, encoded);
+            // Advance to the next addresses in input and output.
+            src_ptr = src_ptr.add(std::mem::size_of::<uint8x16_t>() * 4);
+            dst_ptr = dst_ptr.add(std::mem::size_of::<uint8x16_t>() * 4);
+            i += std::mem::size_of::<uint8x16_t>() * 4;
+        }
+
+        // If an invalid symbol was encountered, recover which one.
+        // FIXME: run a vectorize the error search?
+        let error64 = vreinterpretq_u64_u8(vorrq_u8(
+            vorrq_u8(error.0, error.1),
+            vorrq_u8(error.2, error.3),
+        ));
+        if vgetq_lane_u64(error64, 0) != 0 || vgetq_lane_u64(error64, 1) != 0 {
+            for i in 0..l {
+                A::Symbol::from_ascii(seq[i])?;
+            }
+        }
+
+        // Encode the rest of the sequence using the generic implementation.
+        g.encode_into(&seq[i..], &mut dst[i..])?;
+    }
+
+    Ok(())
 }
 
 #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
@@ -174,6 +265,22 @@ where
 
 impl Neon {
     #[allow(unused)]
+    pub fn encode_into<A>(seq: &[u8], dst: &mut [A::Symbol]) -> Result<(), InvalidSymbol>
+    where
+        A: Alphabet,
+    {
+        #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+        unsafe {
+            return encode_into_neon::<A>(seq, dst);
+        };
+        #[cfg(not(any(target_arch = "arm", target_arch = "aarch64")))]
+        {
+            panic!("attempting to run NEON code on a non-Arm host");
+            unreachable!()
+        }
+    }
+
+    #[allow(unused)]
     pub fn score_into<A, C, S, M>(seq: S, pssm: M, scores: &mut StripedScores<C>)
     where
         A: Alphabet,
@@ -219,6 +326,6 @@ impl Neon {
             threshold_neon(scores, threshold)
         }
         #[cfg(not(any(target_arch = "arm", target_arch = "aarch64")))]
-        panic!("attempting to run NEOn code on a non-Arm host")
+        panic!("attempting to run NEON code on a non-Arm host")
     }
 }
