@@ -56,6 +56,9 @@ pub trait Alphabet: Debug + Copy + Default + 'static {
 
     /// Get all the symbols of this alphabet.
     fn symbols() -> &'static [Self::Symbol];
+
+    /// Get a string with all symbols from this alphabet.
+    fn as_str() -> &'static str;
 }
 
 // --- ComplementableAlphabet --------------------------------------------------
@@ -93,6 +96,10 @@ impl Alphabet for Dna {
             Nucleotide::G,
             Nucleotide::N,
         ]
+    }
+
+    fn as_str() -> &'static str {
+        b"ACTGN"
     }
 }
 
@@ -200,6 +207,10 @@ impl Alphabet for Protein {
             AminoAcid::Y,
             AminoAcid::X,
         ]
+    }
+
+    fn as_str() -> &'static str {
+        "ACDEFGHIKLMNPQRSTVWYX"
     }
 }
 
