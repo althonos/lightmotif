@@ -36,6 +36,7 @@ unsafe fn encode_into_avx2<A>(seq: &[u8], dst: &mut [A::Symbol]) -> Result<(), I
 where
     A: Alphabet,
 {
+    let alphabet = A::as_str().as_bytes();
     let g = Pipeline::<A, _>::generic();
     let l = seq.len();
     assert_eq!(seq.len(), dst.len());
@@ -56,9 +57,9 @@ where
             let mut encoded = _mm256_setzero_si256();
             let mut unknown = _mm256_set1_epi8(0xFF);
             // Check symbols one by one and match them to the letters.
-            for a in A::symbols() {
-                let index = _mm256_set1_epi8(a.as_index() as i8);
-                let ascii = _mm256_set1_epi8(a.as_ascii() as i8);
+            for a in 0..A::K::USIZE {
+                let index = _mm256_set1_epi8(a as i8);
+                let ascii = _mm256_set1_epi8(alphabet[a] as i8);
                 let m = _mm256_cmpeq_epi8(letters, ascii);
                 encoded = _mm256_blendv_epi8(encoded, index, m);
                 unknown = _mm256_andnot_si256(m, unknown);

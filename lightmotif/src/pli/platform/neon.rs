@@ -37,6 +37,7 @@ unsafe fn encode_into_neon<A>(seq: &[u8], dst: &mut [A::Symbol]) -> Result<(), I
 where
     A: Alphabet,
 {
+    let alphabet = A::as_str().as_bytes();
     let g = Pipeline::<A, _>::generic();
     let l = seq.len();
     assert_eq!(seq.len(), dst.len());
@@ -67,9 +68,9 @@ where
                 vdupq_n_u8(0xFF),
             );
             // Check symbols one by one and match them to the letters.
-            for a in A::symbols() {
-                let index = vdupq_n_u8(a.as_index() as u8);
-                let ascii = vdupq_n_u8(a.as_ascii());
+            for a in 0..A::K::USIZE {
+                let index = vdupq_n_u8(a as u8);
+                let ascii = vdupq_n_u8(alphabet[a]);
                 let m = uint8x16x4_t(
                     vceqq_u8(letters.0, ascii),
                     vceqq_u8(letters.1, ascii),

@@ -99,7 +99,7 @@ impl Alphabet for Dna {
     }
 
     fn as_str() -> &'static str {
-        b"ACTGN"
+        "ACTGN"
     }
 }
 
