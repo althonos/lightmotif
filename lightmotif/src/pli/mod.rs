@@ -357,4 +357,7 @@ where
     <C as Rem<U16>>::Output: Zero,
     <C as Div<U16>>::Output: Unsigned,
 {
+    fn threshold(&self, scores: &StripedScores<C>, threshold: f32) -> Vec<usize> {
+        Neon::threshold(scores, threshold)
+    }
 }
