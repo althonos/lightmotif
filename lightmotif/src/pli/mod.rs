@@ -5,6 +5,7 @@ use std::ops::Rem;
 
 pub use self::scores::StripedScores;
 
+use self::dispatch::Dispatch;
 use self::platform::Avx2;
 use self::platform::Backend;
 use self::platform::Generic;
@@ -25,6 +26,7 @@ use typenum::consts::U16;
 use typenum::marker_traits::Unsigned;
 use typenum::marker_traits::Zero;
 
+pub mod dispatch;
 pub mod platform;
 mod scores;
 
@@ -189,7 +191,7 @@ pub trait Threshold<C: StrictlyPositive> {
 #[derive(Debug, Default, Clone)]
 pub struct Pipeline<A: Alphabet, B: Backend> {
     alphabet: std::marker::PhantomData<A>,
-    backend: std::marker::PhantomData<B>,
+    backend: B,
 }
 
 // --- Generic pipeline --------------------------------------------------------
@@ -199,7 +201,7 @@ impl<A: Alphabet> Pipeline<A, Generic> {
     pub const fn generic() -> Self {
         Self {
             alphabet: std::marker::PhantomData,
-            backend: std::marker::PhantomData,
+            backend: Generic,
         }
     }
 }
@@ -213,6 +215,52 @@ impl<A: Alphabet, C: StrictlyPositive> Maximum<C> for Pipeline<A, Generic> {}
 impl<A: Alphabet, C: StrictlyPositive> Stripe<A, C> for Pipeline<A, Generic> {}
 
 impl<A: Alphabet, C: StrictlyPositive> Threshold<C> for Pipeline<A, Generic> {}
+
+// --- Dynamic dispatch --------------------------------------------------------
+
+impl<A: Alphabet> Pipeline<A, Dispatch> {
+    /// Create a new dynamic dispatch pipeline.
+    #[allow(unreachable_code)]
+    pub fn dispatch() -> Self {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        if std::is_x86_feature_detected!("avx2") {
+            return Self {
+                backend: Dispatch::Avx2,
+                alphabet: std::marker::PhantomData,
+            };
+        }
+        #[cfg(any(target_arch = "x86"))]
+        if std::is_x86_feature_detected!("sse2") {
+            return Self {
+                backend: Dispatch::Sse2,
+                alphabet: std::marker::PhantomData,
+            };
+        }
+        #[cfg(any(target_arch = "x86_64"))]
+        return Self {
+            backend: Dispatch::Sse2,
+            alphabet: std::marker::PhantomData,
+        };
+        #[cfg(target_arch = "arm")]
+        if std::arch::is_arm_feature_detected!("neon") {
+            return Self {
+                backend: Dispatch::Neon,
+                alphabet: std::marker::PhantomData,
+            };
+        }
+        #[cfg(target_arch = "aarch64")]
+        if std::arch::is_aarch64_feature_detected!("neon") {
+            return Self {
+                backend: Dispatch::Neon,
+                alphabet: std::marker::PhantomData,
+            };
+        }
+        Self {
+            backend: Dispatch::Generic,
+            alphabet: std::marker::PhantomData,
+        }
+    }
+}
 
 // --- SSE2 pipeline -----------------------------------------------------------
 
@@ -330,20 +378,7 @@ impl<A: Alphabet> Stripe<A, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
         seq: S,
         matrix: &mut StripedSequence<A, <Avx2 as Backend>::LANES>,
     ) {
-        Avx2::stripe(seq, matrix)
-        // let s = seq.as_ref();
-        // let length = s.len();
-        // let rows = (length + (<Avx2 as Backend>::LANES::USIZE - 1)) / <Avx2 as Backend>::LANES::USIZE;
-        // matrix.data.resize(rows);
-        // matrix.length = length;
-        // matrix.wrap = 0;
-        // let data = &mut matrix.data;
-        // for (i, &x) in s.iter().enumerate() {
-        //     data[i % rows][i / rows] = x;
-        // }
-        // for i in s.len()..data.rows() * data.columns() {
-        //     data[i % rows][i / rows] = A::default_symbol();
-        // }
+        Avx2::stripe_into(seq, matrix)
     }
 }
 
