@@ -49,6 +49,7 @@ Other crates from the ecosystem provide additional features if needed:
 
 ```rust
 use lightmotif::*;
+use lightmotif::abc::Nucleotide;
 use typenum::U32;
 
 // Create a count matrix from an iterable of motif sequences
@@ -60,14 +61,17 @@ let counts = CountMatrix::<Dna>::from_sequences(&[
 // Create a PSSM with 0.1 pseudocounts and uniform background frequencies.
 let pssm = counts.to_freq(0.1).to_scoring(None);
 
+/// Create a pipeline to run tasks with platform acceleration
+let pli = Pipeline::dispatch();
+
 // Encode the target sequence into a striped matrix
 let seq = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
-let encoded = EncodedSequence::encode(seq).unwrap();
-let mut striped = encoded.to_striped::<U32>();
+let encoded = pli.encode(seq).unwrap();
+let mut striped = pli.stripe(encoded);
 striped.configure(&pssm);
 
 // Use a pipeline to compute scores for every position of the matrix.
-let pli = Pipeline::generic();
+
 let scores = pli.score(&striped, &pssm);
 
 // Scores can be extracted into a Vec<f32>, or indexed directly.
@@ -80,10 +84,9 @@ let best = pli.argmax(&scores).unwrap();
 assert_eq!(best, 18);
 
 ```
-This example uses the *generic* pipeline, which is not platform accelerated.
-To use the much faster AVX2 code, create an AVX2 pipeline with 
-`Pipeline::avx2` instead: this returns a `Result` which is `Ok` if AVX2 
-is supported on the local platform.
+This example uses a dynamic dispatch pipeline, which selects the best available
+backend (AVX2, SSE2, NEON, or a generic implementation) depending on
+the local platform.
 
 ## ⏱️ Benchmarks
 
@@ -95,7 +98,6 @@ motif from [PRODORIC](https://www.prodoric.de/)[\[5\]](#ref5), and the
 
 - Score every position of the genome with the motif weight matrix:
   ```console
-  running 3 tests
   test bench_avx2    ... bench:   4,510,794 ns/iter (+/-     9,570) = 1029 MB/s
   test bench_sse2    ... bench:  26,773,537 ns/iter (+/-    57,891) =  173 MB/s
   test bench_generic ... bench: 317,731,004 ns/iter (+/- 2,567,370) =   14 MB/s
