@@ -1,5 +1,8 @@
 //! Dense matrix storage with automatic memory alignment.
 
+use std::fmt::Debug;
+use std::fmt::Error as FmtError;
+use std::fmt::Formatter;
 use std::iter::ExactSizeIterator;
 use std::iter::FusedIterator;
 use std::ops::Index;
@@ -22,7 +25,7 @@ pub type DefaultAlignment = _DefaultAlignment;
 // --- DenseMatrix -------------------------------------------------------------
 
 /// A memory-aligned dense matrix with a constant number of columns.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DenseMatrix<T: Default + Copy, C: Unsigned, A: Unsigned = DefaultAlignment> {
     data: Vec<T>,
     offset: usize,
@@ -178,6 +181,12 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned> DenseMatrix<T, C, A> {
     #[inline]
     pub fn fill(&mut self, value: T) {
         self.data.fill(value);
+    }
+}
+
+impl<T: Default + Copy + Debug, C: Unsigned, A: Unsigned> Debug for DenseMatrix<T, C, A> {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
+        f.debug_list().entries(self.iter()).finish()
     }
 }
 
