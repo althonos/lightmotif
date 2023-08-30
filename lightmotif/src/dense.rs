@@ -173,6 +173,12 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned> DenseMatrix<T, C, A> {
     pub fn iter_mut(&mut self) -> IterMut<'_, T, C, A> {
         IterMut::new(self)
     }
+
+    /// Fill the entire matrix with a constant value.
+    #[inline]
+    pub fn fill(&mut self, value: T) {
+        self.data.fill(value);
+    }
 }
 
 impl<T: Default + Copy, C: Unsigned, A: Unsigned> Index<usize> for DenseMatrix<T, C, A> {
