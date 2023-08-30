@@ -58,9 +58,12 @@ impl<A: Alphabet> EncodedSequence<A> {
     pub fn to_striped<C: Unsigned + NonZero>(&self) -> StripedSequence<A, C> {
         let length = self.data.len();
         let n = (length + (C::USIZE - 1)) / C::USIZE;
-        let mut data = DenseMatrix::new(n);
+        let mut data = unsafe { DenseMatrix::uninitialized(n) };
         for (i, &x) in self.data.iter().enumerate() {
             data[i % n][i / n] = x;
+        }
+        for i in self.data.len()..data.rows() * data.columns() {
+            data[i % n][i / n] = A::default_symbol();
         }
         StripedSequence {
             alphabet: std::marker::PhantomData,
@@ -141,20 +144,32 @@ pub struct StripedSequence<A: Alphabet, C: StrictlyPositive> {
 }
 
 impl<A: Alphabet, C: StrictlyPositive> StripedSequence<A, C> {
-    /// Create a new striped sequence from a textual representation.
-    pub fn encode(sequence: &str) -> Result<Self, InvalidSymbol> {
-        let length = sequence.len();
-        let n = (length + (C::USIZE - 1)) / C::USIZE;
-        let mut data = DenseMatrix::new(n);
-        for (i, x) in sequence.chars().enumerate() {
-            data[i % n][i / n] = A::Symbol::from_char(x)?;
-        }
-        Ok(StripedSequence {
-            alphabet: std::marker::PhantomData,
+    /// Create a new striped sequence from the given dense matrix.
+    pub fn new(data: DenseMatrix<A::Symbol, C>, length: usize) -> Self {
+        Self {
             data,
             length,
             wrap: 0,
-        })
+            alphabet: std::marker::PhantomData,
+        }
+    }
+
+    /// Get the length of the sequence.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.length
+    }
+
+    /// Get an immutable reference over the underlying matrix storing the sequence.
+    #[inline]
+    pub fn as_inner(&self) -> &DenseMatrix<A::Symbol, C> {
+        &self.data
+    }
+
+    /// Extract the underlying matrix where the striped sequence is stored.
+    #[inline]
+    pub fn into_inner(self) -> DenseMatrix<A::Symbol, C> {
+        self.data
     }
 
     /// Reconfigure the striped sequence for searching with a motif.
@@ -182,19 +197,6 @@ impl<A: Alphabet, C: StrictlyPositive> StripedSequence<A, C> {
 impl<A: Alphabet, C: StrictlyPositive> AsRef<StripedSequence<A, C>> for StripedSequence<A, C> {
     fn as_ref(&self) -> &Self {
         self
-    }
-}
-
-impl<A: Alphabet, C: StrictlyPositive> From<EncodedSequence<A>> for StripedSequence<A, C> {
-    fn from(encoded: EncodedSequence<A>) -> Self {
-        encoded.to_striped()
-    }
-}
-
-impl<A: Alphabet, C: StrictlyPositive> FromStr for StripedSequence<A, C> {
-    type Err = InvalidSymbol;
-    fn from_str(seq: &str) -> Result<Self, Self::Err> {
-        Self::encode(seq)
     }
 }
 
