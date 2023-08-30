@@ -51,7 +51,7 @@ impl Dispatch {
     }
 }
 
-impl<A: Alphabet> Encode<A> for Pipeline<Dna, Dispatch> {
+impl<A: Alphabet> Encode<A> for Pipeline<A, Dispatch> {
     fn encode_into<S: AsRef<[u8]>>(
         &self,
         seq: S,
