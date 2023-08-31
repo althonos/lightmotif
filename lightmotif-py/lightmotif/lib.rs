@@ -131,6 +131,11 @@ impl EncodedSequence {
         self.data.len()
     }
 
+    /// Get a copy of the encoded sequence.
+    pub fn __copy__(&self) -> Self {
+        self.copy()
+    }
+
     /// Get an element of the encoded sequence.
     pub fn __getitem__(&self, mut index: Py_ssize_t) -> PyResult<u8> {
         let length = self.data.len();
@@ -178,7 +183,7 @@ impl EncodedSequence {
     }
 
     /// Create a copy of this sequence.
-    pub fn copy(&self) -> EncodedSequence {
+    pub fn copy(&self) -> Self {
         self.clone()
     }
 
@@ -223,6 +228,16 @@ impl From<lightmotif::seq::StripedSequence<lightmotif::Dna, C>> for StripedSeque
 
 #[pymethods]
 impl StripedSequence {
+    /// Get a copy of the striped sequence.
+    pub fn __copy__(&self) -> Self {
+        self.copy()
+    }
+
+    /// Create a copy of this sequence.
+    pub fn copy(&self) -> Self {
+        self.clone()
+    }
+
     unsafe fn __getbuffer__(
         mut slf: PyRefMut<'_, Self>,
         view: *mut pyo3::ffi::Py_buffer,
