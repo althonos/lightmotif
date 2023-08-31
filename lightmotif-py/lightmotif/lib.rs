@@ -121,6 +121,29 @@ impl EncodedSequence {
         Ok(Self::from(data).into())
     }
 
+    /// Convert the encoded sequence to a string.
+    pub fn __str__(&self) -> String {
+        self.data.to_string()
+    }
+
+    /// Get the length of the encoded sequence.
+    pub fn __len__(&self) -> usize {
+        self.data.len()
+    }
+
+    /// Get an element of the encoded sequence.
+    pub fn __getitem__(&self, mut index: Py_ssize_t) -> PyResult<u8> {
+        let length = self.data.len();
+        if index < 0 {
+            index += length as Py_ssize_t;
+        }
+        if index < 0 || index >= length as Py_ssize_t {
+            Err(PyIndexError::new_err("sequence index out of range"))
+        } else {
+            Ok(self.data[index as usize] as u8)
+        }
+    }
+
     /// Create a copy of this sequence.
     pub fn copy(&self) -> EncodedSequence {
         self.clone()

@@ -4,6 +4,7 @@ use std::cmp::PartialEq;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
+use std::ops::Index;
 use std::str::FromStr;
 
 use typenum::marker_traits::NonZero;
@@ -122,6 +123,13 @@ impl<A: Alphabet> FromStr for EncodedSequence<A> {
 impl<A: Alphabet> From<Vec<A::Symbol>> for EncodedSequence<A> {
     fn from(data: Vec<A::Symbol>) -> Self {
         Self::new(data)
+    }
+}
+
+impl<A: Alphabet> Index<usize> for EncodedSequence<A> {
+    type Output = A::Symbol;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.data[index]
     }
 }
 
