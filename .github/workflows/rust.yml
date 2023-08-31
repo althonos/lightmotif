@@ -16,10 +16,41 @@ jobs:
           components: rustfmt
       - name: Check code format
         run: cargo fmt --all -- --check
+  check:
+    name: Check (${{ matrix.rust-toolchain }}, ${{ matrix.target }})
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        rust-toolchain:
+          - stable
+          - beta
+          - nightly
+        target:
+          - "x86_64-unknown-linux-gnu"
+          - "aarch64-unknown-linux-gnu"
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Setup Rust ${{ matrix.rust-toolchain }}
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust-toolchain }}
+    - name: Setup cache for cargo
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-${{ matrix.rust-toolchain }}
+    - name: Install cross-compilation target
+      run: rustup target add ${{ matrix.target }}
+    - name: Check code
+      run: cargo check --target ${{ matrix.target }}
+      env: 
+        PYO3_CROSS_PYTHON_VERSION: "3.11"
   test:
     name: Test (${{ matrix.rust-toolchain }}, ${{ matrix.cpu }})
     runs-on: ubuntu-latest
-    needs: lint
+    needs: check
     strategy:
       matrix:
         rust-toolchain:
