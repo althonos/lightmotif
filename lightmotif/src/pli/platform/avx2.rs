@@ -360,10 +360,12 @@ unsafe fn threshold_avx2(
     } else {
         let data = scores.matrix();
         let rows = data.rows();
-        let mut indices = vec![u32::MAX; data.columns() * rows];
+        let mut indices = Vec::<u32>::with_capacity(data.columns() * rows);
         unsafe {
+            indices.set_len(indices.capacity());
             let t = _mm256_set1_ps(threshold);
             let ones = _mm256_set1_epi32(1);
+            let umax = _mm256_set1_epi32(u32::MAX as i32);
             let mut dst = indices.as_mut_ptr() as *mut __m256i;
             // compute real sequence index for each column of the striped scores
             let mut x1 = _mm256_set_epi32(
@@ -420,10 +422,14 @@ unsafe fn threshold_avx2(
                 let m3 = _mm256_castps_si256(_mm256_cmp_ps(r3, t, _CMP_GE_OS));
                 let m4 = _mm256_castps_si256(_mm256_cmp_ps(r4, t, _CMP_GE_OS));
                 // store masked indices into the destination vector
-                _mm256_maskstore_epi32(dst as *mut _, m1, x1);
-                _mm256_maskstore_epi32(dst.add(1) as *mut _, m2, x2);
-                _mm256_maskstore_epi32(dst.add(2) as *mut _, m3, x3);
-                _mm256_maskstore_epi32(dst.add(3) as *mut _, m4, x4);
+                let t1 = _mm256_blendv_epi8(umax, x1, m1);
+                let t2 = _mm256_blendv_epi8(umax, x2, m2);
+                let t3 = _mm256_blendv_epi8(umax, x3, m3);
+                let t4 = _mm256_blendv_epi8(umax, x4, m4);
+                _mm256_storeu_si256(dst as *mut _, t1);
+                _mm256_storeu_si256(dst.add(1) as *mut _, t2);
+                _mm256_storeu_si256(dst.add(2) as *mut _, t3);
+                _mm256_storeu_si256(dst.add(3) as *mut _, t4);
                 // advance result buffer to next row
                 dst = dst.add(4);
                 // advance sequence indices to next row

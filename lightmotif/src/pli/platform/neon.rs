@@ -197,8 +197,9 @@ where
     } else {
         let data = scores.matrix();
         let rows = data.rows();
-        let mut indices = vec![0u32; data.columns() * rows];
+        let mut indices = Vec::<u32>::with_capacity(data.columns() * rows);
         unsafe {
+            indices.set_len(indices.capacity());
             // NOTE(@althonos): Using `u32::MAX` as a sentinel instead of `0`
             //                  because `0` may be a valid index.
             let max = vdupq_n_u32(u32::MAX);
