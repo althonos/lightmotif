@@ -8,6 +8,7 @@ use std::sync::RwLock;
 
 use lightmotif::abc::Alphabet;
 use lightmotif::abc::Dna;
+use lightmotif::abc::Nucleotide;
 use lightmotif::abc::Symbol;
 use lightmotif::dense::DenseMatrix;
 use lightmotif::num::Unsigned;
@@ -144,11 +145,60 @@ impl From<lightmotif::seq::EncodedSequence<lightmotif::Dna>> for EncodedSequence
 #[derive(Clone, Debug)]
 pub struct StripedSequence {
     data: lightmotif::seq::StripedSequence<lightmotif::Dna, C>,
+    shape: [Py_ssize_t; 2],
+    strides: [Py_ssize_t; 2],
 }
 
 impl From<lightmotif::seq::StripedSequence<lightmotif::Dna, C>> for StripedSequence {
     fn from(data: lightmotif::seq::StripedSequence<lightmotif::Dna, C>) -> Self {
-        Self { data }
+        // extract the matrix shape and strides
+        let cols = data.as_inner().columns();
+        let rows = data.as_inner().rows();
+        let shape = [cols as Py_ssize_t, rows as Py_ssize_t];
+        // extract the matrix strides
+        let strides = [1, data.as_inner().stride() as Py_ssize_t];
+        Self {
+            data,
+            shape,
+            strides,
+        }
+    }
+}
+
+#[pymethods]
+impl StripedSequence {
+    unsafe fn __getbuffer__(
+        mut slf: PyRefMut<'_, Self>,
+        view: *mut pyo3::ffi::Py_buffer,
+        flags: std::os::raw::c_int,
+    ) -> PyResult<()> {
+        if view.is_null() {
+            return Err(PyBufferError::new_err("View is null"));
+        }
+        if (flags & pyo3::ffi::PyBUF_WRITABLE) == pyo3::ffi::PyBUF_WRITABLE {
+            return Err(PyBufferError::new_err("Object is not writable"));
+        }
+
+        (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
+        let matrix = slf.data.as_inner();
+        let data = matrix[0].as_ptr();
+
+        (*view).buf = data as *mut std::os::raw::c_void;
+        (*view).len = (matrix.rows() * matrix.columns()) as isize;
+        (*view).readonly = 1;
+        (*view).itemsize = std::mem::size_of::<Nucleotide>() as isize;
+
+        let msg = std::ffi::CStr::from_bytes_with_nul(b"B\0").unwrap();
+        (*view).format = msg.as_ptr() as *mut _;
+
+        (*view).ndim = 2;
+        (*view).shape = slf.shape.as_mut_ptr();
+        (*view).strides = slf.strides.as_mut_ptr();
+
+        (*view).suboffsets = std::ptr::null_mut();
+        (*view).internal = std::ptr::null_mut();
+
+        Ok(())
     }
 }
 
