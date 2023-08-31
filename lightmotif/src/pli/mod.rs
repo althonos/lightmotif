@@ -20,6 +20,7 @@ use super::err::InvalidSymbol;
 use super::err::UnsupportedBackend;
 use super::num::StrictlyPositive;
 use super::pwm::ScoringMatrix;
+use super::seq::EncodedSequence;
 use super::seq::StripedSequence;
 
 use typenum::consts::U16;
@@ -35,7 +36,7 @@ mod scores;
 /// Used for encoding a sequence into rank-based encoding.
 pub trait Encode<A: Alphabet> {
     /// Encode the given sequence into a vector of symbols.
-    fn encode<S: AsRef<[u8]>>(&self, seq: S) -> Result<Vec<A::Symbol>, InvalidSymbol> {
+    fn encode_raw<S: AsRef<[u8]>>(&self, seq: S) -> Result<Vec<A::Symbol>, InvalidSymbol> {
         let s = seq.as_ref();
         let mut buffer = Vec::with_capacity(s.len());
         unsafe { buffer.set_len(s.len()) };
@@ -43,6 +44,11 @@ pub trait Encode<A: Alphabet> {
             Ok(_) => Ok(buffer),
             Err(e) => Err(e),
         }
+    }
+
+    /// Encode the given sequence into an `EncodedSequence`.
+    fn encode<S: AsRef<[u8]>>(&self, seq: S) -> Result<EncodedSequence<A>, InvalidSymbol> {
+        self.encode_raw(seq).map(EncodedSequence::new)
     }
 
     /// Encode the given sequence into a buffer of symbols.
