@@ -1,6 +1,8 @@
+#![allow(unused)]
+
 use super::platform::Avx2;
 use super::platform::Generic;
-
+use super::platform::Neon;
 use super::platform::Sse2;
 use super::scores::StripedScores;
 use super::Backend;

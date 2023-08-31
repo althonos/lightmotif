@@ -6,7 +6,49 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.5.0...HEAD
+
+
+## [v0.5.0] - 2023-08-31
+[v0.5.0]: https://github.com/althonos/lightmotif/compare/v0.4.0...v0.5.0
+
+### Added
+
+#### `lightmotif`
+- Arm NEON implementation of `Threshold` and `Encode`.
+- `Alphabet::as_str` method to get the symbols of an alphabet as a string.
+- `DenseMatrix::fill` method to fill a dense matrix with a constant value.
+- Convenience getters and conversion traits to `StripedSequence`.
+- `Stripe` trait to implement striping of an encoded sequence with SIMD.
+- Dynamic dispatched pipeline selecting the best implementation as runtime.
+- `PartialEq` implementation for `EncodedSequence`.
+
+#### `lightmotif-py`
+- Buffer and copy protocols for `StripedSequence` and `EncodedSequence`.
+- Indexing support to `EncodedSequence`.
+
+#### `lightmotif-tfmpvalue`
+- Convenience methods to access the wrapped `ScoringMatrix` reference in `TfmPvalue`.
+
+### Changed
+
+#### `lightmotif`
+- `Encode::encode` now returns an `EncodedSequence` instead of a raw `Vec`.
+- Performance improvements for `Encode` for AVX2 and NEON by removing non-const function calls in loop.
+- Performance improvements for `Threshold` by skipping the index buffer initialization.
+- Avoid buffer initialization when allocating a new buffer in `EncodedSequence::encode`.
+- Require `Symbol` implementors to implement `Eq`.
+
+#### `lightmotif-py`
+- Use the dynamic dispatch pipeline to run vectorized operations.
+
+#### `lightmotif-tfmpvalue`
+- Make `TfmPvalue` generic over the type of reference to the wrapped `ScoringMatrix`.
+
+### Fixed
+
+#### `lightmotif`
+- `Debug` implementation of `DenseMatrix` crashing when attempting to render the padding bytes.
 
 
 ## [v0.4.0] - 2023-08-10
