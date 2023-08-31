@@ -1,5 +1,6 @@
 //! Linear and striped storage for alphabet-encoded sequences.
 
+use std::cmp::PartialEq;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
@@ -130,6 +131,24 @@ impl<'a, A: Alphabet> IntoIterator for &'a EncodedSequence<A> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.data.iter()
+    }
+}
+
+impl<A, S> PartialEq<S> for EncodedSequence<A>
+where
+    A: Alphabet,
+    S: AsRef<[<A as Alphabet>::Symbol]>,
+{
+    fn eq(&self, other: &S) -> bool {
+        let l = self.data.as_slice();
+        let r = other.as_ref();
+        l == r
+    }
+
+    fn ne(&self, other: &S) -> bool {
+        let l = self.data.as_slice();
+        let r = other.as_ref();
+        l != r
     }
 }
 
