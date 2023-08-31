@@ -132,8 +132,6 @@ impl<A: Alphabet> Stripe<A, <Dispatch as Backend>::LANES> for Pipeline<A, Dispat
         match self.backend {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Avx2 => Avx2::stripe_into(seq, matrix),
-            #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-            Dispatch::Neon => Neon::stripe_into(seq, matrix),
             _ => <Generic as Stripe<A, <Dispatch as Backend>::LANES>>::stripe_into(
                 &Generic, seq, matrix,
             ),
@@ -148,8 +146,6 @@ impl<A: Alphabet> Maximum<<Dispatch as Backend>::LANES> for Pipeline<A, Dispatch
             Dispatch::Avx2 => Avx2::argmax(scores),
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Sse2 => Sse2::argmax(scores),
-            #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-            Dispatch::Neon => Neon::argmax(scores),
             _ => <Generic as Maximum<<Dispatch as Backend>::LANES>>::argmax(&Generic, scores),
         }
     }

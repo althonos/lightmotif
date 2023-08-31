@@ -13,10 +13,12 @@ use typenum::marker_traits::Zero;
 
 use super::Backend;
 use crate::abc::Alphabet;
-
+use crate::abc::Symbol;
 use crate::err::InvalidSymbol;
 use crate::num::StrictlyPositive;
 use crate::pli::scores::StripedScores;
+use crate::pli::Encode;
+use crate::pli::Pipeline;
 
 use crate::pwm::ScoringMatrix;
 use crate::seq::StripedSequence;

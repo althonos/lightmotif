@@ -1,4 +1,5 @@
 //! Platform-specific code for the scoring pipeline.
+#![allow(unused)]
 
 mod avx2;
 mod generic;
