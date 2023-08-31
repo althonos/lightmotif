@@ -360,13 +360,20 @@ unsafe fn threshold_avx2(
     } else {
         let data = scores.matrix();
         let rows = data.rows();
-        let mut indices = Vec::<u32>::with_capacity(data.columns() * rows);
+        let mut indices =
+            Vec::<u32>::with_capacity(data.columns() * rows + std::mem::align_of::<__m256i>());
         unsafe {
-            indices.set_len(indices.capacity());
+            // prepare AVX2 constants
             let t = _mm256_set1_ps(threshold);
             let ones = _mm256_set1_epi32(1);
             let umax = _mm256_set1_epi32(u32::MAX as i32);
-            let mut dst = indices.as_mut_ptr() as *mut __m256i;
+
+            // use uninitialized buffer memory
+            indices.set_len(indices.capacity());
+            let (x, y, _) = indices.align_to_mut::<__m256i>();
+            x.fill(u32::MAX);
+            let mut dst = y.as_mut_ptr() as *mut __m256i;
+
             // compute real sequence index for each column of the striped scores
             let mut x1 = _mm256_set_epi32(
                 (7 * rows) as i32,
@@ -426,10 +433,10 @@ unsafe fn threshold_avx2(
                 let t2 = _mm256_blendv_epi8(umax, x2, m2);
                 let t3 = _mm256_blendv_epi8(umax, x3, m3);
                 let t4 = _mm256_blendv_epi8(umax, x4, m4);
-                _mm256_storeu_si256(dst as *mut _, t1);
-                _mm256_storeu_si256(dst.add(1) as *mut _, t2);
-                _mm256_storeu_si256(dst.add(2) as *mut _, t3);
-                _mm256_storeu_si256(dst.add(3) as *mut _, t4);
+                _mm256_stream_si256(dst, t1);
+                _mm256_stream_si256(dst.add(1), t2);
+                _mm256_stream_si256(dst.add(2), t3);
+                _mm256_stream_si256(dst.add(3), t4);
                 // advance result buffer to next row
                 dst = dst.add(4);
                 // advance sequence indices to next row
@@ -440,7 +447,18 @@ unsafe fn threshold_avx2(
                 // Advance data pointer to next row
                 dataptr = dataptr.add(data.stride());
             }
+
+            // mask out the rest of the vector memory that has not been processed
+            // by the SIMD loop
+            let remainer =
+                (indices.last().unwrap() as *const u32).offset_from(dst as *const u32) + 1;
+            std::ptr::write_bytes(dst as *mut u32, u8::MAX, remainer as usize);
         }
+
+        // Required before returning to code that may set atomic flags that invite concurrent reads,
+        // as LLVM lowers `AtomicBool::store(flag, true, Release)` to ordinary stores on x86-64
+        // instead of SFENCE, even though SFENCE is required in the presence of nontemporal stores.
+        _mm_sfence();
 
         // NOTE: Benchmarks suggest that `indices.retain(...)` is faster than
         //       `indices.into_iter().filter(...).
