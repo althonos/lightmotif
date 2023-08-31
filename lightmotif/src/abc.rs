@@ -15,7 +15,7 @@ use super::err::InvalidSymbol;
 // --- Symbol ------------------------------------------------------------------
 
 /// A symbol from a biological alphabet.
-pub trait Symbol: Default + Sized + Copy {
+pub trait Symbol: Default + Sized + Copy + Eq {
     /// View this symbol as a zero-based index.
     fn as_index(&self) -> usize;
     /// View this symbol as a string character.
@@ -104,7 +104,7 @@ impl Alphabet for Dna {
 }
 
 /// A deoxyribonucleotide.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Nucleotide {
     /// Adenine.
@@ -215,7 +215,7 @@ impl Alphabet for Protein {
 }
 
 /// A proteinogenic amino acid.
-#[derive(Clone, Copy, Default, Debug, PartialEq)]
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum AminoAcid {
     A = 0,
