@@ -54,6 +54,16 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
         }
     }
 
+    /// Return a reference to the wrapped matrix reference.
+    pub fn as_inner(&self) -> &M {
+        &self.matrix
+    }
+
+    /// Extract the wrapped matrix reference.
+    pub fn into_inner(self) -> M {
+        self.matrix
+    }
+
     /// Compute the approximate score matrix with the given granularity.
     fn recompute(&mut self, granularity: f64) {
         assert!(granularity < 1.0);
@@ -308,6 +318,12 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
     }
 }
 
+impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> From<M> for TfmPvalue<A, M> {
+    fn from(matrix: M) -> Self {
+        Self::new(matrix)
+    }
+}
+
 /// The result of an iteration of the TFMPvalue algorithm.
 #[derive(Debug)]
 pub struct Iteration {
@@ -409,7 +425,6 @@ impl<'tfmp, A: Alphabet, M: AsRef<ScoringMatrix<A>>> Iterator for ScoresIterator
 mod test {
 
     use lightmotif::abc::Dna;
-
     use lightmotif::dense::DenseMatrix;
     use lightmotif::pwm::CountMatrix;
 
