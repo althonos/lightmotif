@@ -2,6 +2,7 @@ import gzip
 import os
 import tempfile
 import unittest
+import sys
 
 import lightmotif
 
@@ -34,6 +35,7 @@ class TestEncodedSequence(unittest.TestCase):
         with self.assertRaises(IndexError):
             _ = self.s1[10]
 
+    @unittest.skipIf(sys.implementation.name != "cpython", "buffer protocol unsupported")
     def test_memoryview(self):
         A, C, T, G, N = range(5)
         mem = memoryview(self.s1)
@@ -57,6 +59,7 @@ class TestStripedSequence(unittest.TestCase):
         cls.s1 = lightmotif.stripe("ATGC")
         cls.s2 = lightmotif.stripe("ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG")
 
+    @unittest.skipIf(sys.implementation.name != "cpython", "buffer protocol unsupported")
     def test_memoryview(self):
         A, C, T, G, N = range(5)
         mem = memoryview(self.s1)
