@@ -99,9 +99,10 @@ motif from [PRODORIC](https://www.prodoric.de/)[\[4\]](#ref4), and the
 *Benchmarks were run on a [i7-10710U CPU](https://ark.intel.com/content/www/us/en/ark/products/196448/intel-core-i7-10710u-processor-12m-cache-up-to-4-70-ghz.html) running @1.10GHz, compiled with `--target-cpu=native`*.
 
 ```console
-lightmotif (avx2):      5,335,999 ns/iter    (+/- 3,532,171) = 829.6 MiB/s
-Bio.motifs:           346,620,369 ns/iter   (+/- 35,120,487) =  12.8 MiB/s
-MOODS.scan:           161,808,252 ns/iter    (+/- 8,677,959) =  27.4 MiB/s
+lightmotif (avx2):      5,479,884 ns/iter    (+/- 3,370,523) = 807.8 MiB/s
+Bio.motifs:           334,359,765 ns/iter   (+/- 11,045,456) =  13.2 MiB/s
+MOODS.scan:           182,710,624 ns/iter    (+/- 9,459,257) =  24.2 MiB/s
+pymemesuite.fimo:     239,694,118 ns/iter    (+/- 7,444,620) =  18.5 MiB/s
 ```
 
 
