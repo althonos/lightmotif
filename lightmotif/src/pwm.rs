@@ -70,7 +70,11 @@ impl<A: Alphabet> CountMatrix<A> {
         }
         // Check row sums.
         let n = data.iter().map(|row| row.iter().sum()).max().unwrap();
-        Ok(Self::new_unchecked(data, n))
+        if data.iter().any(|row| row.iter().sum::<u32>() != n) {
+            Err(InvalidData)
+        } else {
+            Ok(Self::new_unchecked(data, n))
+        }
     }
 
     /// Create a new count matrix from the given sequences.
