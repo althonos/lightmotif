@@ -3,7 +3,7 @@ use std::io::BufRead;
 use lightmotif::Alphabet;
 
 use super::error::Error;
-use super::Matrix;
+use super::Record;
 
 pub struct Reader<B: BufRead, A: Alphabet> {
     buffer: String,
@@ -62,7 +62,7 @@ impl<B: BufRead, A: Alphabet> Reader<B, A> {
 }
 
 impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
-    type Item = Result<Matrix<A>, Error>;
+    type Item = Result<Record<A>, Error>;
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(err) = self.error.take() {
             return Some(Err(err));
@@ -81,10 +81,10 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
         }
 
         if !self.buffer.is_empty() {
-            let matrix = super::parse::parse_matrix::<A>(&self.buffer).unwrap().1;
+            let record = super::parse::parse_record::<A>(&self.buffer).unwrap().1;
             self.buffer.clear();
             self.last = 0;
-            Some(Ok(matrix))
+            Some(Ok(record))
         } else {
             None
         }

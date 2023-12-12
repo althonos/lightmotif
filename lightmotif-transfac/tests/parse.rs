@@ -2,11 +2,10 @@ extern crate lightmotif;
 extern crate lightmotif_transfac;
 
 use std::fs::File;
-
 use std::io::BufReader;
 
 use lightmotif::Dna;
-use lightmotif_transfac::Matrix;
+use lightmotif_transfac::Record;
 
 #[test]
 fn parse_prodoric() {
@@ -14,8 +13,8 @@ fn parse_prodoric() {
         .map(BufReader::new)
         .map(lightmotif_transfac::reader::Reader::new)
         .unwrap();
-    let matrix: Matrix<Dna> = reader.next().unwrap().unwrap();
-    assert_eq!(matrix.id(), Some("prodoric_MX000001"));
+    let record: Record<Dna> = reader.next().unwrap().unwrap();
+    assert_eq!(record.id(), Some("prodoric_MX000001"));
 }
 
 #[test]
@@ -24,9 +23,9 @@ fn parse_transfac() {
         .map(BufReader::new)
         .map(lightmotif_transfac::reader::Reader::new)
         .unwrap();
-    let matrix: Matrix<Dna> = reader.next().unwrap().unwrap();
-    assert_eq!(matrix.id(), Some("V$AP4_01"));
-    assert_eq!(matrix.accession(), Some("M00005"));
+    let record: Record<Dna> = reader.next().unwrap().unwrap();
+    assert_eq!(record.id(), Some("V$AP4_01"));
+    assert_eq!(record.accession(), Some("M00005"));
 }
 
 #[test]
@@ -35,7 +34,7 @@ fn parse_jaspar() {
         .map(BufReader::new)
         .map(lightmotif_transfac::reader::Reader::new)
         .unwrap();
-    let matrix: Matrix<Dna> = reader.next().unwrap().unwrap();
-    assert_eq!(matrix.id(), Some("AGL3"));
-    assert_eq!(matrix.accession(), Some("MA0001.2"));
+    let record: Record<Dna> = reader.next().unwrap().unwrap();
+    assert_eq!(record.id(), Some("AGL3"));
+    assert_eq!(record.accession(), Some("MA0001.2"));
 }

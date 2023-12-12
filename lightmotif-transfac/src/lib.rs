@@ -8,7 +8,7 @@ use std::io::BufRead;
 use lightmotif::abc::Alphabet;
 use lightmotif::abc::Symbol;
 use lightmotif::dense::DenseMatrix;
-use lightmotif::pwm::CountMatrix;
+use lightmotif::pwm::FrequencyMatrix;
 
 pub mod error;
 #[doc(hidden)]
@@ -16,18 +16,18 @@ pub mod parse;
 pub mod reader;
 
 #[derive(Clone)]
-pub struct Matrix<A: Alphabet> {
+pub struct Record<A: Alphabet> {
     id: Option<String>,
     accession: Option<String>,
     name: Option<String>,
     description: Option<String>,
-    counts: CountMatrix<A>,
+    matrix: DenseMatrix<f32, A::K>,
     dates: Vec<Date>,
     references: Vec<Reference>,
     sites: Vec<String>,
 }
 
-impl<A: Alphabet> Matrix<A> {
+impl<A: Alphabet> Record<A> {
     pub fn id(&self) -> Option<&str> {
         self.id.as_deref()
     }
@@ -45,9 +45,9 @@ impl<A: Alphabet> Matrix<A> {
     }
 }
 
-impl<A: Alphabet> AsRef<CountMatrix<A>> for Matrix<A> {
-    fn as_ref(&self) -> &CountMatrix<A> {
-        &self.counts
+impl<A: Alphabet> AsRef<DenseMatrix<f32, A::K>> for Record<A> {
+    fn as_ref(&self) -> &DenseMatrix<f32, A::K> {
+        &self.matrix
     }
 }
 

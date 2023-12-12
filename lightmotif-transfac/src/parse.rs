@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use nom::branch::alt;
 use nom::bytes::complete::is_a;
 use nom::bytes::complete::tag;
@@ -30,10 +32,11 @@ use lightmotif::abc::Alphabet;
 use lightmotif::abc::Symbol;
 use lightmotif::dense::DenseMatrix;
 use lightmotif::pwm::CountMatrix;
+use lightmotif::pwm::FrequencyMatrix;
 
 use super::Date;
 use super::DateKind;
-use super::Matrix;
+use super::Record;
 use super::Reference;
 use super::ReferenceNumber;
 
@@ -63,14 +66,14 @@ pub fn parse_alphabet<S: Symbol>(input: &str) -> IResult<&str, Vec<S>> {
     )(input)
 }
 
-pub fn parse_element(input: &str) -> IResult<&str, u32> {
-    terminated(
-        nom::character::complete::u32,
-        opt(preceded(char('.'), many0(char('0')))),
-    )(input)
+pub fn parse_element(input: &str) -> IResult<&str, f32> {
+    nom::branch::alt((
+        nom::combinator::map_res(nom::character::complete::digit1, |x| f32::from_str(x)),
+        nom::combinator::map(nom::number::complete::float, |x| x as f32),
+    ))(input)
 }
 
-pub fn parse_row(input: &str, k: usize) -> IResult<&str, Vec<u32>> {
+pub fn parse_row(input: &str, k: usize) -> IResult<&str, Vec<f32>> {
     delimited(
         nom::character::complete::u32,
         count(delimited(space0, parse_element, space0), k),
@@ -195,7 +198,7 @@ pub fn parse_reference(mut input: &str) -> IResult<&str, Reference> {
     ))
 }
 
-pub fn parse_matrix<A: Alphabet>(mut input: &str) -> IResult<&str, Matrix<A>> {
+pub fn parse_record<A: Alphabet>(mut input: &str) -> IResult<&str, Record<A>> {
     let mut accession = None;
     let mut ba = None;
     let mut name = None;
@@ -207,7 +210,7 @@ pub fn parse_matrix<A: Alphabet>(mut input: &str) -> IResult<&str, Matrix<A>> {
     let mut comments = Vec::new();
     let mut sites = Vec::new();
     let mut factors = Vec::new();
-    let mut countmatrix = None;
+    let mut matrixdata = None;
 
     loop {
         match parse_tag(input)?.1 {
@@ -267,13 +270,13 @@ pub fn parse_matrix<A: Alphabet>(mut input: &str) -> IResult<&str, Matrix<A>> {
                 let (rest, counts) = many1(|l| parse_row(l, symbols.len()))(rest)?;
                 input = rest;
                 // read counts into a dense matrix
-                let mut data = DenseMatrix::<u32, A::K>::new(counts.len());
+                let mut data = DenseMatrix::<f32, A::K>::new(counts.len());
                 for (i, count) in counts.iter().enumerate() {
                     for (s, &c) in symbols.iter().zip(count.iter()) {
                         data[i][s.as_index()] = c;
                     }
                 }
-                countmatrix = Some(data);
+                matrixdata = Some(data);
             }
             "RN" => {
                 let (rest, reference) = parse_reference(input)?;
@@ -289,18 +292,18 @@ pub fn parse_matrix<A: Alphabet>(mut input: &str) -> IResult<&str, Matrix<A>> {
         }
     }
 
-    let counts = CountMatrix::new(countmatrix.unwrap()).unwrap();
-    let matrix = Matrix {
+    let matrix = matrixdata.unwrap();
+    let record = Record {
         accession,
         id,
         name,
         description,
-        counts,
+        matrix,
         dates,
         references,
         sites,
     };
-    Ok((input, matrix))
+    Ok((input, record))
 }
 
 #[cfg(test)]
@@ -336,7 +339,7 @@ mod test {
         let line = "00      0      0      2      0      G\n";
         let res = super::parse_row(line, 4).unwrap();
         assert_eq!(res.0, "");
-        assert_eq!(res.1, vec![0, 0, 2, 0]);
+        assert_eq!(res.1, vec![0., 0., 2., 0.]);
     }
 
     #[test]
@@ -355,22 +358,22 @@ mod test {
             "XX\n",
             "//\n",
         );
-        let res = super::parse_matrix::<Dna>(text).unwrap();
+        let res = super::parse_record::<Dna>(text).unwrap();
         assert_eq!(res.0, "");
 
         let matrix = res.1;
         assert_eq!(matrix.id, Some(String::from("prodoric_MX000001")));
-        assert_eq!(matrix.counts.counts().rows(), 7);
-        assert_eq!(matrix.counts.counts()[0][Nucleotide::A.as_index()], 0);
-        assert_eq!(matrix.counts.counts()[0][Nucleotide::T.as_index()], 0);
-        assert_eq!(matrix.counts.counts()[0][Nucleotide::G.as_index()], 2);
-        assert_eq!(matrix.counts.counts()[0][Nucleotide::C.as_index()], 0);
-        assert_eq!(matrix.counts.counts()[0][Nucleotide::N.as_index()], 0);
-        assert_eq!(matrix.counts.counts()[5][Nucleotide::A.as_index()], 0);
-        assert_eq!(matrix.counts.counts()[5][Nucleotide::T.as_index()], 1);
-        assert_eq!(matrix.counts.counts()[5][Nucleotide::G.as_index()], 0);
-        assert_eq!(matrix.counts.counts()[5][Nucleotide::C.as_index()], 1);
-        assert_eq!(matrix.counts.counts()[5][Nucleotide::N.as_index()], 0);
+        assert_eq!(matrix.matrix.rows(), 7);
+        assert_eq!(matrix.matrix[0][Nucleotide::A.as_index()], 0.);
+        assert_eq!(matrix.matrix[0][Nucleotide::T.as_index()], 0.);
+        assert_eq!(matrix.matrix[0][Nucleotide::G.as_index()], 2.);
+        assert_eq!(matrix.matrix[0][Nucleotide::C.as_index()], 0.);
+        assert_eq!(matrix.matrix[0][Nucleotide::N.as_index()], 0.);
+        assert_eq!(matrix.matrix[5][Nucleotide::A.as_index()], 0.);
+        assert_eq!(matrix.matrix[5][Nucleotide::T.as_index()], 1.);
+        assert_eq!(matrix.matrix[5][Nucleotide::G.as_index()], 0.);
+        assert_eq!(matrix.matrix[5][Nucleotide::C.as_index()], 1.);
+        assert_eq!(matrix.matrix[5][Nucleotide::N.as_index()], 0.);
     }
 
     #[test]
@@ -451,22 +454,22 @@ mod test {
             "XX\n",
             "//\n",
         );
-        let res = super::parse_matrix::<Dna>(text).unwrap();
+        let res = super::parse_record::<Dna>(text).unwrap();
         assert_eq!(res.0, "");
 
         let matrix = res.1;
         assert_eq!(matrix.accession, Some(String::from("M00001")));
-        assert_eq!(matrix.counts.counts().rows(), 12);
-        assert_eq!(matrix.counts.counts()[0][Nucleotide::A.as_index()], 1);
-        assert_eq!(matrix.counts.counts()[0][Nucleotide::T.as_index()], 0);
-        assert_eq!(matrix.counts.counts()[0][Nucleotide::G.as_index()], 2);
-        assert_eq!(matrix.counts.counts()[0][Nucleotide::C.as_index()], 2);
-        assert_eq!(matrix.counts.counts()[0][Nucleotide::N.as_index()], 0);
-        assert_eq!(matrix.counts.counts()[5][Nucleotide::A.as_index()], 0);
-        assert_eq!(matrix.counts.counts()[5][Nucleotide::T.as_index()], 1);
-        assert_eq!(matrix.counts.counts()[5][Nucleotide::G.as_index()], 4);
-        assert_eq!(matrix.counts.counts()[5][Nucleotide::C.as_index()], 0);
-        assert_eq!(matrix.counts.counts()[5][Nucleotide::N.as_index()], 0);
+        assert_eq!(matrix.matrix.rows(), 12);
+        assert_eq!(matrix.matrix[0][Nucleotide::A.as_index()], 1.);
+        assert_eq!(matrix.matrix[0][Nucleotide::T.as_index()], 0.);
+        assert_eq!(matrix.matrix[0][Nucleotide::G.as_index()], 2.);
+        assert_eq!(matrix.matrix[0][Nucleotide::C.as_index()], 2.);
+        assert_eq!(matrix.matrix[0][Nucleotide::N.as_index()], 0.);
+        assert_eq!(matrix.matrix[5][Nucleotide::A.as_index()], 0.);
+        assert_eq!(matrix.matrix[5][Nucleotide::T.as_index()], 1.);
+        assert_eq!(matrix.matrix[5][Nucleotide::G.as_index()], 4.);
+        assert_eq!(matrix.matrix[5][Nucleotide::C.as_index()], 0.);
+        assert_eq!(matrix.matrix[5][Nucleotide::N.as_index()], 0.);
     }
 
     #[test]
@@ -525,7 +528,7 @@ mod test {
             "XX\n",
             "//\n",
         );
-        let res = super::parse_matrix::<Dna>(text).unwrap();
+        let res = super::parse_record::<Dna>(text).unwrap();
         let matrix = res.1;
         assert_eq!(res.0, "");
         assert_eq!(matrix.name, Some(String::from("MATa1")));
