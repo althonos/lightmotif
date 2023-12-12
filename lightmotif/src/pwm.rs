@@ -410,7 +410,12 @@ impl<A: Alphabet> ScoringMatrix<A> {
     pub fn min_score(&self) -> f32 {
         self.data
             .iter()
-            .map(|row| row.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap())
+            .map(|row| {
+                row[..A::K::USIZE - 1]
+                    .iter()
+                    .min_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap()
+            })
             .sum()
     }
 
@@ -418,7 +423,12 @@ impl<A: Alphabet> ScoringMatrix<A> {
     pub fn max_score(&self) -> f32 {
         self.data
             .iter()
-            .map(|row| row.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap())
+            .map(|row| {
+                row[..A::K::USIZE - 1]
+                    .iter()
+                    .max_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap()
+            })
             .sum()
     }
 }

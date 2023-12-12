@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 
+use std::cmp::Ordering;
 #[cfg(not(feature = "fnv"))]
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -84,32 +85,29 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
         // compute maximum error by summing max error at each row
         self.error_max = 0.0;
         for i in 1..M {
-            let mut max_e = matrix[i][0] as f64 / self.granularity - self.int_matrix[i][0] as f64;
-            for j in 0..K - 1 {
-                if max_e < matrix[i][j] as f64 / self.granularity - self.int_matrix[i][j] as f64 {
-                    max_e = matrix[i][j] as f64 / self.granularity - self.int_matrix[i][j] as f64;
-                }
-            }
+            let max_e = matrix[i]
+                .iter()
+                .enumerate()
+                .map(|(j, &x)| (x as f64) / self.granularity - self.int_matrix[i][j] as f64)
+                .max_by(|x, y| x.partial_cmp(y).unwrap_or(Ordering::Less))
+                .unwrap();
             self.error_max += max_e;
         }
 
         // TODO: sort columns?
 
         // compute offsets
-        self.offsets = vec![0; M];
         for i in 0..M {
-            self.offsets[i] = -(0..K - 1).map(|j| self.int_matrix[i][j]).min().unwrap();
+            self.offsets[i] = -*self.int_matrix[i][..K - 1].iter().min().unwrap();
             for j in 0..K - 1 {
                 self.int_matrix[i][j] += self.offsets[i];
             }
         }
 
         // look for the minimum score of the matrix for each row
-        self.min_score_rows = vec![0; M];
-        self.max_score_rows = vec![0; M];
         for i in 0..M {
-            self.min_score_rows[i] = (0..K - 1).map(|j| self.int_matrix[i][j]).min().unwrap();
-            self.max_score_rows[i] = (0..K - 1).map(|j| self.int_matrix[i][j]).max().unwrap();
+            self.min_score_rows[i] = *self.int_matrix[i][..K - 1].iter().min().unwrap();
+            self.max_score_rows[i] = *self.int_matrix[i][..K - 1].iter().max().unwrap();
         }
     }
 
