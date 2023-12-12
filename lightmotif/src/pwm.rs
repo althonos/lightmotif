@@ -180,9 +180,13 @@ impl<A: Alphabet> FrequencyMatrix<A> {
 
     /// Create a new frequency matrix.
     ///
-    /// The matrix must contain frequency data, i.e. rows should all sum to 1.
+    /// The matrix must contain frequency data, i.e. rows should all sum to 1
+    /// (with a tolerance of 0.01).
     pub fn new(data: DenseMatrix<f32, A::K>) -> Result<Self, InvalidData> {
-        if data.iter().all(|row| row.iter().sum::<f32>() == 1.0) {
+        if data
+            .iter()
+            .all(|row| (row.iter().sum::<f32>() - 1.0).abs() < 0.01)
+        {
             Ok(Self::new_unchecked(data))
         } else {
             Err(InvalidData)
@@ -234,6 +238,12 @@ impl<A: Alphabet> FrequencyMatrix<A> {
             }
         }
         ScoringMatrix::new(bg, scores)
+    }
+
+    /// The raw frequencies from the frequency matrix.
+    #[inline]
+    pub fn frequencies(&self) -> &DenseMatrix<f32, A::K> {
+        &self.data
     }
 }
 
