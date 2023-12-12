@@ -6,8 +6,10 @@ extern crate memchr;
 use std::io::BufRead;
 
 use lightmotif::abc::Alphabet;
+use lightmotif::abc::Pseudocounts;
 use lightmotif::abc::Symbol;
 use lightmotif::dense::DenseMatrix;
+use lightmotif::pwm::CountMatrix;
 use lightmotif::pwm::FrequencyMatrix;
 
 pub mod error;
@@ -15,7 +17,7 @@ pub mod error;
 pub mod parse;
 pub mod reader;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Record<A: Alphabet> {
     id: Option<String>,
     accession: Option<String>,
@@ -42,6 +44,52 @@ impl<A: Alphabet> Record<A> {
 
     pub fn description(&self) -> Option<&str> {
         self.description.as_deref()
+    }
+
+    pub fn data(&self) -> Option<&DenseMatrix<f32, A::K>> {
+        self.data.as_ref()
+    }
+
+    pub fn to_counts(&self) -> Option<CountMatrix<A>> {
+        if let Some(data) = &self.data {
+            let mut counts = DenseMatrix::<u32, A::K>::new(data.rows());
+            for (i, row) in data.iter().enumerate() {
+                for (j, &x) in row.iter().enumerate() {
+                    // check the matrix contains count data
+                    if x.round() != x {
+                        return None;
+                    }
+                    counts[i][j] = x.round() as u32
+                }
+            }
+            CountMatrix::new(counts).ok()
+        } else {
+            None
+        }
+    }
+
+    pub fn to_freq<P>(&self, pseudo: P) -> Option<FrequencyMatrix<A>>
+    where
+        P: Into<Pseudocounts<A>>,
+    {
+        if let Some(data) = &self.data {
+            let p = pseudo.into();
+            let mut probas = DenseMatrix::<f32, A::K>::new(data.rows());
+            for (i, row) in data.iter().enumerate() {
+                let src = &data[i];
+                let dst = &mut probas[i];
+                for (j, &x) in row.iter().enumerate() {
+                    dst[j] = x as f32 + p.counts()[j];
+                }
+                let s: f32 = dst.iter().sum();
+                for x in dst.iter_mut() {
+                    *x /= s;
+                }
+            }
+            FrequencyMatrix::new(probas).ok()
+        } else {
+            None
+        }
     }
 }
 
