@@ -210,7 +210,7 @@ pub fn parse_record<A: Alphabet>(mut input: &str) -> IResult<&str, Record<A>> {
     let mut comments = Vec::new();
     let mut sites = Vec::new();
     let mut factors = Vec::new();
-    let mut matrixdata = None;
+    let mut data = None;
 
     loop {
         match parse_tag(input)?.1 {
@@ -270,13 +270,13 @@ pub fn parse_record<A: Alphabet>(mut input: &str) -> IResult<&str, Record<A>> {
                 let (rest, counts) = many1(|l| parse_row(l, symbols.len()))(rest)?;
                 input = rest;
                 // read counts into a dense matrix
-                let mut data = DenseMatrix::<f32, A::K>::new(counts.len());
+                let mut matrix = DenseMatrix::<f32, A::K>::new(counts.len());
                 for (i, count) in counts.iter().enumerate() {
                     for (s, &c) in symbols.iter().zip(count.iter()) {
-                        data[i][s.as_index()] = c;
+                        matrix[i][s.as_index()] = c;
                     }
                 }
-                matrixdata = Some(data);
+                data = Some(matrix);
             }
             "RN" => {
                 let (rest, reference) = parse_reference(input)?;
@@ -292,13 +292,12 @@ pub fn parse_record<A: Alphabet>(mut input: &str) -> IResult<&str, Record<A>> {
         }
     }
 
-    let matrix = matrixdata.unwrap();
     let record = Record {
         accession,
         id,
         name,
         description,
-        matrix,
+        data,
         dates,
         references,
         sites,
@@ -363,17 +362,18 @@ mod test {
 
         let matrix = res.1;
         assert_eq!(matrix.id, Some(String::from("prodoric_MX000001")));
-        assert_eq!(matrix.matrix.rows(), 7);
-        assert_eq!(matrix.matrix[0][Nucleotide::A.as_index()], 0.);
-        assert_eq!(matrix.matrix[0][Nucleotide::T.as_index()], 0.);
-        assert_eq!(matrix.matrix[0][Nucleotide::G.as_index()], 2.);
-        assert_eq!(matrix.matrix[0][Nucleotide::C.as_index()], 0.);
-        assert_eq!(matrix.matrix[0][Nucleotide::N.as_index()], 0.);
-        assert_eq!(matrix.matrix[5][Nucleotide::A.as_index()], 0.);
-        assert_eq!(matrix.matrix[5][Nucleotide::T.as_index()], 1.);
-        assert_eq!(matrix.matrix[5][Nucleotide::G.as_index()], 0.);
-        assert_eq!(matrix.matrix[5][Nucleotide::C.as_index()], 1.);
-        assert_eq!(matrix.matrix[5][Nucleotide::N.as_index()], 0.);
+        let data = matrix.data.as_ref().unwrap();
+        assert_eq!(data.rows(), 7);
+        assert_eq!(data[0][Nucleotide::A.as_index()], 0.);
+        assert_eq!(data[0][Nucleotide::T.as_index()], 0.);
+        assert_eq!(data[0][Nucleotide::G.as_index()], 2.);
+        assert_eq!(data[0][Nucleotide::C.as_index()], 0.);
+        assert_eq!(data[0][Nucleotide::N.as_index()], 0.);
+        assert_eq!(data[5][Nucleotide::A.as_index()], 0.);
+        assert_eq!(data[5][Nucleotide::T.as_index()], 1.);
+        assert_eq!(data[5][Nucleotide::G.as_index()], 0.);
+        assert_eq!(data[5][Nucleotide::C.as_index()], 1.);
+        assert_eq!(data[5][Nucleotide::N.as_index()], 0.);
     }
 
     #[test]
@@ -459,17 +459,18 @@ mod test {
 
         let matrix = res.1;
         assert_eq!(matrix.accession, Some(String::from("M00001")));
-        assert_eq!(matrix.matrix.rows(), 12);
-        assert_eq!(matrix.matrix[0][Nucleotide::A.as_index()], 1.);
-        assert_eq!(matrix.matrix[0][Nucleotide::T.as_index()], 0.);
-        assert_eq!(matrix.matrix[0][Nucleotide::G.as_index()], 2.);
-        assert_eq!(matrix.matrix[0][Nucleotide::C.as_index()], 2.);
-        assert_eq!(matrix.matrix[0][Nucleotide::N.as_index()], 0.);
-        assert_eq!(matrix.matrix[5][Nucleotide::A.as_index()], 0.);
-        assert_eq!(matrix.matrix[5][Nucleotide::T.as_index()], 1.);
-        assert_eq!(matrix.matrix[5][Nucleotide::G.as_index()], 4.);
-        assert_eq!(matrix.matrix[5][Nucleotide::C.as_index()], 0.);
-        assert_eq!(matrix.matrix[5][Nucleotide::N.as_index()], 0.);
+        let data = matrix.data.as_ref().unwrap();
+        assert_eq!(data.rows(), 12);
+        assert_eq!(data[0][Nucleotide::A.as_index()], 1.);
+        assert_eq!(data[0][Nucleotide::T.as_index()], 0.);
+        assert_eq!(data[0][Nucleotide::G.as_index()], 2.);
+        assert_eq!(data[0][Nucleotide::C.as_index()], 2.);
+        assert_eq!(data[0][Nucleotide::N.as_index()], 0.);
+        assert_eq!(data[5][Nucleotide::A.as_index()], 0.);
+        assert_eq!(data[5][Nucleotide::T.as_index()], 1.);
+        assert_eq!(data[5][Nucleotide::G.as_index()], 4.);
+        assert_eq!(data[5][Nucleotide::C.as_index()], 0.);
+        assert_eq!(data[5][Nucleotide::N.as_index()], 0.);
     }
 
     #[test]

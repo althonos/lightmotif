@@ -21,7 +21,7 @@ pub struct Record<A: Alphabet> {
     accession: Option<String>,
     name: Option<String>,
     description: Option<String>,
-    matrix: DenseMatrix<f32, A::K>,
+    data: Option<DenseMatrix<f32, A::K>>,
     dates: Vec<Date>,
     references: Vec<Reference>,
     sites: Vec<String>,
@@ -42,12 +42,6 @@ impl<A: Alphabet> Record<A> {
 
     pub fn description(&self) -> Option<&str> {
         self.description.as_deref()
-    }
-}
-
-impl<A: Alphabet> AsRef<DenseMatrix<f32, A::K>> for Record<A> {
-    fn as_ref(&self) -> &DenseMatrix<f32, A::K> {
-        &self.matrix
     }
 }
 
