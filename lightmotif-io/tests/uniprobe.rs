@@ -3,7 +3,7 @@ use lightmotif_io::uniprobe;
 use std::io::Cursor;
 
 #[test]
-fn test_cha4_uniprobe() {
+fn test_cha4() {
     const CHA4: &str = include_str!("Cha4.uniprobe");
     let mut reader = uniprobe::Reader::<_, Dna>::new(Cursor::new(CHA4));
     let record = reader.next().unwrap().unwrap();
@@ -15,7 +15,7 @@ fn test_cha4_uniprobe() {
 }
 
 #[test]
-fn test_gal4_uniprobe() {
+fn test_gal4() {
     const GAL4: &str = include_str!("Gal4.uniprobe");
     let mut reader = uniprobe::Reader::<_, Dna>::new(Cursor::new(GAL4));
     let record = reader.next().unwrap().unwrap();
@@ -27,9 +27,9 @@ fn test_gal4_uniprobe() {
 }
 
 #[test]
-fn test_test_uniprobe() {
-    const CHA4: &str = include_str!("test.uniprobe");
-    let mut reader = uniprobe::Reader::<_, Dna>::new(Cursor::new(CHA4));
+fn test_demo() {
+    const DEMO: &str = include_str!("demo.uniprobe");
+    let mut reader = uniprobe::Reader::<_, Dna>::new(Cursor::new(DEMO));
     let r1 = reader.next().unwrap().unwrap();
     assert_eq!(r1.id(), "Arid3a_primary");
     assert_eq!(r1.matrix().frequencies().rows(), 17);

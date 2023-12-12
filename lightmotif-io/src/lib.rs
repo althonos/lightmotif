@@ -4,4 +4,5 @@
 extern crate lightmotif;
 
 pub mod error;
+pub mod jaspar16;
 pub mod uniprobe;

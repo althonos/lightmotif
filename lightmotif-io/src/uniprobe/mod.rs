@@ -1,7 +1,7 @@
 //! Parser implementation for matrices in UniPROBE format.
 //!
-//! The [UniPROBE database](the_brain.bwh.harvard.edu/uniprobe/index.php) stores
-//! DNA-binding sites as Position-Weight Matrices.
+//! The [UniPROBE database](http://the_brain.bwh.harvard.edu/uniprobe/index.php)
+//! stores DNA-binding sites as Position-Weight Matrices.
 //!
 //! The UniPROBE files contains a metadata line for each matrix, followed
 //! by one line per symbol storing tab-separated scores for the column:
