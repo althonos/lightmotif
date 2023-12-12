@@ -12,6 +12,7 @@ use lightmotif::pwm::FrequencyMatrix;
 use nom::bytes::complete::take_while;
 use nom::character::complete::anychar;
 use nom::character::complete::line_ending;
+use nom::number::complete::float;
 
 use nom::character::complete::not_line_ending;
 use nom::character::complete::tab;
@@ -23,13 +24,6 @@ use nom::sequence::preceded;
 use nom::sequence::separated_pair;
 use nom::sequence::terminated;
 use nom::IResult;
-
-pub fn float(input: &str) -> IResult<&str, f32> {
-    map_res(
-        take_while(|c: char| c == '.' || c.is_ascii_digit()),
-        f32::from_str,
-    )(input)
-}
 
 pub fn symbol<A: Alphabet>(input: &str) -> IResult<&str, A::Symbol> {
     map_res(anychar, A::Symbol::from_char)(input)

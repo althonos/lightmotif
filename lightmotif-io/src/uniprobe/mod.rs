@@ -1,3 +1,18 @@
+//! Parser implementation for matrices in UniPROBE format.
+//!
+//! The [UniPROBE database](the_brain.bwh.harvard.edu/uniprobe/index.php) stores
+//! DNA-binding sites as Position-Weight Matrices.
+//!
+//! The UniPROBE files contains a metadata line for each matrix, followed
+//! by one line per symbol storing tab-separated scores for the column:
+//! ```text
+//! Motif XYZ
+//! A:	0.179	0.210	0.182	0.25
+//! C:	0.268	0.218	0.213	0.25
+//! G:	0.383	0.352	0.340	0.25
+//! T:	0.383	0.352	0.340	0.25
+//! ```
+
 use std::io::BufRead;
 
 use lightmotif::abc::Alphabet;
