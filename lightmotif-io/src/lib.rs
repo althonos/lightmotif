@@ -1,5 +1,4 @@
-//! Various parser implementations for reading `lightmotif` matrices.
-//!
+#![doc = include_str!("../README.md")]
 
 extern crate lightmotif;
 
