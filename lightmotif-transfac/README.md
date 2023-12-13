@@ -1,6 +1,6 @@
-# 🎼🧬 `lightmotif-transfac` [![Star me](https://img.shields.io/github/stars/althonos/lightmotif.svg?style=social&label=Star&maxAge=3600)](https://github.com/althonos/lightmotif/stargazers)
+# 🎼🧬 `lightmotif-transfac` [![Star me](https://img.shields.io/github/stars/althonos/lightmotif.svg?style=social&label=Star&maxAge=3600)](https://github.com/althonos/lightmotif/stargazers) 
 
-*A TRANSFAC parser implementation for the [`lightmotif`](https://crates.io/crates/lightmotif) crate.*.
+*(⚠️ Deprecated) A TRANSFAC parser implementation for the [`lightmotif`](https://crates.io/crates/lightmotif) crate.*
 
 [![Actions](https://img.shields.io/github/actions/workflow/status/althonos/lightmotif/rust.yml?branch=main&logo=github&style=flat-square&maxAge=300)](https://github.com/althonos/lightmotif/actions)
 [![Coverage](https://img.shields.io/codecov/c/gh/althonos/lightmotif?logo=codecov&style=flat-square&maxAge=3600)](https://codecov.io/gh/althonos/lightmotif/)
@@ -11,6 +11,9 @@
 [![Mirror](https://img.shields.io/badge/mirror-EMBL-009f4d?style=flat-square&maxAge=2678400)](https://git.embl.de/larralde/lightmotif/)
 [![GitHub issues](https://img.shields.io/github/issues/althonos/lightmotif.svg?style=flat-square&maxAge=600)](https://github.com/althonos/lightmotif/issues)
 [![Changelog](https://img.shields.io/badge/keep%20a-changelog-8A0707.svg?maxAge=2678400&style=flat-square)](https://github.com/althonos/lightmotif/blob/master/CHANGELOG.md)
+
+🚨 **The TRANSFAC parser has been merged into the [`lightmotif-io`](https://crates.io/crates/lightmotif-io) crate, 
+use the [`lightmotif_io::transfac`](https://docs.rs/lightmotif-io/latest/lightmotif_io/transfac) module instead of this crate.** 🚨
 
 ## 🗺️ Overview
 
