@@ -20,6 +20,8 @@ pub type IntMap<V> = HashMap<i64, V, self::hash::IntHasherBuilder>;
 pub struct TfmPvalue<A: Alphabet, M: AsRef<ScoringMatrix<A>>> {
     /// A reference to the original scoring matrix.
     matrix: M,
+    /// A permutation of the original matrix rows.
+    permutation: Vec<usize>,
     /// The granularity with which the round matrix has been built.
     granularity: f64,
     /// The round matrix offsets.
@@ -40,9 +42,33 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
     pub fn new(matrix: M) -> Self {
         let m = matrix.as_ref();
         let M = m.len();
+
+        // Compute the column permutation by decreasing score range
+        // over each row to minimize the total size of score ranges
+        // (see TFM-PVALUE paper, Lemma 7).
+        let range = (0..M)
+            .map(|i| {
+                let row = &m[i][..A::K::USIZE - 1];
+                let max_score = row
+                    .iter()
+                    .max_by(|x, y| x.partial_cmp(y).unwrap())
+                    .cloned()
+                    .unwrap_or_default();
+                let min_score = row
+                    .iter()
+                    .min_by(|x, y| x.partial_cmp(y).unwrap())
+                    .cloned()
+                    .unwrap_or_default();
+                max_score - min_score
+            })
+            .collect::<Vec<_>>();
+        let mut permutation: Vec<usize> = (0..M).collect();
+        permutation.sort_unstable_by(|i, j| range[*j].partial_cmp(&range[*i]).unwrap());
+
         Self {
             granularity: f64::NAN,
             matrix,
+            permutation,
             offsets: vec![0; M],
             int_matrix: DenseMatrix::new(M),
             max_score_rows: vec![0; M],
@@ -71,17 +97,17 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
         // compute effective granularity
         self.granularity = granularity;
 
-        // compute integer matrix
-        for i in 0..M {
+        // compute integer matrix using optimal column permutation
+        for (i, &p) in self.permutation.iter().enumerate() {
             for j in 0..K - 1 {
-                self.int_matrix[i][j] = (matrix[i][j] as f64 / self.granularity).floor() as i64;
+                self.int_matrix[i][j] = (matrix[p][j] as f64 / self.granularity).floor() as i64;
             }
         }
 
         // compute maximum error by summing max error at each row
         self.error_max = 0.0;
         for i in 1..M {
-            let max_e = matrix[i]
+            let max_e = matrix[self.permutation[i]]
                 .iter()
                 .enumerate()
                 .map(|(j, &x)| (x as f64) / self.granularity - self.int_matrix[i][j] as f64)
@@ -89,8 +115,6 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
                 .unwrap();
             self.error_max += max_e;
         }
-
-        // TODO: sort columns?
 
         // compute offsets
         for i in 0..M {
