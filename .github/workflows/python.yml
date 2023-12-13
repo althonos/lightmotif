@@ -7,7 +7,7 @@ jobs:
 
   wheel-linux-aarch64:
     name: Build Linux wheels (Aarch64)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "startsWith(github.ref, 'refs/tags/v')"
     strategy:
       matrix:
@@ -17,9 +17,11 @@ jobs:
         - cp39-manylinux_aarch64
         - cp310-manylinux_aarch64
         - cp311-manylinux_aarch64
+        - cp312-manylinux_aarch64
         - pp37-manylinux_aarch64
         - pp38-manylinux_aarch64
         - pp39-manylinux_aarch64
+        - pp310-manylinux_aarch64
     steps:
     - uses: actions/checkout@v3
     - name: Set up QEMU
@@ -46,7 +48,7 @@ jobs:
 
   wheel-linux-x86_64:
     name: Build Linux wheels (x86-64)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         python-tag:
@@ -55,9 +57,11 @@ jobs:
         - cp39-manylinux_x86_64
         - cp310-manylinux_x86_64
         - cp311-manylinux_x86_64
+        - cp312-manylinux_x86_64
         - pp37-manylinux_x86_64
         - pp38-manylinux_x86_64
         - pp39-manylinux_x86_64
+        - pp310-manylinux_x86_64
     steps:
     - uses: actions/checkout@v3
     - uses: dtolnay/rust-toolchain@stable
@@ -80,7 +84,7 @@ jobs:
 
   wheel-macos-x86_64:
     name: Build MacOS wheels (x86-64)
-    runs-on: macOS-11
+    runs-on: macOS-12
     strategy:
       matrix:
         python-tag:
@@ -89,9 +93,10 @@ jobs:
         - cp39-macosx_x86_64
         - cp310-macosx_x86_64
         - cp311-macosx_x86_64
-        - pp37-macosx_x86_64
+        - cp312-macosx_x86_64
         - pp38-macosx_x86_64
         - pp39-macosx_x86_64
+        - pp310-macosx_x86_64
     steps:
     - uses: actions/checkout@v3
     - uses: dtolnay/rust-toolchain@stable
@@ -114,7 +119,7 @@ jobs:
 
   wheel-macos-aarch64:
     name: Build MacOS wheels (Aarch64)
-    runs-on: macOS-11
+    runs-on: macOS-12
     if: "startsWith(github.ref, 'refs/tags/v')"
     strategy:
       matrix:
@@ -123,6 +128,7 @@ jobs:
         - cp39-macosx_arm64
         - cp310-macosx_arm64
         - cp311-macosx_arm64
+        - cp312-macosx_arm64
     steps:
     - uses: actions/checkout@v3
     - uses: dtolnay/rust-toolchain@stable
@@ -156,9 +162,11 @@ jobs:
         - cp39-win_amd64
         - cp310-win_amd64
         - cp311-win_amd64
+        - cp312-win_amd64
         - pp37-win_amd64
         - pp38-win_amd64
         - pp39-win_amd64
+        - pp310-win_amd64
     steps:
     - uses: actions/checkout@v3
     - uses: dtolnay/rust-toolchain@stable
