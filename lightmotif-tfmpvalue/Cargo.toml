@@ -14,9 +14,4 @@ keywords = ["bioinformatics", "motif", "pssm", "pvalue"]
 [dependencies.lightmotif]
 path = "../lightmotif"
 version = "0.5.1"
-[dependencies.fnv]
-version = "1.0"
-optional = true
 
-[features]
-default = ["fnv"]

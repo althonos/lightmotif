@@ -1,7 +1,6 @@
 #![doc = include_str!("../README.md")]
 
 use std::cmp::Ordering;
-#[cfg(not(feature = "fnv"))]
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
@@ -11,13 +10,10 @@ use lightmotif::dense::DenseMatrix;
 use lightmotif::num::Unsigned;
 use lightmotif::pwm::ScoringMatrix;
 
-#[cfg(feature = "fnv")]
-use fnv::FnvHashMap;
+mod hash;
 
-#[cfg(feature = "fnv")]
-type Map<K, V> = FnvHashMap<K, V>;
-#[cfg(not(feature = "fnv"))]
-type Map<K, V> = HashMap<K, V>;
+/// The fast integer map type used to record *Q*-values and *p*-values.
+pub type IntMap<V> = HashMap<i64, V, self::hash::IntHasherBuilder>;
 
 /// The TFMPvalue algorithm.
 #[derive(Debug)]
@@ -112,7 +108,7 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
     }
 
     /// Compute the score distribution between `min` and `max`.
-    fn distribution(&self, min: i64, max: i64) -> Vec<Map<i64, f64>> {
+    fn distribution(&self, min: i64, max: i64) -> Vec<IntMap<f64>> {
         let matrix = self.matrix.as_ref();
         let M: usize = matrix.len();
         let K: usize = <A as Alphabet>::K::USIZE;
@@ -121,7 +117,7 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
         let bg = matrix.background().frequencies();
 
         // maps for each steps of the computation
-        let mut qvalues = vec![Map::default(); M + 1];
+        let mut qvalues = vec![IntMap::default(); M + 1];
 
         // maximum score reachable with the suffix matrix from i to M-1
         let mut maxs = vec![0; M + 1];
@@ -178,7 +174,7 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
         let qvalues = self.distribution(min, max);
 
         // Compute p-values
-        let mut pvalues = Map::default();
+        let mut pvalues = IntMap::default();
         let mut s = max + 1;
         let mut last = qvalues[M - 1].keys().cloned().collect::<Vec<i64>>();
         last.sort_unstable_by(|x, y| x.partial_cmp(&y).unwrap());
@@ -217,7 +213,7 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
 
         // compute q values
         let qvalues = self.distribution(min, max);
-        let mut pvalues = Map::default();
+        let mut pvalues = IntMap::default();
 
         // find most likely scores at the end of the matrix
         let mut keys = qvalues[M - 1].keys().cloned().collect::<Vec<_>>();
