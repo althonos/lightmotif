@@ -1,5 +1,5 @@
 extern crate lightmotif;
-extern crate lightmotif_transfac;
+extern crate lightmotif_io;
 
 use std::fs::File;
 use std::io::BufReader;
