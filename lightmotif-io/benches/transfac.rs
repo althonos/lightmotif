@@ -1,12 +1,11 @@
 #![feature(test)]
 
 extern crate lightmotif;
-extern crate lightmotif_transfac;
+extern crate lightmotif_io;
 extern crate test;
 
 use lightmotif::abc::Dna;
-
-use lightmotif_transfac::reader::Reader;
+use lightmotif_io::transfac::Reader;
 
 #[bench]
 fn bench_reader(bencher: &mut test::Bencher) {
