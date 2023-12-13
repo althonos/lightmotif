@@ -20,6 +20,3 @@ memchr = "2"
 [dependencies.lightmotif]
 path = "../lightmotif"
 version = "0.5.1"
-[dependencies.lightmotif-transfac]
-path = "../lightmotif-transfac"
-version = "0.5.1"

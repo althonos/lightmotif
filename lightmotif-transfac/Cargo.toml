@@ -14,6 +14,6 @@ keywords = ["bioinformatics", "motif", "parser", "transfac"]
 [dependencies.lightmotif]
 path = "../lightmotif"
 version = "0.5.1"
-[dependencies]
-nom = "7"
-memchr = "2"
+[dependencies.lightmotif-io]
+path = "../lightmotif-io"
+version = "0.5.1"
