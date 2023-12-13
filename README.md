@@ -40,8 +40,8 @@ of sequences:
 
 Other crates from the ecosystem provide additional features if needed:
 
-- [`lightmotif-tfmpvalue`](https://crates.io/crates/lightmotif-tfmpvalue) is an exact reimplementation of the TFMPvalue[\[4\]](#ref4) algorithm for converting between a score and a P-value for a given scoring matrix.
-- [`lightmotif-transfac`](https://crates.io/crates/lightmotif-transfac) is a parser for position-specific scoring matrices in the [TRANSFAC](https://en.wikipedia.org/wiki/TRANSFAC) format.
+- [`lightmotif-io`](https://crates.io/crates/lightmotif-io) is a crate with parser implementations for various count matrix, frequency matrix and position-specific scoring matrix formats such as [TRANSFAC](https://en.wikipedia.org/wiki/TRANSFAC) or [JASPAR](https://jaspar.elixir.no/docs/).
+- [`lightmotif-tfmpvalue`](https://crates.io/crates/lightmotif-tfmpvalue) is an exact reimplementation of the TFM-PVALUE[\[4\]](#ref4) algorithm for converting between a score and a *p*-value for a given scoring matrix.
 
 *This is the Rust version, there is a [Python package](https://pypi.org/project/lightmotif) available as well.*
 

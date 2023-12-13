@@ -15,7 +15,7 @@ mod hash;
 /// The fast integer map type used to record *Q*-values and *p*-values.
 pub type IntMap<V> = HashMap<i64, V, self::hash::IntHasherBuilder>;
 
-/// The TFMPvalue algorithm.
+/// The TFM-PVALUE algorithm.
 #[derive(Debug)]
 pub struct TfmPvalue<A: Alphabet, M: AsRef<ScoringMatrix<A>>> {
     /// A reference to the original scoring matrix.
@@ -38,7 +38,7 @@ pub struct TfmPvalue<A: Alphabet, M: AsRef<ScoringMatrix<A>>> {
 
 #[allow(non_snake_case)]
 impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
-    /// Initialize the TFM-Pvalue algorithm for the given scoring matrix.
+    /// Initialize the TFM-PVALUE algorithm for the given scoring matrix.
     pub fn new(matrix: M) -> Self {
         let m = matrix.as_ref();
         let M = m.len();
@@ -295,7 +295,31 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
         *it.range.start()
     }
 
-    /// Iterate with decreasing granularity to compute an approximate P-value for a score.
+    /// Iterate with decreasing granularity to compute an approximate *p*-value for a score.
+    ///
+    /// # Example
+    /// Approximate a *p*-value for a score of `10.0` with a granularity of
+    /// `0.001`:
+    /// ```rust
+    /// # use lightmotif::abc::Dna;
+    /// # let pssm = lightmotif::pwm::CountMatrix::<Dna>::new(
+    /// #     lightmotif::dense::DenseMatrix::from_rows([
+    /// #         [1, 0, 1, 0, 0],
+    /// #         [0, 1, 1, 0, 0],
+    /// #         [0, 0, 0, 2, 0],
+    /// #         [0, 0, 2, 0, 0],
+    /// #     ])
+    /// # ).unwrap().to_freq(0.1).to_scoring(None);
+    /// // Initialize the TFM-PVALUE algorithm for a lightmotif PSSM
+    /// let mut tfmp = lightmotif_tfmpvalue::TfmPvalue::new(&pssm);
+    ///
+    /// // Compute the p-value for a score by iterating
+    /// // until granularity or convergence are reached.
+    /// let p_value = tfmp.approximate_pvalue(10.0)
+    ///     .find(|it| it.converged || it.granularity <= 0.001)
+    ///     .map(|it| *it.range.start())
+    ///     .unwrap();
+    /// ```
     pub fn approximate_pvalue(&mut self, score: f64) -> PvaluesIterator<'_, A, M> {
         PvaluesIterator {
             tfmp: self,
@@ -307,7 +331,7 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
         }
     }
 
-    /// Compute the exact score associated with a given P-value.
+    /// Compute the exact score associated with a given *p*-value.
     ///
     /// # Caution
     /// This method internally calls `approximate_score` without bounds on
@@ -320,7 +344,7 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
         it.score
     }
 
-    /// Iterate with decreasing granularity to compute an approximate score for a P-value.
+    /// Iterate with decreasing granularity to compute an approximate score for a *p*-value.
     pub fn approximate_score(&mut self, pvalue: f64) -> ScoresIterator<'_, A, M> {
         self.recompute(0.1);
         ScoresIterator {
@@ -342,8 +366,8 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> From<M> for TfmPvalue<A, M> {
     }
 }
 
-/// The result of an iteration of the TFMPvalue algorithm.
-#[derive(Debug)]
+/// The result of an iteration of the TFM-PVALUE algorithm.
+#[derive(Debug, Clone)]
 pub struct Iteration {
     /// The score computed for the current iteration, or the query score
     /// if approximating p-value.
@@ -358,6 +382,7 @@ pub struct Iteration {
     _hidden: (),
 }
 
+/// A helper type running iterations to approximate the *p*-value for a score.
 #[derive(Debug)]
 pub struct PvaluesIterator<'tfmp, A: Alphabet, M: AsRef<ScoringMatrix<A>>> {
     tfmp: &'tfmp mut TfmPvalue<A, M>,
@@ -394,6 +419,7 @@ impl<'tfmp, A: Alphabet, M: AsRef<ScoringMatrix<A>>> Iterator for PvaluesIterato
     }
 }
 
+/// A helper type running iterations to approximate the score for a *p*-value.
 #[derive(Debug)]
 pub struct ScoresIterator<'tfmp, A: Alphabet, M: AsRef<ScoringMatrix<A>>> {
     tfmp: &'tfmp mut TfmPvalue<A, M>,

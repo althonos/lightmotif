@@ -198,7 +198,8 @@ impl<A: Alphabet> FrequencyMatrix<A> {
     /// # Note
     /// By convention, columns with null background frequencies receive an
     /// odds-ratio of zero, which will then translate into a log-odds-ratio
-    /// of `-f32::INFINITY` in the resulting scoring matrix.
+    /// of [`f32::NEG_INFINITY`](https://doc.rust-lang.org/std/primitive.f32.html#associatedconstant.NEG_INFINITY)
+    /// in the resulting scoring matrix.
     pub fn to_weight<B>(&self, background: B) -> WeightMatrix<A>
     where
         B: Into<Option<Background<A>>>,
@@ -221,7 +222,7 @@ impl<A: Alphabet> FrequencyMatrix<A> {
     ///
     /// # Note
     /// By convention, columns with null background frequencies receive a
-    /// log-odds-ratio of `-f32::INFINITY`.
+    /// log-odds-ratio of [`f32::NEG_INFINITY`](https://doc.rust-lang.org/std/primitive.f32.html#associatedconstant.NEG_INFINITY).
     pub fn to_scoring<B>(&self, background: B) -> ScoringMatrix<A>
     where
         B: Into<Option<Background<A>>>,
@@ -231,7 +232,7 @@ impl<A: Alphabet> FrequencyMatrix<A> {
         for (src, dst) in self.data.iter().zip(scores.iter_mut()) {
             for (j, (&x, &f)) in src.iter().zip(bg.frequencies()).enumerate() {
                 if f <= 0.0 {
-                    dst[j] = -f32::INFINITY;
+                    dst[j] = f32::NEG_INFINITY;
                 } else {
                     dst[j] = (x / f).log2();
                 }
