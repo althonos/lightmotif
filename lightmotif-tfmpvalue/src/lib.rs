@@ -280,7 +280,7 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
         PvaluesIterator {
             tfmp: self,
             score,
-            decay: 0.1,
+            decay: 10.0,
             granularity: 0.1,
             target: 0.0,
             converged: false,
@@ -308,7 +308,7 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
             max: self.max_score_rows.iter().sum::<i64>() + (self.error_max + 0.5).ceil() as i64,
             tfmp: self,
             pvalue,
-            decay: 0.1,
+            decay: 10.0,
             granularity: 0.1,
             target: 0.0,
             converged: false,
@@ -359,7 +359,7 @@ impl<'tfmp, A: Alphabet, M: AsRef<ScoringMatrix<A>>> Iterator for PvaluesIterato
         let granularity = self.granularity;
         let range = self.tfmp.lookup_pvalue(self.score);
 
-        self.granularity *= self.decay;
+        self.granularity /= self.decay;
         if range.start() == range.end() {
             self.converged = true;
         }
@@ -399,11 +399,11 @@ impl<'tfmp, A: Alphabet, M: AsRef<ScoringMatrix<A>>> Iterator for ScoresIterator
             .tfmp
             .lookup_score(self.pvalue, RangeInclusive::new(self.min, self.max));
 
-        self.granularity *= self.decay;
+        self.granularity /= self.decay;
         self.min =
-            ((iscore as f64 - (self.tfmp.error_max + 0.5).ceil()) / self.decay).floor() as i64;
+            ((iscore as f64 - (self.tfmp.error_max + 0.5).ceil()) * self.decay).floor() as i64;
         self.max =
-            ((iscore as f64 + (self.tfmp.error_max + 0.5).ceil()) / self.decay).floor() as i64;
+            ((iscore as f64 + (self.tfmp.error_max + 0.5).ceil()) * self.decay).floor() as i64;
         if range.start() == range.end() {
             self.converged = true;
         }
