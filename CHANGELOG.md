@@ -6,7 +6,35 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.6.0...HEAD
+
+
+## [v0.6.0] - 2023-08-31
+[v0.6.0]: https://github.com/althonos/lightmotif/compare/v0.5.1...v0.6.0
+
+### Added
+
+#### `lightmotif`
+- Validating constructor `::pwm::FrequencyMatrix::new` testing for frequencies on each ranks.
+- Getter to the raw data matrix of a `::pwm::FrequencyMatrix`.
+
+#### `lightmotif-io`
+New crate with JASPAR, TRANSFAC and UNIPROBE format parsers.
+
+### Changed
+
+#### `lightmotif`
+- Make `max_score` and `min_score` columns of `::pwm::ScoringMatrix` ignore the wildcard symbol column.
+
+#### `lightmotif-tfmpvalue`
+- Invert decay in `TfmPvalue` to reduce rounding errors when computing granularity.
+- Use a fast integer hashing algorithm for `i64` keys in maps used for recording *Q*-values.
+- Compute the optimal column permutation to accelerate the computation of score distributions.
+
+### Removed
+
+#### `lightmotif-transfac`
+Deprecate crate in favour of `lightmotif-io`.
 
 
 ## [v0.5.1] - 2023-08-31
