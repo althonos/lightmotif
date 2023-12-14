@@ -54,7 +54,7 @@ where
         while i + std::mem::size_of::<__m256i>() < l {
             // Load current row and reset buffers for the encoded result.
             let letters = _mm256_loadu_si256(src_ptr as *const __m256i);
-            let mut encoded = _mm256_setzero_si256();
+            let mut encoded = _mm256_set1_epi8(A::K::USIZE as i8);
             let mut unknown = _mm256_set1_epi8(0xFF);
             // Check symbols one by one and match them to the letters.
             for a in 0..A::K::USIZE {
@@ -104,7 +104,7 @@ unsafe fn score_avx2_permute<A>(
     let data = scores.matrix_mut();
     let mut rowptr = data[0].as_mut_ptr();
     // constant vector for comparing unknown bases
-    let n = _mm256_set1_epi8(<A as Alphabet>::K::I8 - 1);
+    let n = _mm256_set1_epi32(<A as Alphabet>::K::I32 - 1);
     // mask vectors for broadcasting uint8x32_t to uint32x8_t to floatx8_t
     #[rustfmt::skip]
     let m1 = _mm256_set_epi32(
@@ -148,11 +148,10 @@ unsafe fn score_avx2_permute<A>(
             let t = _mm256_broadcast_ps(&*(pssmptr as *const __m128));
             let u = _mm256_broadcast_ss(&*(pssmptr.add(<A as Alphabet>::K::USIZE - 1)));
             // check which bases from the sequence are unknown
-            let mask = _mm256_cmpeq_epi8(x, n);
-            let unk1 = _mm256_castsi256_ps(_mm256_shuffle_epi8(mask, m1));
-            let unk2 = _mm256_castsi256_ps(_mm256_shuffle_epi8(mask, m2));
-            let unk3 = _mm256_castsi256_ps(_mm256_shuffle_epi8(mask, m3));
-            let unk4 = _mm256_castsi256_ps(_mm256_shuffle_epi8(mask, m4));
+            let unk1 = _mm256_castsi256_ps(_mm256_cmpeq_epi32(x1, n));
+            let unk2 = _mm256_castsi256_ps(_mm256_cmpeq_epi32(x2, n));
+            let unk3 = _mm256_castsi256_ps(_mm256_cmpeq_epi32(x3, n));
+            let unk4 = _mm256_castsi256_ps(_mm256_cmpeq_epi32(x4, n));
             // index A/T/G/C lookup table with the bases
             let p1 = _mm256_permutevar_ps(t, x1);
             let p2 = _mm256_permutevar_ps(t, x2);
