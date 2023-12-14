@@ -233,6 +233,17 @@ impl<A: Alphabet, C: StrictlyPositive> AsRef<StripedSequence<A, C>> for StripedS
     }
 }
 
+impl<A: Alphabet, C: Unsigned + NonZero> Index<usize> for StripedSequence<A, C> {
+    type Output = <A as Alphabet>::Symbol;
+    #[inline]
+    fn index(&self, index: usize) -> &Self::Output {
+        let rows = self.data.rows() - self.wrap;
+        let col = index / rows;
+        let row = index % rows;
+        &self.data[row][col]
+    }
+}
+
 #[cfg(test)]
 mod test {
     use typenum::consts::U2;
@@ -271,5 +282,32 @@ mod test {
         assert_eq!(&striped.data[1], &[T, C, N, N]);
         assert_eq!(&striped.data[2], &[G, A, N, N]);
         assert_eq!(&striped.data[3], &[C, N, N, N]);
+    }
+
+    #[test]
+    fn test_index() {
+        let seq = EncodedSequence::<Dna>::from_str("ATGCA").unwrap();
+        let striped = seq.to_striped::<U4>();
+        assert_eq!(striped.data.rows(), 2);
+        assert_eq!(striped[0], A);
+        assert_eq!(striped[1], T);
+        assert_eq!(striped[2], G);
+        assert_eq!(striped[3], C);
+        assert_eq!(striped[4], A);
+
+        let mut striped = seq.to_striped::<U2>();
+        assert_eq!(striped.data.rows(), 3);
+        assert_eq!(striped[0], A);
+        assert_eq!(striped[1], T);
+        assert_eq!(striped[2], G);
+        assert_eq!(striped[3], C);
+        assert_eq!(striped[4], A);
+        striped.configure_wrap(4);
+        assert_eq!(striped.data.rows(), 7);
+        assert_eq!(striped[0], A);
+        assert_eq!(striped[1], T);
+        assert_eq!(striped[2], G);
+        assert_eq!(striped[3], C);
+        assert_eq!(striped[4], A);
     }
 }
