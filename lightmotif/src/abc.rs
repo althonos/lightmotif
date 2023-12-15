@@ -11,6 +11,8 @@ use typenum::marker_traits::Unsigned;
 
 use super::err::InvalidData;
 use super::err::InvalidSymbol;
+use super::seq::EncodedSequence;
+use super::seq::SymbolCount;
 
 // --- Symbol ------------------------------------------------------------------
 
@@ -47,7 +49,7 @@ pub trait ComplementableSymbol: Symbol {
 /// A biological alphabet with associated metadata.
 pub trait Alphabet: Debug + Copy + Default + 'static {
     type Symbol: Symbol + Debug;
-    type K: Unsigned + NonZero + ArrayLength<f32> + Debug;
+    type K: Unsigned + NonZero + ArrayLength<f32> + ArrayLength<usize> + Debug;
 
     /// Get the default symbol for this alphabet.
     fn default_symbol() -> Self::Symbol {
@@ -336,6 +338,44 @@ impl<A: Alphabet> Background<A> {
         if sum != 1.0 {
             return Err(InvalidData);
         }
+        Ok(Self {
+            frequencies,
+            alphabet: std::marker::PhantomData,
+        })
+    }
+
+    /// Create a new background by counting symbol occurences in the given sequences.
+    ///
+    /// Pass `true` as the `unknown` argument to count the unknown symbol when
+    /// computing frequencies, or `false` to only count frequencies of known
+    /// symbols.
+    pub fn from_sequences<I>(sequences: I, unknown: bool) -> Result<Self, InvalidData>
+    where
+        I: IntoIterator,
+        <I as IntoIterator>::Item: SymbolCount<A>,
+    {
+        let n = A::default_symbol();
+        let mut total = 0;
+        let mut base_counts = GenericArray::<usize, A::K>::default();
+        for seq in sequences {
+            for &c in A::symbols() {
+                if unknown || c != n {
+                    let count = (&seq).count_symbol(c);
+                    total += count;
+                    base_counts[c.as_index()] += count;
+                }
+            }
+        }
+
+        if total == 0 {
+            return Err(InvalidData);
+        }
+
+        let mut frequencies = GenericArray::<f32, A::K>::default();
+        for c in A::symbols() {
+            frequencies[c.as_index()] = base_counts[c.as_index()] as f32 / total as f32;
+        }
+
         Ok(Self {
             frequencies,
             alphabet: std::marker::PhantomData,
