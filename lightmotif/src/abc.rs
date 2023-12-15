@@ -345,6 +345,36 @@ impl<A: Alphabet> Background<A> {
         })
     }
 
+    /// Create a new background from the given symbol counts.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use generic_array::GenericArray;
+    /// # use lightmotif::abc::Background;
+    /// # use lightmotif::abc::Dna;
+    /// # use lightmotif::abc::Nucleotide::*;
+    /// let counts = GenericArray::from([ 2, 2, 5, 1, 0 ]);
+    /// let background = Background::<Dna>::from_counts(&counts).unwrap();
+    /// assert_eq!(background[A], 0.2);
+    /// assert_eq!(background[C], 0.2);
+    /// assert_eq!(background[T], 0.5);
+    /// assert_eq!(background[G], 0.1);
+    /// ```
+    pub fn from_counts(counts: &GenericArray<usize, A::K>) -> Result<Self, InvalidData> {
+        let total = counts.iter().sum::<usize>();
+        if total == 0 {
+            return Err(InvalidData);
+        }
+        let mut frequencies = GenericArray::<f32, A::K>::default();
+        for c in A::symbols() {
+            frequencies[c.as_index()] = counts[c.as_index()] as f32 / total as f32;
+        }
+        Ok(Self {
+            frequencies,
+            alphabet: std::marker::PhantomData,
+        })
+    }
+
     /// Create a new background by counting symbol occurences in the given sequence.
     ///
     /// Pass `true` as the `unknown` argument to count the unknown symbol when
@@ -368,29 +398,13 @@ impl<A: Alphabet> Background<A> {
         S: SymbolCount<A>,
     {
         let n = A::default_symbol();
-        let mut total = 0;
         let mut base_counts = GenericArray::<usize, A::K>::default();
         for &c in A::symbols() {
             if unknown || c != n {
-                let count = sequence.count_symbol(c);
-                total += count;
-                base_counts[c.as_index()] += count;
+                base_counts[c.as_index()] += sequence.count_symbol(c);
             }
         }
-
-        if total == 0 {
-            return Err(InvalidData);
-        }
-
-        let mut frequencies = GenericArray::<f32, A::K>::default();
-        for c in A::symbols() {
-            frequencies[c.as_index()] = base_counts[c.as_index()] as f32 / total as f32;
-        }
-
-        Ok(Self {
-            frequencies,
-            alphabet: std::marker::PhantomData,
-        })
+        Self::from_counts(&base_counts)
     }
 
     /// Create a new background by counting symbol occurences in the given sequences.
@@ -404,31 +418,15 @@ impl<A: Alphabet> Background<A> {
         <I as IntoIterator>::Item: SymbolCount<A>,
     {
         let n = A::default_symbol();
-        let mut total = 0;
         let mut base_counts = GenericArray::<usize, A::K>::default();
         for seq in sequences {
             for &c in A::symbols() {
                 if unknown || c != n {
-                    let count = (&seq).count_symbol(c);
-                    total += count;
-                    base_counts[c.as_index()] += count;
+                    base_counts[c.as_index()] += seq.count_symbol(c);
                 }
             }
         }
-
-        if total == 0 {
-            return Err(InvalidData);
-        }
-
-        let mut frequencies = GenericArray::<f32, A::K>::default();
-        for c in A::symbols() {
-            frequencies[c.as_index()] = base_counts[c.as_index()] as f32 / total as f32;
-        }
-
-        Ok(Self {
-            frequencies,
-            alphabet: std::marker::PhantomData,
-        })
+        Self::from_counts(&base_counts)
     }
 
     /// Create a new background with uniform frequencies.
