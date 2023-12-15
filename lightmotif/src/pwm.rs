@@ -15,6 +15,14 @@ use super::seq::EncodedSequence;
 
 macro_rules! matrix_traits {
     ($mx:ident, $t:ty) => {
+        impl<A: Alphabet> $mx<A> {
+            /// The raw data storage for the matrix.
+            #[inline]
+            pub fn matrix(&self) -> &DenseMatrix<$t, A::K> {
+                &self.data
+            }
+        }
+
         impl<A: Alphabet> AsRef<$mx<A>> for $mx<A> {
             fn as_ref(&self) -> &Self {
                 self
@@ -131,6 +139,7 @@ impl<A: Alphabet> CountMatrix<A> {
 
     /// The raw counts from the count matrix.
     #[inline]
+    #[deprecated]
     pub fn counts(&self) -> &DenseMatrix<u32, A::K> {
         &self.data
     }
@@ -243,6 +252,7 @@ impl<A: Alphabet> FrequencyMatrix<A> {
 
     /// The raw frequencies from the frequency matrix.
     #[inline]
+    #[deprecated]
     pub fn frequencies(&self) -> &DenseMatrix<f32, A::K> {
         &self.data
     }
@@ -286,6 +296,7 @@ impl<A: Alphabet> WeightMatrix<A> {
 
     /// The log-likelihoods of the position weight matrix.
     #[inline]
+    #[deprecated]
     pub fn weights(&self) -> &DenseMatrix<f32, A::K> {
         &self.data
     }
@@ -397,6 +408,7 @@ impl<A: Alphabet> ScoringMatrix<A> {
 
     /// The log-likelihoods of the position weight matrix.
     #[inline]
+    #[deprecated]
     pub fn weights(&self) -> &DenseMatrix<f32, A::K> {
         &self.data
     }
