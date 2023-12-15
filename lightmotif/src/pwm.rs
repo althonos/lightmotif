@@ -137,6 +137,36 @@ impl<A: Alphabet> CountMatrix<A> {
         FrequencyMatrix::new_unchecked(probas)
     }
 
+    /// Compute the entropy of each column of the matrix.
+    ///
+    /// The entropy of a column, sometimes refered to as "uncertainty", is
+    /// computed by treating each motif position as a random variable taking
+    /// values in alphabet `A`.
+    pub fn entropy(&self) -> Vec<f32> {
+        self.matrix()
+            .iter()
+            .map(|row| {
+                let sum = row.iter().sum::<u32>();
+                -row[..A::K::USIZE - 1]
+                    .iter()
+                    .map(|&n| n as f32 / sum as f32)
+                    .map(|p| if p > 0.0 { p * p.log2() } else { 0.0 })
+                    .sum::<f32>()
+            })
+            .collect()
+    }
+
+    /// Compute the information content of the matrix.
+    pub fn information_content(&self) -> f32 {
+        let entropy = self.entropy();
+        let hmax = entropy
+            .iter()
+            .max_by(|h1, h2| h1.partial_cmp(h2).unwrap())
+            .cloned()
+            .unwrap();
+        entropy.into_iter().map(|h| hmax - h).sum()
+    }
+
     /// The raw counts from the count matrix.
     #[inline]
     #[deprecated]
