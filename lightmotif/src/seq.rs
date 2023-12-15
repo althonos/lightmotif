@@ -126,6 +126,15 @@ impl<A: Alphabet> Display for EncodedSequence<A> {
     }
 }
 
+impl<A: Alphabet> FromIterator<A::Symbol> for EncodedSequence<A> {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = A::Symbol>,
+    {
+        Self::new(Vec::from_iter(iter))
+    }
+}
+
 impl<A: Alphabet> FromStr for EncodedSequence<A> {
     type Err = InvalidSymbol;
     fn from_str(seq: &str) -> Result<Self, Self::Err> {
