@@ -25,7 +25,7 @@ pub type DefaultAlignment = _DefaultAlignment;
 // --- DenseMatrix -------------------------------------------------------------
 
 /// A memory-aligned dense matrix with a constant number of columns.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Eq)]
 pub struct DenseMatrix<T: Default + Copy, C: Unsigned, A: Unsigned = DefaultAlignment> {
     data: Vec<T>,
     offset: usize,
@@ -226,6 +226,30 @@ impl<'a, T: Default + Copy, C: Unsigned, A: Unsigned> IntoIterator
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
         IterMut::new(self)
+    }
+}
+
+impl<'a, T: Default + Copy + PartialEq, C: Unsigned, A: Unsigned> PartialEq
+    for DenseMatrix<T, C, A>
+{
+    fn eq(&self, other: &Self) -> bool {
+        if self.rows() != other.rows() {
+            return false;
+        }
+        unsafe {
+            let mut lptr = self[0].as_ptr();
+            let mut rptr = other[0].as_ptr();
+            for _ in 0..self.rows() {
+                for j in 0..C::USIZE {
+                    if *lptr.add(j) != *rptr.add(j) {
+                        return false;
+                    }
+                }
+                lptr = lptr.add(self.stride());
+                rptr = rptr.add(self.stride());
+            }
+        }
+        true
     }
 }
 
