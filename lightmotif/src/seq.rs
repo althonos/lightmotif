@@ -18,6 +18,19 @@ use super::err::InvalidSymbol;
 use super::num::StrictlyPositive;
 use super::pwm::ScoringMatrix;
 
+// --- SymbolCount -------------------------------------------------------------
+
+/// A trait for counting the number of occurences of a symbol in a sequence.
+pub trait SymbolCount<A: Alphabet> {
+    fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize;
+}
+
+impl<'a, A: Alphabet, T: IntoIterator<Item = &'a A::Symbol> + Copy> SymbolCount<A> for T {
+    fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize {
+        self.into_iter().filter(|&&c| c == symbol).count()
+    }
+}
+
 // --- EncodedSequence ---------------------------------------------------------
 
 /// A biological sequence encoded with an alphabet.
@@ -53,8 +66,8 @@ impl<A: Alphabet> EncodedSequence<A> {
 
     /// Iterate over the symbols in the sequence.
     #[inline]
-    pub fn iter(&self) -> impl IntoIterator<Item = &A::Symbol> {
-        self.data.iter()
+    pub fn iter(&self) -> <&[A::Symbol] as IntoIterator>::IntoIter {
+        self.data.as_slice().into_iter()
     }
 
     /// Convert the encoded sequence to a striped matrix.
@@ -233,7 +246,7 @@ impl<A: Alphabet, C: StrictlyPositive> AsRef<StripedSequence<A, C>> for StripedS
     }
 }
 
-impl<A: Alphabet, C: Unsigned + NonZero> Index<usize> for StripedSequence<A, C> {
+impl<A: Alphabet, C: StrictlyPositive> Index<usize> for StripedSequence<A, C> {
     type Output = <A as Alphabet>::Symbol;
     #[inline]
     fn index(&self, index: usize) -> &Self::Output {
@@ -241,6 +254,15 @@ impl<A: Alphabet, C: Unsigned + NonZero> Index<usize> for StripedSequence<A, C> 
         let col = index / rows;
         let row = index % rows;
         &self.data[row][col]
+    }
+}
+
+impl<A: Alphabet, C: StrictlyPositive> SymbolCount<A> for &StripedSequence<A, C> {
+    fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize {
+        self.data
+            .iter()
+            .map(|row| SymbolCount::<A>::count_symbol(&row, symbol))
+            .sum()
     }
 }
 
