@@ -15,6 +15,10 @@ use super::dense::DenseMatrix;
 use super::err::InvalidData;
 use super::err::InvalidSymbol;
 use super::num::StrictlyPositive;
+use super::pli::dispatch::Dispatch;
+use super::pli::Encode;
+use super::pli::Pipeline;
+use super::pli::Stripe;
 use super::pwm::ScoringMatrix;
 
 // --- SymbolCount -------------------------------------------------------------
@@ -49,12 +53,12 @@ impl<A: Alphabet> EncodedSequence<A> {
     }
 
     /// Create a new encoded sequence from a textual representation.
-    pub fn encode(sequence: &str) -> Result<Self, InvalidSymbol> {
-        sequence
-            .chars()
-            .map(A::Symbol::from_char)
-            .collect::<Result<_, _>>()
-            .map(Self::new)
+    ///
+    /// # Note
+    /// Uses platform-accelerated implementation when available.
+    pub fn encode<S: AsRef<str>>(sequence: S) -> Result<Self, InvalidSymbol> {
+        let pli = Pipeline::<A, _>::dispatch();
+        pli.encode(sequence.as_ref())
     }
 
     /// Return the number of symbols in the sequence.
@@ -70,22 +74,16 @@ impl<A: Alphabet> EncodedSequence<A> {
     }
 
     /// Convert the encoded sequence to a striped matrix.
-    pub fn to_striped<C: Unsigned + NonZero>(&self) -> StripedSequence<A, C> {
-        let length = self.data.len();
-        let n = (length + (C::USIZE - 1)) / C::USIZE;
-        let mut data = unsafe { DenseMatrix::uninitialized(n) };
-        for (i, &x) in self.data.iter().enumerate() {
-            data[i % n][i / n] = x;
-        }
-        for i in self.data.len()..data.rows() * data.columns() {
-            data[i % n][i / n] = A::default_symbol();
-        }
-        StripedSequence {
-            alphabet: std::marker::PhantomData,
-            data,
-            length,
-            wrap: 0,
-        }
+    ///
+    /// # Note
+    /// Uses platform-accelerated implementation when available.
+    pub fn to_striped<C>(&self) -> StripedSequence<A, C>
+    where
+        C: StrictlyPositive,
+        Pipeline<A, Dispatch>: Stripe<A, C>,
+    {
+        let pli = Pipeline::<A, _>::dispatch();
+        pli.stripe(&self.data)
     }
 
     /// Convert the encoded sequence back to its textual representation.
@@ -286,13 +284,15 @@ mod test {
 
     #[test]
     fn test_stripe() {
+        let pli = Pipeline::generic();
+
         let seq = EncodedSequence::<Dna>::from_str("ATGCA").unwrap();
-        let striped = seq.to_striped::<U4>();
+        let striped = <Pipeline<_, _> as Stripe<Dna, U4>>::stripe(&pli, &seq);
         assert_eq!(striped.data.rows(), 2);
         assert_eq!(&striped.data[0], &[A, G, A, N]);
         assert_eq!(&striped.data[1], &[T, C, N, N]);
 
-        let striped = seq.to_striped::<U2>();
+        let striped = <Pipeline<_, _> as Stripe<Dna, U2>>::stripe(&pli, &seq);
         assert_eq!(striped.data.rows(), 3);
         assert_eq!(&striped.data[0], &[A, C,]);
         assert_eq!(&striped.data[1], &[T, A,]);
@@ -301,13 +301,15 @@ mod test {
 
     #[test]
     fn test_configure_wrap() {
+        let pli = Pipeline::generic();
+
         let seq = EncodedSequence::<Dna>::from_str("ATGCA").unwrap();
-        let mut striped = seq.to_striped::<U4>();
-        println!("{:?}", &striped.data);
+        let mut striped = <Pipeline<_, _> as Stripe<Dna, U4>>::stripe(&pli, &seq);
+        // println!("{:?}", &striped.data);
 
         striped.configure_wrap(2);
         assert_eq!(striped.data.rows(), 4);
-        println!("{:?}", &striped.data);
+        // println!("{:?}", &striped.data);
         assert_eq!(&striped.data[0], &[A, G, A, N]);
         assert_eq!(&striped.data[1], &[T, C, N, N]);
         assert_eq!(&striped.data[2], &[G, A, N, N]);
@@ -316,8 +318,10 @@ mod test {
 
     #[test]
     fn test_index() {
+        let pli = Pipeline::generic();
+
         let seq = EncodedSequence::<Dna>::from_str("ATGCA").unwrap();
-        let striped = seq.to_striped::<U4>();
+        let striped = <Pipeline<_, _> as Stripe<Dna, U4>>::stripe(&pli, &seq);
         assert_eq!(striped.data.rows(), 2);
         assert_eq!(striped[0], A);
         assert_eq!(striped[1], T);
@@ -325,7 +329,7 @@ mod test {
         assert_eq!(striped[3], C);
         assert_eq!(striped[4], A);
 
-        let mut striped = seq.to_striped::<U2>();
+        let mut striped = <Pipeline<_, _> as Stripe<Dna, U2>>::stripe(&pli, &seq);
         assert_eq!(striped.data.rows(), 3);
         assert_eq!(striped[0], A);
         assert_eq!(striped[1], T);

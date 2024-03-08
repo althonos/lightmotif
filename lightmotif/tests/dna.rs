@@ -9,6 +9,7 @@ use lightmotif::num::U32;
 use lightmotif::pli::Maximum;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
+use lightmotif::pli::Stripe;
 use lightmotif::pli::Threshold;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::seq::EncodedSequence;
@@ -36,7 +37,7 @@ const EXPECTED: &[f32] = &[
 
 fn test_score<C: StrictlyPositive, P: Score<Dna, C>>(pli: &P) {
     let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped();
+    let mut striped = Pipeline::generic().stripe(encoded);
 
     let cm = CountMatrix::<Dna>::from_sequences(
         PATTERNS.iter().map(|x| EncodedSequence::encode(x).unwrap()),
@@ -64,7 +65,7 @@ fn test_score<C: StrictlyPositive, P: Score<Dna, C>>(pli: &P) {
 
 fn test_argmax<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(pli: &P) {
     let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped();
+    let mut striped = Pipeline::generic().stripe(encoded);
 
     let cm = CountMatrix::<Dna>::from_sequences(
         PATTERNS.iter().map(|x| EncodedSequence::encode(x).unwrap()),
@@ -81,7 +82,7 @@ fn test_argmax<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(pli: &P) {
 
 fn test_threshold<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(pli: &P) {
     let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped();
+    let mut striped = Pipeline::generic().stripe(encoded);
 
     let cm = CountMatrix::<Dna>::from_sequences(
         PATTERNS.iter().map(|x| EncodedSequence::encode(x).unwrap()),
