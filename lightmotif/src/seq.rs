@@ -307,7 +307,7 @@ mod test {
         let pli = Pipeline::generic();
 
         let seq = EncodedSequence::<Dna>::from_str("ATGCA").unwrap();
-        let mut striped = <Pipeline<_, _> as Stripe<Dna, U4>>::stripe(&pli, &seq);
+        let mut striped = <Pipeline<_, _> as Stripe<Dna, U4>>::stripe(&pli, seq);
         // println!("{:?}", &striped.data);
 
         striped.configure_wrap(2);

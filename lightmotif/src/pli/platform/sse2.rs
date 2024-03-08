@@ -5,15 +5,15 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 use std::ops::Div;
+use std::ops::Mul;
 use std::ops::Rem;
-
-use typenum::consts::U16;
-use typenum::marker_traits::Unsigned;
-use typenum::marker_traits::Zero;
 
 use super::Backend;
 use crate::abc::Alphabet;
+use crate::num::consts::U16;
+use crate::num::MultipleOf;
 use crate::num::StrictlyPositive;
+use crate::num::Unsigned;
 use crate::pli::scores::StripedScores;
 use crate::pwm::ScoringMatrix;
 use crate::seq::StripedSequence;
@@ -28,21 +28,16 @@ impl Backend for Sse2 {
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn score_sse2<A, C>(
+unsafe fn score_sse2<A: Alphabet, C: MultipleOf<U16>>(
     seq: &StripedSequence<A, C>,
     pssm: &ScoringMatrix<A>,
     scores: &mut StripedScores<C>,
-) where
-    A: Alphabet,
-    C: StrictlyPositive + Rem<U16> + Div<U16>,
-    <C as Rem<U16>>::Output: Zero,
-    <C as Div<U16>>::Output: Unsigned,
-{
+) {
     // mask vectors for broadcasting uint8x16_t to uint32x4_t to floatx4_t
     let zero = _mm_setzero_si128();
     // process columns of the striped matrix, any multiple of 16 is supported
     let data = scores.matrix_mut();
-    for offset in (0..<C as Div<U16>>::Output::USIZE).map(|i| i * U16::USIZE) {
+    for offset in (0..C::Quotient::USIZE).map(|i| i * U16::USIZE) {
         let mut rowptr = data[0].as_mut_ptr().add(offset);
         // process every position of the sequence data
         for i in 0..seq.data.rows() - seq.wrap {
@@ -98,12 +93,7 @@ unsafe fn score_sse2<A, C>(
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn argmax_sse2<C>(scores: &StripedScores<C>) -> Option<usize>
-where
-    C: StrictlyPositive + Rem<U16> + Div<U16>,
-    <C as Rem<U16>>::Output: Zero,
-    <C as Div<U16>>::Output: Unsigned,
-{
+unsafe fn argmax_sse2<C: MultipleOf<U16>>(scores: &StripedScores<C>) -> Option<usize> {
     if scores.len() > u32::MAX as usize {
         panic!(
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
@@ -117,7 +107,7 @@ where
             let mut best_col = [0u32; 16];
             let mut best_pos = 0;
             let mut best_score = -f32::INFINITY;
-            for offset in (0..<C as Div<U16>>::Output::USIZE).map(|i| i * 16) {
+            for offset in (0..C::Quotient::USIZE).map(|i| i * 16) {
                 let mut dataptr = data[0].as_ptr().add(offset);
                 // the row index for the best score in each column
                 // (these are 32-bit integers but for use with `_mm256_blendv_ps`
@@ -197,12 +187,12 @@ where
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn threshold_sse2<C>(scores: &StripedScores<C>, threshold: f32) -> Vec<usize>
-where
-    C: StrictlyPositive + Rem<U16> + Div<U16>,
-    <C as Rem<U16>>::Output: Zero,
-    <C as Div<U16>>::Output: Unsigned,
-{
+unsafe fn threshold_sse2<C: MultipleOf<U16>>(
+    scores: &StripedScores<C>,
+    threshold: f32,
+) -> Vec<usize> {
+    use std::ops::Mul;
+
     if scores.len() >= u32::MAX as usize {
         panic!(
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
@@ -222,7 +212,7 @@ where
             let t = _mm_set1_ps(threshold);
             let ones = _mm_set1_epi32(1);
             let mut dst = indices.as_mut_ptr() as *mut __m128i;
-            for offset in (0..<C as Div<U16>>::Output::USIZE).map(|i| i * 16) {
+            for offset in (0..C::Quotient::USIZE).map(|i| i * 16) {
                 // compute real sequence index for each column of the striped scores
                 let mut x1 = _mm_set_epi32(
                     ((offset + 3) * rows) as i32,
@@ -309,11 +299,9 @@ impl Sse2 {
     pub fn score_into<A, C, S, M>(seq: S, pssm: M, scores: &mut StripedScores<C>)
     where
         A: Alphabet,
-        C: StrictlyPositive + Rem<U16> + Div<U16>,
+        C: MultipleOf<U16>,
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A>>,
-        <C as Rem<U16>>::Output: Zero,
-        <C as Div<U16>>::Output: Unsigned,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
@@ -340,12 +328,7 @@ impl Sse2 {
     }
 
     #[allow(unused)]
-    pub fn argmax<C>(scores: &StripedScores<C>) -> Option<usize>
-    where
-        C: StrictlyPositive + Rem<U16> + Div<U16>,
-        <C as Rem<U16>>::Output: Zero,
-        <C as Div<U16>>::Output: Unsigned,
-    {
+    pub fn argmax<C: MultipleOf<U16>>(scores: &StripedScores<C>) -> Option<usize> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             argmax_sse2(scores)
@@ -355,12 +338,7 @@ impl Sse2 {
     }
 
     #[allow(unused)]
-    pub fn threshold<C>(scores: &StripedScores<C>, threshold: f32) -> Vec<usize>
-    where
-        C: StrictlyPositive + Rem<U16> + Div<U16>,
-        <C as Rem<U16>>::Output: Zero,
-        <C as Div<U16>>::Output: Unsigned,
-    {
+    pub fn threshold<C: MultipleOf<U16>>(scores: &StripedScores<C>, threshold: f32) -> Vec<usize> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             threshold_sse2(scores, threshold)

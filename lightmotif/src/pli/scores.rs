@@ -76,7 +76,7 @@ where
     /// # Note
     /// Uses platform-accelerated implementation when available.
     pub fn max(&self) -> Option<f32> {
-        Pipeline::dispatch().max(&self)
+        Pipeline::dispatch().max(self)
     }
 
     /// Find the position with the highest score.
@@ -84,7 +84,7 @@ where
     /// # Note
     /// Uses platform-accelerated implementation when available.
     pub fn argmax(&self) -> Option<usize> {
-        Pipeline::dispatch().argmax(&self)
+        Pipeline::dispatch().argmax(self)
     }
 }
 
@@ -101,7 +101,7 @@ where
     /// # Note
     /// Uses platform-accelerated implementation when available.
     pub fn threshold(&self, threshold: f32) -> Vec<usize> {
-        Pipeline::dispatch().threshold(&self, threshold)
+        Pipeline::dispatch().threshold(self, threshold)
     }
 }
 

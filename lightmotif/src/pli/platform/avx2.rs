@@ -277,7 +277,7 @@ unsafe fn argmax_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Optio
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
             u32::MAX, scores.len()
         );
-    } else if scores.len() == 0 {
+    } else if scores.is_empty() {
         None
     } else {
         let data = scores.matrix();
@@ -354,7 +354,7 @@ unsafe fn threshold_avx2(
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
             u32::MAX, scores.len()
         );
-    } else if scores.len() == 0 {
+    } else if scores.is_empty() {
         Vec::new()
     } else {
         let data = scores.matrix();
@@ -381,7 +381,7 @@ unsafe fn threshold_avx2(
                 (4 * rows) as i32,
                 (3 * rows) as i32,
                 (2 * rows) as i32,
-                (1 * rows) as i32,
+                rows as i32,
                 (0 * rows) as i32,
             );
             let mut x2 = _mm256_set_epi32(
@@ -505,7 +505,7 @@ unsafe fn stripe_avx2<A>(
     }
 
     // Compute sequence and matrix dimensions
-    let s = seq.as_ref();
+    let s = seq;
     let mut src = s.as_ptr() as *const u8;
     let src_stride =
         (s.len() + (<Avx2 as Backend>::LANES::USIZE - 1)) / <Avx2 as Backend>::LANES::USIZE;
@@ -517,7 +517,7 @@ unsafe fn stripe_avx2<A>(
     let mut i = 0;
     while i + <Avx2 as Backend>::LANES::USIZE <= src_stride {
         let mut r00 = _mm256_loadu_si256(src.add(00 * src_stride) as _);
-        let mut r01 = _mm256_loadu_si256(src.add(01 * src_stride) as _);
+        let mut r01 = _mm256_loadu_si256(src.add(src_stride) as _);
         let mut r02 = _mm256_loadu_si256(src.add(02 * src_stride) as _);
         let mut r03 = _mm256_loadu_si256(src.add(03 * src_stride) as _);
         let mut r04 = _mm256_loadu_si256(src.add(04 * src_stride) as _);
@@ -635,7 +635,7 @@ unsafe fn stripe_avx2<A>(
         unpack!(epi128, r15, r31);
 
         _mm256_stream_si256(out.add(0x00 * out_stride) as _, r00);
-        _mm256_stream_si256(out.add(0x01 * out_stride) as _, r08);
+        _mm256_stream_si256(out.add(out_stride) as _, r08);
         _mm256_stream_si256(out.add(0x02 * out_stride) as _, r04);
         _mm256_stream_si256(out.add(0x03 * out_stride) as _, r12);
         _mm256_stream_si256(out.add(0x04 * out_stride) as _, r02);
@@ -702,8 +702,8 @@ impl Avx2 {
     {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
-            return encode_into_avx2::<A>(seq, dst);
-        };
+            encode_into_avx2::<A>(seq, dst)
+        }
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
         panic!("attempting to run AVX2 code on a non-x86 host");
     }

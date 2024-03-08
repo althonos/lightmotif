@@ -5,17 +5,18 @@ use std::arch::aarch64::*;
 #[cfg(target_arch = "arm")]
 use std::arch::arm::*;
 use std::ops::Div;
+use std::ops::Mul;
 use std::ops::Rem;
-
-use typenum::consts::U16;
-use typenum::marker_traits::Unsigned;
-use typenum::marker_traits::Zero;
 
 use super::Backend;
 use crate::abc::Alphabet;
 use crate::abc::Symbol;
 use crate::err::InvalidSymbol;
+use crate::num::consts::U16;
+use crate::num::MultipleOf;
 use crate::num::StrictlyPositive;
+use crate::num::Unsigned;
+use crate::num::Zero;
 use crate::pli::scores::StripedScores;
 use crate::pli::Encode;
 use crate::pli::Pipeline;
@@ -121,21 +122,16 @@ where
 
 #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
 #[target_feature(enable = "neon")]
-unsafe fn score_neon<A, C>(
+unsafe fn score_neon<A: Alphabet, C: MultipleOf<U16>>(
     seq: &StripedSequence<A, C>,
     pssm: &ScoringMatrix<A>,
     scores: &mut StripedScores<C>,
-) where
-    A: Alphabet,
-    C: StrictlyPositive + Rem<U16> + Div<U16>,
-    <C as Rem<U16>>::Output: Zero,
-    <C as Div<U16>>::Output: Unsigned,
-{
+) {
     let zero_u8 = vdupq_n_u8(0);
     let zero_f32 = vdupq_n_f32(0.0);
     // process columns of the striped matrix, any multiple of 16 is supported
     let data = scores.matrix_mut();
-    for offset in (0..<C as Div<U16>>::Output::USIZE)
+    for offset in (0..C::Quotient::USIZE)
         .into_iter()
         .map(|i| i * <Neon as Backend>::LANES::USIZE)
     {
@@ -183,12 +179,10 @@ unsafe fn score_neon<A, C>(
 
 #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
 #[target_feature(enable = "neon")]
-unsafe fn threshold_neon<C>(scores: &StripedScores<C>, threshold: f32) -> Vec<usize>
-where
-    C: StrictlyPositive + Rem<U16> + Div<U16>,
-    <C as Rem<U16>>::Output: Zero,
-    <C as Div<U16>>::Output: Unsigned,
-{
+unsafe fn threshold_neon<C: MultipleOf<U16>>(
+    scores: &StripedScores<C>,
+    threshold: f32,
+) -> Vec<usize> {
     if scores.len() >= u32::MAX as usize {
         panic!(
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
@@ -208,7 +202,7 @@ where
             let t = vdupq_n_f32(threshold);
             let ones = vdupq_n_u32(1);
             let mut dst = indices.as_mut_ptr();
-            for offset in (0..<C as Div<U16>>::Output::USIZE).map(|i| i * 16) {
+            for offset in (0..C::Quotient::USIZE).map(|i| i * 16) {
                 // prepare indices
                 let mut v = [0u32; 16];
                 for i in 0..16 {
@@ -287,11 +281,9 @@ impl Neon {
     pub fn score_into<A, C, S, M>(seq: S, pssm: M, scores: &mut StripedScores<C>)
     where
         A: Alphabet,
-        C: StrictlyPositive + Rem<U16> + Div<U16>,
+        C: MultipleOf<U16>,
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A>>,
-        <C as Rem<U16>>::Output: Zero,
-        <C as Div<U16>>::Output: Unsigned,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
@@ -318,12 +310,7 @@ impl Neon {
     }
 
     #[allow(unused)]
-    pub fn threshold<C>(scores: &StripedScores<C>, threshold: f32) -> Vec<usize>
-    where
-        C: StrictlyPositive + Rem<U16> + Div<U16>,
-        <C as Rem<U16>>::Output: Zero,
-        <C as Div<U16>>::Output: Unsigned,
-    {
+    pub fn threshold<C: MultipleOf<U16>>(scores: &StripedScores<C>, threshold: f32) -> Vec<usize> {
         #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
         unsafe {
             threshold_neon(scores, threshold)
