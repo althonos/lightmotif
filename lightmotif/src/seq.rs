@@ -6,9 +6,6 @@ use std::fmt::Result as FmtResult;
 use std::ops::Index;
 use std::str::FromStr;
 
-use typenum::marker_traits::NonZero;
-use typenum::marker_traits::Unsigned;
-
 use super::abc::Alphabet;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
@@ -249,6 +246,12 @@ impl<A: Alphabet, C: StrictlyPositive> StripedSequence<A, C> {
 impl<A: Alphabet, C: StrictlyPositive> AsRef<StripedSequence<A, C>> for StripedSequence<A, C> {
     fn as_ref(&self) -> &Self {
         self
+    }
+}
+
+impl<A: Alphabet, C: StrictlyPositive> AsRef<DenseMatrix<A::Symbol, C>> for StripedSequence<A, C> {
+    fn as_ref(&self) -> &DenseMatrix<A::Symbol, C> {
+        &self.data
     }
 }
 

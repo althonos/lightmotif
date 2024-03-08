@@ -4,6 +4,9 @@ use std::ops::Index;
 
 use typenum::marker_traits::Unsigned;
 
+use crate::num::StrictlyPositive;
+use crate::pli::StripedScores;
+
 use super::abc::Alphabet;
 use super::abc::Background;
 use super::abc::ComplementableAlphabet;
@@ -11,7 +14,11 @@ use super::abc::Pseudocounts;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
 use super::err::InvalidData;
+use super::pli::dispatch::Dispatch;
+use super::pli::Pipeline;
+use super::pli::Score;
 use super::seq::EncodedSequence;
+use super::seq::StripedSequence;
 
 macro_rules! matrix_traits {
     ($mx:ident, $t:ty) => {
@@ -24,11 +31,13 @@ macro_rules! matrix_traits {
         }
 
         impl<A: Alphabet> AsRef<$mx<A>> for $mx<A> {
+            #[inline]
             fn as_ref(&self) -> &Self {
                 self
             }
         }
         impl<A: Alphabet> AsRef<DenseMatrix<$t, A::K>> for $mx<A> {
+            #[inline]
             fn as_ref(&self) -> &DenseMatrix<$t, A::K> {
                 &self.data
             }
@@ -86,6 +95,21 @@ impl<A: Alphabet> CountMatrix<A> {
     }
 
     /// Create a new count matrix from the given sequences.
+    ///
+    /// # Errors
+    /// This function returns `Err(InvalidData)` when the sequences do not
+    /// all have the same length:
+    /// ```rust
+    /// # use lightmotif::seq::EncodedSequence;
+    /// # use lightmotif::pwm::CountMatrix;
+    /// # use lightmotif::abc::Dna;
+    /// # use lightmotif::abc::Nucleotide::*;
+    /// let result = CountMatrix::<Dna>::from_sequences([
+    ///     EncodedSequence::new(vec![T, T, A, T]),
+    ///     EncodedSequence::new(vec![T, C, A]),
+    /// ]);
+    /// assert!(result.is_err());
+    /// ```
     pub fn from_sequences<'seq, I>(sequences: I) -> Result<Self, InvalidData>
     where
         I: IntoIterator,
@@ -165,13 +189,6 @@ impl<A: Alphabet> CountMatrix<A> {
             .cloned()
             .unwrap();
         entropy.into_iter().map(|h| hmax - h).sum()
-    }
-
-    /// The raw counts from the count matrix.
-    #[inline]
-    #[deprecated]
-    pub fn counts(&self) -> &DenseMatrix<u32, A::K> {
-        &self.data
     }
 }
 
@@ -281,13 +298,6 @@ impl<A: Alphabet> FrequencyMatrix<A> {
         }
         ScoringMatrix::new(bg, scores)
     }
-
-    /// The raw frequencies from the frequency matrix.
-    #[inline]
-    #[deprecated]
-    pub fn frequencies(&self) -> &DenseMatrix<f32, A::K> {
-        &self.data
-    }
 }
 
 impl<A: ComplementableAlphabet> FrequencyMatrix<A> {
@@ -324,13 +334,6 @@ impl<A: Alphabet> WeightMatrix<A> {
     #[inline]
     pub fn len(&self) -> usize {
         self.data.rows()
-    }
-
-    /// The log-likelihoods of the position weight matrix.
-    #[inline]
-    #[deprecated]
-    pub fn weights(&self) -> &DenseMatrix<f32, A::K> {
-        &self.data
     }
 
     /// The background frequencies of the position weight matrix.
@@ -438,13 +441,6 @@ impl<A: Alphabet> ScoringMatrix<A> {
         self.data.rows()
     }
 
-    /// The log-likelihoods of the position weight matrix.
-    #[inline]
-    #[deprecated]
-    pub fn weights(&self) -> &DenseMatrix<f32, A::K> {
-        &self.data
-    }
-
     /// The background frequencies of the position weight matrix.
     #[inline]
     pub fn background(&self) -> &Background<A> {
@@ -475,6 +471,20 @@ impl<A: Alphabet> ScoringMatrix<A> {
                     .unwrap()
             })
             .sum()
+    }
+
+    /// Compute the PSSM scores for every position of the given sequence.
+    ///
+    /// # Note
+    /// Uses platform-accelerated implementation when available.
+    pub fn score<S, C>(&self, seq: S) -> StripedScores<C>
+    where
+        C: StrictlyPositive,
+        S: AsRef<StripedSequence<A, C>>,
+        Pipeline<A, Dispatch>: Score<A, C>,
+    {
+        let pli = Pipeline::dispatch();
+        pli.score(seq, self)
     }
 }
 

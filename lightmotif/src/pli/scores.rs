@@ -2,19 +2,23 @@ use std::iter::FusedIterator;
 use std::ops::Index;
 use std::ops::Range;
 
-use typenum::marker_traits::NonZero;
-use typenum::marker_traits::Unsigned;
-
+use crate::abc::Dna;
 use crate::dense::DenseMatrix;
+use crate::num::StrictlyPositive;
+use crate::pli::Pipeline;
+
+use super::dispatch::Dispatch;
+use super::Maximum;
+use super::Threshold;
 
 /// Striped matrix storing scores for an equally striped sequence.
 #[derive(Clone, Debug)]
-pub struct StripedScores<C: Unsigned + NonZero> {
+pub struct StripedScores<C: StrictlyPositive> {
     data: DenseMatrix<f32, C>,
     length: usize,
 }
 
-impl<C: Unsigned + NonZero> StripedScores<C> {
+impl<C: StrictlyPositive> StripedScores<C> {
     /// Create a new striped score matrix with the given length and data.
     pub fn new(length: usize, data: DenseMatrix<f32, C>) -> Self {
         Self { length, data }
@@ -63,25 +67,63 @@ impl<C: Unsigned + NonZero> StripedScores<C> {
     }
 }
 
-impl<C: Unsigned + NonZero> AsRef<DenseMatrix<f32, C>> for StripedScores<C> {
+impl<C: StrictlyPositive> StripedScores<C>
+where
+    Pipeline<Dna, Dispatch>: Maximum<C>,
+{
+    /// Find the highest score.
+    ///
+    /// # Note
+    /// Uses platform-accelerated implementation when available.
+    pub fn max(&self) -> Option<f32> {
+        Pipeline::dispatch().max(&self)
+    }
+
+    /// Find the position with the highest score.
+    ///
+    /// # Note
+    /// Uses platform-accelerated implementation when available.
+    pub fn argmax(&self) -> Option<usize> {
+        Pipeline::dispatch().argmax(&self)
+    }
+}
+
+impl<C: StrictlyPositive> StripedScores<C>
+where
+    Pipeline<Dna, Dispatch>: Threshold<C>,
+{
+    /// Return the positions with score equal to or greater than the threshold.
+    ///
+    /// The indices are not necessarily returned in a particular order,
+    /// since different implementations use a different internal memory
+    /// representation.
+    ///
+    /// # Note
+    /// Uses platform-accelerated implementation when available.
+    pub fn threshold(&self, threshold: f32) -> Vec<usize> {
+        Pipeline::dispatch().threshold(&self, threshold)
+    }
+}
+
+impl<C: StrictlyPositive> AsRef<DenseMatrix<f32, C>> for StripedScores<C> {
     fn as_ref(&self) -> &DenseMatrix<f32, C> {
         self.matrix()
     }
 }
 
-impl<C: Unsigned + NonZero> AsMut<DenseMatrix<f32, C>> for StripedScores<C> {
+impl<C: StrictlyPositive> AsMut<DenseMatrix<f32, C>> for StripedScores<C> {
     fn as_mut(&mut self) -> &mut DenseMatrix<f32, C> {
         self.matrix_mut()
     }
 }
 
-impl<C: Unsigned + NonZero> Default for StripedScores<C> {
+impl<C: StrictlyPositive> Default for StripedScores<C> {
     fn default() -> Self {
         StripedScores::empty()
     }
 }
 
-impl<C: Unsigned + NonZero> Index<usize> for StripedScores<C> {
+impl<C: StrictlyPositive> Index<usize> for StripedScores<C> {
     type Output = f32;
     #[inline]
     fn index(&self, index: usize) -> &f32 {
@@ -91,7 +133,7 @@ impl<C: Unsigned + NonZero> Index<usize> for StripedScores<C> {
     }
 }
 
-impl<C: Unsigned + NonZero> From<StripedScores<C>> for Vec<f32> {
+impl<C: StrictlyPositive> From<StripedScores<C>> for Vec<f32> {
     fn from(scores: StripedScores<C>) -> Self {
         scores.iter().cloned().collect()
     }
@@ -99,12 +141,12 @@ impl<C: Unsigned + NonZero> From<StripedScores<C>> for Vec<f32> {
 
 // --- Iter --------------------------------------------------------------------
 
-pub struct Iter<'a, C: Unsigned + NonZero> {
+pub struct Iter<'a, C: StrictlyPositive> {
     scores: &'a StripedScores<C>,
     indices: Range<usize>,
 }
 
-impl<'a, C: Unsigned + NonZero> Iter<'a, C> {
+impl<'a, C: StrictlyPositive> Iter<'a, C> {
     fn new(scores: &'a StripedScores<C>) -> Self {
         Self {
             scores,
@@ -119,22 +161,22 @@ impl<'a, C: Unsigned + NonZero> Iter<'a, C> {
     }
 }
 
-impl<'a, C: Unsigned + NonZero> Iterator for Iter<'a, C> {
+impl<'a, C: StrictlyPositive> Iterator for Iter<'a, C> {
     type Item = &'a f32;
     fn next(&mut self) -> Option<Self::Item> {
         self.indices.next().map(|i| self.get(i))
     }
 }
 
-impl<'a, C: Unsigned + NonZero> ExactSizeIterator for Iter<'a, C> {
+impl<'a, C: StrictlyPositive> ExactSizeIterator for Iter<'a, C> {
     fn len(&self) -> usize {
         self.indices.len()
     }
 }
 
-impl<'a, C: Unsigned + NonZero> FusedIterator for Iter<'a, C> {}
+impl<'a, C: StrictlyPositive> FusedIterator for Iter<'a, C> {}
 
-impl<'a, C: Unsigned + NonZero> DoubleEndedIterator for Iter<'a, C> {
+impl<'a, C: StrictlyPositive> DoubleEndedIterator for Iter<'a, C> {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.indices.next_back().map(|i| self.get(i))
     }

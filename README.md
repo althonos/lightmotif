@@ -61,27 +61,29 @@ let counts = CountMatrix::<Dna>::from_sequences(&[
 // Create a PSSM with 0.1 pseudocounts and uniform background frequencies.
 let pssm = counts.to_freq(0.1).to_scoring(None);
 
-/// Create a pipeline to run tasks with platform acceleration
-let pli = Pipeline::dispatch();
-
 // Use the pipeline to encode the target sequence into a striped matrix
 let seq = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
-let encoded = pli.encode(seq).unwrap();
-let mut striped = pli.stripe(encoded);
+let encoded = EncodedSequence::encode(seq).unwrap();
+let mut striped = encoded.to_striped();
 
-// Use the pipeline to compute scores for every position of the matrix.
+// Organize layout of striped matrix to allow scoring with PSSM.
 striped.configure(&pssm);
-let scores = pli.score(&striped, &pssm);
+
+// Compute scores for every position of the matrix.
+let scores = pssm.score(&striped);
 
 // Scores can be extracted into a Vec<f32>, or indexed directly.
 let v = scores.to_vec();
 assert_eq!(scores[0], -23.07094);
 assert_eq!(v[0], -23.07094);
 
-// The highest scoring position can be searched with a pipeline as well.
-let best = pli.argmax(&scores).unwrap();
+// Find the highest scoring position.
+let best = scores.argmax().unwrap();
 assert_eq!(best, 18);
 
+// Find the positions above an absolute score threshold.
+let indices = scores.threshold(10.0);
+assert_eq!(indices, []);
 ```
 This example uses a dynamic dispatch pipeline, which selects the best available
 backend (AVX2, SSE2, NEON, or a generic implementation) depending on the local 
