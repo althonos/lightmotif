@@ -9,6 +9,7 @@ use lightmotif::num::U16;
 use lightmotif::num::U32;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
+use lightmotif::pli::Stripe;
 use lightmotif::pli::StripedScores;
 use lightmotif::pli::Threshold;
 use lightmotif::pwm::CountMatrix;
@@ -21,7 +22,7 @@ fn bench<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(
     pli: &P,
 ) {
     let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
-    let mut striped = encoded.to_striped();
+    let mut striped = Pipeline::generic().stripe(encoded);
 
     let cm = CountMatrix::<Dna>::from_sequences([
         EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),

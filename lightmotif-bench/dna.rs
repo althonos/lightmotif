@@ -13,6 +13,7 @@ use lightmotif::num::U16;
 use lightmotif::pli::Maximum;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
+use lightmotif::pli::Stripe;
 use lightmotif::pli::StripedScores;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::seq::EncodedSequence;
@@ -25,7 +26,7 @@ fn bench_lightmotif<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(
 ) {
     let seq = &SEQUENCE[..10000];
     let encoded = EncodedSequence::<Dna>::encode(seq).unwrap();
-    let mut striped = encoded.to_striped::<C>();
+    let mut striped = Pipeline::generic().stripe(encoded);
 
     let bg = Background::<Dna>::uniform();
     let cm = CountMatrix::<Dna>::from_sequences([
@@ -56,6 +57,12 @@ fn bench_generic(bencher: &mut test::Bencher) {
 fn bench_sse2(bencher: &mut test::Bencher) {
     let pli = Pipeline::sse2().unwrap();
     bench_lightmotif::<U16, _>(bencher, &pli);
+}
+
+#[bench]
+fn bench_dispatch(bencher: &mut test::Bencher) {
+    let pli = Pipeline::dispatch();
+    bench_lightmotif(bencher, &pli);
 }
 
 #[cfg(target_feature = "avx2")]

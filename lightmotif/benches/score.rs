@@ -8,6 +8,7 @@ use lightmotif::num::U16;
 use lightmotif::num::U32;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
+use lightmotif::pli::Stripe;
 use lightmotif::pli::StripedScores;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::seq::EncodedSequence;
@@ -21,7 +22,7 @@ mod dna {
 
     fn bench<C: StrictlyPositive, P: Score<Dna, C>>(bencher: &mut test::Bencher, pli: &P) {
         let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
-        let mut striped = encoded.to_striped();
+        let mut striped = Pipeline::generic().stripe(encoded);
 
         let cm = CountMatrix::<Dna>::from_sequences([
             EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
@@ -90,7 +91,7 @@ mod protein {
 
     fn bench<C: StrictlyPositive, P: Score<Protein, C>>(bencher: &mut test::Bencher, pli: &P) {
         let encoded = EncodedSequence::<Protein>::encode(SEQUENCE).unwrap();
-        let mut striped = encoded.to_striped();
+        let mut striped = Pipeline::generic().stripe(encoded);
 
         let cm = CountMatrix::<Protein>::from_sequences([
             EncodedSequence::encode("SFKELGFDSLTAVELRNRLAAAT").unwrap(),
