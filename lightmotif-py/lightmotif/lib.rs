@@ -6,26 +6,16 @@ extern crate lightmotif;
 extern crate lightmotif_tfmpvalue;
 extern crate pyo3;
 
-use std::sync::RwLock;
-
 use lightmotif::abc::Alphabet;
-use lightmotif::abc::Dna;
 use lightmotif::abc::Nucleotide;
 use lightmotif::abc::Symbol;
 use lightmotif::dense::DenseMatrix;
 use lightmotif::num::Unsigned;
-use lightmotif::pli::dispatch::Dispatch;
 use lightmotif::pli::platform::Backend;
-use lightmotif::pli::Encode;
-use lightmotif::pli::Maximum;
-use lightmotif::pli::Pipeline;
-use lightmotif::pli::Score;
-use lightmotif::pli::Stripe;
-use lightmotif::pli::Threshold;
 
+use generic_array::GenericArray;
 use pyo3::exceptions::PyBufferError;
 use pyo3::exceptions::PyIndexError;
-use pyo3::exceptions::PyRuntimeError;
 use pyo3::exceptions::PyTypeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::ffi::Py_ssize_t;
@@ -34,8 +24,6 @@ use pyo3::types::PyDict;
 use pyo3::types::PyList;
 use pyo3::types::PyString;
 use pyo3::AsPyPointer;
-
-use generic_array::GenericArray;
 
 // --- Compile-time constants --------------------------------------------------
 
@@ -52,28 +40,6 @@ type C = <lightmotif::pli::platform::Avx2 as Backend>::LANES;
 type C = typenum::consts::U1;
 
 // --- Helpers -----------------------------------------------------------------
-
-static PIPELINE: RwLock<Option<Pipeline<Dna, Dispatch>>> = RwLock::new(None);
-
-fn init_pipeline() -> PyResult<()> {
-    PIPELINE
-        .write()
-        .map_err(|_| PyRuntimeError::new_err("Failed to acquire global pipeline"))?
-        .replace(Pipeline::dispatch());
-    Ok(())
-}
-
-fn with_pipeline<T, F>(f: F) -> PyResult<T>
-where
-    F: FnOnce(&Pipeline<Dna, Dispatch>) -> T,
-{
-    PIPELINE
-        .read()
-        .map_err(|_| PyRuntimeError::new_err("Failed to acquire global lock"))?
-        .as_ref()
-        .ok_or_else(|| PyRuntimeError::new_err("Global pipeline was not initialize"))
-        .map(f)
-}
 
 fn dict_to_alphabet_array<A: lightmotif::Alphabet>(
     d: &PyDict,
@@ -116,7 +82,7 @@ impl EncodedSequence {
         let py = sequence.py();
 
         let data = py
-            .allow_threads(|| Pipeline::<Dna, _>::dispatch().encode(seq))
+            .allow_threads(|| lightmotif::seq::EncodedSequence::encode(seq))
             .map_err(|lightmotif::err::InvalidSymbol(x)| {
                 PyValueError::new_err(format!("Invalid symbol in input: {}", x))
             })?;
@@ -191,7 +157,7 @@ impl EncodedSequence {
 
     /// Convert this sequence into a striped matrix.
     pub fn stripe(&self) -> PyResult<StripedSequence> {
-        with_pipeline(|pli| StripedSequence::from(pli.stripe(&self.data)))
+        Ok(self.data.to_striped().into())
     }
 }
 
@@ -503,19 +469,11 @@ impl ScoringMatrix {
     ///     This method uses the best implementation for the local platform,
     ///     prefering AVX2 if available.
     ///
-    pub fn calculate(
-        slf: PyRef<'_, Self>,
-        sequence: &mut StripedSequence,
-    ) -> PyResult<StripedScores> {
+    pub fn calculate(slf: PyRef<'_, Self>, sequence: &mut StripedSequence) -> StripedScores {
         let pssm = &slf.data;
         let seq = &mut sequence.data;
         seq.configure(pssm);
-
-        let scores = slf
-            .py()
-            .allow_threads(|| with_pipeline(|pli| pli.score(seq, pssm)))?;
-
-        Ok(StripedScores::from(scores))
+        slf.py().allow_threads(|| pssm.score(seq)).into()
     }
 
     /// Translate an absolute score to a P-value for this PSSM.
@@ -615,12 +573,9 @@ impl StripedScores {
     ///     This method uses the best implementation for the local platform,
     ///     prefering AVX2 if available.
     ///
-    pub fn threshold(slf: PyRef<'_, Self>, threshold: f32) -> PyResult<Vec<usize>> {
+    pub fn threshold(slf: PyRef<'_, Self>, threshold: f32) -> Vec<usize> {
         let scores = &slf.scores;
-        let indices = slf
-            .py()
-            .allow_threads(|| with_pipeline(|pli| pli.threshold(scores, threshold)))?;
-        Ok(indices)
+        slf.py().allow_threads(|| scores.threshold(threshold))
     }
 
     /// Return the maximum score, if the score matrix is not empty.
@@ -632,12 +587,9 @@ impl StripedScores {
     ///     This method uses the best implementation for the local platform,
     ///     prefering AVX2 if available.
     ///
-    pub fn max(slf: PyRef<'_, Self>) -> PyResult<Option<f32>> {
+    pub fn max(slf: PyRef<'_, Self>) -> Option<f32> {
         let scores = &slf.scores;
-        let indices = slf
-            .py()
-            .allow_threads(|| with_pipeline(|pli| pli.max(scores)))?;
-        Ok(indices)
+        slf.py().allow_threads(|| scores.max())
     }
 
     /// Return the position of the maximum score, if the score matrix is not empty.
@@ -649,12 +601,9 @@ impl StripedScores {
     ///     This method uses the best implementation for the local platform,
     ///     prefering AVX2 if available.
     ///
-    pub fn argmax(slf: PyRef<'_, Self>) -> PyResult<Option<usize>> {
+    pub fn argmax(slf: PyRef<'_, Self>) -> Option<usize> {
         let scores = &slf.scores;
-        let indices = slf
-            .py()
-            .allow_threads(|| with_pipeline(|pli| pli.argmax(scores)))?;
-        Ok(indices)
+        slf.py().allow_threads(|| scores.argmax())
     }
 }
 
@@ -777,6 +726,5 @@ pub fn init(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(create, m)?)?;
     m.add_function(wrap_pyfunction!(stripe, m)?)?;
 
-    init_pipeline()?;
     Ok(())
 }
