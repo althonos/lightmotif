@@ -2,6 +2,8 @@
 
 extern crate generic_array;
 extern crate lightmotif;
+#[cfg(feature = "pvalues")]
+extern crate lightmotif_tfmpvalue;
 extern crate pyo3;
 
 use std::sync::RwLock;
@@ -467,6 +469,26 @@ impl ScoringMatrix {
             .allow_threads(|| with_pipeline(|pli| pli.score(seq, pssm)))?;
 
         Ok(StripedScores::from(scores))
+    }
+
+    /// Translate an absolute score to a P-value for this PSSM.
+    pub fn pvalue(slf: PyRef<'_, Self>, score: f64) -> PyResult<f64> {
+        #[cfg(feature = "pvalues")]
+        return Ok(lightmotif_tfmpvalue::TfmPvalue::new(&slf.data).pvalue(score));
+        #[cfg(not(feature = "pvalues"))]
+        return Err(PyRuntimeError::new_err(
+            "package compiled without p-value support",
+        ));
+    }
+
+    /// Translate a P-value to an absolute score for this PSSM.
+    pub fn score(slf: PyRef<'_, Self>, pvalue: f64) -> PyResult<f64> {
+        #[cfg(feature = "pvalues")]
+        return Ok(lightmotif_tfmpvalue::TfmPvalue::new(&slf.data).score(pvalue));
+        #[cfg(not(feature = "pvalues"))]
+        return Err(PyRuntimeError::new_err(
+            "package compiled without p-value support",
+        ));
     }
 }
 
