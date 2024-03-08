@@ -53,10 +53,12 @@ use lightmotif::abc::Nucleotide;
 use typenum::U32;
 
 // Create a count matrix from an iterable of motif sequences
-let counts = CountMatrix::<Dna>::from_sequences(&[
-    EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
-    EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
-]).unwrap();
+let counts = CountMatrix::<Dna>::from_sequences(
+    ["GTTGACCTTATCAAC", "GTTGATCCAGTCAAC"]
+        .into_iter()
+        .map(|s| EncodedSequence::encode(s).unwrap()),
+)
+.unwrap();
 
 // Create a PSSM with 0.1 pseudocounts and uniform background frequencies.
 let pssm = counts.to_freq(0.1).to_scoring(None);
