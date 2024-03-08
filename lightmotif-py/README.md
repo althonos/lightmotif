@@ -128,8 +128,10 @@ in the [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) format.
 
 ## ⚖️ License
 
-This library is provided under the open-source
-[MIT license](https://choosealicense.com/licenses/mit/).
+This library is provided under the [GNU General Public License 3.0 or later](https://choosealicense.com/licenses/gpl-3.0/),
+as it contains the GPL-licensed code of the TFM-PVALUE algorithm. The TFM-PVALUE dependency can be disabled by disabling
+the `pvalue` crate feature, in which case the code can be used and redistributed under the terms 
+of the [MIT license](https://choosealicense.com/licenses/mit/).
 
 *This project was developed by [Martin Larralde](https://github.com/althonos/)
 during his PhD project at the [European Molecular Biology Laboratory](https://www.embl.de/)
