@@ -1,16 +1,14 @@
 use std::str::FromStr;
 
 use nom::branch::alt;
-use nom::bytes::complete::is_a;
+
 use nom::bytes::complete::tag;
 use nom::bytes::complete::take_till;
-use nom::bytes::complete::take_until;
-use nom::bytes::complete::take_while;
-use nom::bytes::complete::take_while1;
+
 use nom::character::complete::anychar;
 use nom::character::complete::char;
 use nom::character::complete::line_ending;
-use nom::character::complete::not_line_ending;
+
 use nom::character::complete::space0;
 use nom::character::streaming::space1;
 use nom::combinator::eof;
@@ -19,9 +17,9 @@ use nom::combinator::opt;
 use nom::error::Error;
 use nom::error::ErrorKind;
 use nom::multi::count;
-use nom::multi::many0;
+
 use nom::multi::many1;
-use nom::multi::many_till;
+
 use nom::multi::separated_list1;
 use nom::sequence::delimited;
 use nom::sequence::preceded;
@@ -31,8 +29,6 @@ use nom::IResult;
 use lightmotif::abc::Alphabet;
 use lightmotif::abc::Symbol;
 use lightmotif::dense::DenseMatrix;
-use lightmotif::pwm::CountMatrix;
-use lightmotif::pwm::FrequencyMatrix;
 
 use super::Date;
 use super::DateKind;
@@ -68,8 +64,8 @@ pub fn parse_alphabet<S: Symbol>(input: &str) -> IResult<&str, Vec<S>> {
 
 pub fn parse_element(input: &str) -> IResult<&str, f32> {
     nom::branch::alt((
-        nom::combinator::map_res(nom::character::complete::digit1, |x| f32::from_str(x)),
-        nom::combinator::map(nom::number::complete::float, |x| x as f32),
+        nom::combinator::map_res(nom::character::complete::digit1, f32::from_str),
+        nom::combinator::map(nom::number::complete::float, |x| x),
     ))(input)
 }
 
@@ -308,7 +304,6 @@ pub fn parse_record<A: Alphabet>(mut input: &str) -> IResult<&str, Record<A>> {
 #[cfg(test)]
 mod test {
 
-    use lightmotif::abc::Alphabet;
     use lightmotif::abc::Dna;
     use lightmotif::abc::Nucleotide;
     use lightmotif::abc::Symbol;

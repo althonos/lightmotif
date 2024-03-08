@@ -1,5 +1,3 @@
-use std::iter::DoubleEndedIterator;
-use std::iter::ExactSizeIterator;
 use std::iter::FusedIterator;
 use std::ops::Index;
 use std::ops::Range;

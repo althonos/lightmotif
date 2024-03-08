@@ -94,7 +94,7 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
                 let offset = i + j;
                 let col = offset / seq_rows;
                 let row = offset % seq_rows;
-                score += pssm.weights()[j][seq.data[row][col].as_index()];
+                score += pssm.matrix()[j][seq.data[row][col].as_index()];
             }
             let col = i / result.rows();
             let row = i % result.rows();
@@ -122,7 +122,7 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
 pub trait Maximum<C: StrictlyPositive> {
     /// Find the sequence position with the highest score.
     fn argmax(&self, scores: &StripedScores<C>) -> Option<usize> {
-        if scores.len() == 0 {
+        if scores.is_empty() {
             return None;
         }
 

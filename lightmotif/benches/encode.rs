@@ -17,7 +17,8 @@ mod dna {
     fn bench<P: Encode<Dna>>(bencher: &mut test::Bencher, pli: &P) {
         let mut dst = vec![Dna::default_symbol(); SEQUENCE.len()];
         bencher.iter(|| {
-            test::black_box(pli.encode_into(SEQUENCE, &mut dst).unwrap());
+            pli.encode_into(SEQUENCE, &mut dst).unwrap();
+            test::black_box(());
         });
         bencher.bytes = SEQUENCE.as_bytes().len() as u64;
     }
@@ -66,7 +67,8 @@ mod protein {
     fn bench<P: Encode<Protein>>(bencher: &mut test::Bencher, pli: &P) {
         let mut dst = vec![Protein::default_symbol(); SEQUENCE.len()];
         bencher.iter(|| {
-            test::black_box(pli.encode_into(SEQUENCE, &mut dst).unwrap());
+            pli.encode_into(SEQUENCE, &mut dst).unwrap();
+            test::black_box(());
         });
         bencher.bytes = SEQUENCE.as_bytes().len() as u64;
     }

@@ -1,9 +1,8 @@
 use std::io::BufRead;
 
-use crate::error::Error;
 use lightmotif::abc::Alphabet;
 use lightmotif::abc::Pseudocounts;
-use lightmotif::abc::Symbol;
+
 use lightmotif::dense::DenseMatrix;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::pwm::FrequencyMatrix;
@@ -75,7 +74,7 @@ impl<A: Alphabet> Record<A> {
                 let src = &data[i];
                 let dst = &mut probas[i];
                 for (j, &x) in row.iter().enumerate() {
-                    dst[j] = x as f32 + p.counts()[j];
+                    dst[j] = x + p.counts()[j];
                 }
                 let s: f32 = dst.iter().sum();
                 for x in dst.iter_mut() {

@@ -33,7 +33,7 @@ pub fn main() -> PyResult<()> {
 
         // create a Python module from our rust code with debug symbols
         let module = PyModule::new(py, "lightmotif.lib")?;
-        lightmotif_py::init(py, &module).unwrap();
+        lightmotif_py::init(py, module).unwrap();
         sys.getattr("modules")?
             .downcast::<PyDict>()?
             .set_item("lightmotif.lib", module)?;

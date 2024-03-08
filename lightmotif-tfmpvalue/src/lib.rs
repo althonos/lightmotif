@@ -167,7 +167,7 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
                     let sc = key + self.int_matrix[pos][k];
                     if sc + maxs[pos + 1] >= min {
                         // the score min can be reached
-                        let occ = l[pos - 1][&key] * bg[k] as f64;
+                        let occ = l[pos - 1][key] * bg[k] as f64;
                         if sc > max {
                             // the score will be greater than max for all suffixes
                             *r[M - 1 - pos].entry(max + 1).or_default() += occ;
@@ -201,7 +201,7 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
         let mut pvalues = IntMap::default();
         let mut s = max + 1;
         let mut last = qvalues[M - 1].keys().cloned().collect::<Vec<i64>>();
-        last.sort_unstable_by(|x, y| x.partial_cmp(&y).unwrap());
+        last.sort_unstable_by(|x, y| x.partial_cmp(y).unwrap());
         let mut sum = qvalues[0].get(&(max + 1)).cloned().unwrap_or_default();
         for &l in last.iter().rev() {
             sum += qvalues[M - 1][&l];
@@ -213,7 +213,7 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
 
         // Find the p-value range for the requested score
         let mut keys = pvalues.keys().cloned().collect::<Vec<i64>>();
-        keys.sort_unstable_by(|x, y| x.partial_cmp(&y).unwrap());
+        keys.sort_unstable_by(|x, y| x.partial_cmp(y).unwrap());
         let mut kmax = keys.iter().position(|&k| k == s).unwrap();
         while kmax > 0 && keys[kmax] as f64 >= s as f64 - self.error_max {
             kmax -= 1;
@@ -241,7 +241,7 @@ impl<A: Alphabet, M: AsRef<ScoringMatrix<A>>> TfmPvalue<A, M> {
 
         // find most likely scores at the end of the matrix
         let mut keys = qvalues[M - 1].keys().cloned().collect::<Vec<_>>();
-        keys.sort_unstable_by(|x, y| x.partial_cmp(&y).unwrap());
+        keys.sort_unstable_by(|x, y| x.partial_cmp(y).unwrap());
 
         // compute pvalues
         let mut sum = 0.0;

@@ -145,7 +145,7 @@ unsafe fn score_neon<A, C>(
             let mut s = float32x4x4_t(zero_f32, zero_f32, zero_f32, zero_f32);
             // reset position
             let mut dataptr = seq.data[i].as_ptr().add(offset);
-            let mut pssmptr = pssm.weights()[0].as_ptr();
+            let mut pssmptr = pssm.matrix()[0].as_ptr();
             // advance position in the position weight matrix
             for _ in 0..pssm.len() {
                 // load sequence row and broadcast to f32
@@ -172,7 +172,7 @@ unsafe fn score_neon<A, C>(
                 }
                 // advance to next row in sequence and PSSM matrices
                 dataptr = dataptr.add(seq.data.stride());
-                pssmptr = pssmptr.add(pssm.weights().stride());
+                pssmptr = pssmptr.add(pssm.matrix().stride());
             }
             // record the score for the current position
             let row = &mut data[i];

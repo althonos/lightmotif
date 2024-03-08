@@ -31,7 +31,7 @@ fn test_stripe<C: Unsigned + NonZero, P: Stripe<Dna, C>>(pli: &P, sequence: &str
         assert_eq!(striped.data[3][0], Nucleotide::T);
     }
 
-    for (i, &c) in encoded.iter().into_iter().enumerate() {
+    for (i, &c) in encoded.iter().enumerate() {
         assert_eq!(
             striped.data[i % striped.data.rows()][i / striped.data.rows()],
             c

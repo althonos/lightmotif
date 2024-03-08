@@ -53,7 +53,7 @@ unsafe fn score_sse2<A, C>(
             let mut s4 = _mm_setzero_ps();
             // reset position
             let mut dataptr = seq.data[i].as_ptr().add(offset);
-            let mut pssmptr = pssm.weights()[0].as_ptr();
+            let mut pssmptr = pssm.matrix()[0].as_ptr();
             // advance position in the position weight matrix
             for _ in 0..pssm.len() {
                 // load sequence row and broadcast to f32
@@ -79,7 +79,7 @@ unsafe fn score_sse2<A, C>(
                 }
                 // advance to next row in sequence and PSSM matrices
                 dataptr = dataptr.add(seq.data.stride());
-                pssmptr = pssmptr.add(pssm.weights().stride());
+                pssmptr = pssmptr.add(pssm.matrix().stride());
             }
             // record the score for the current position
             _mm_stream_ps(rowptr.add(0x00), s1);
@@ -109,7 +109,7 @@ where
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
             u32::MAX, scores.len()
         );
-    } else if scores.len() == 0 {
+    } else if scores.is_empty() {
         None
     } else {
         let data = scores.matrix();
@@ -182,7 +182,7 @@ where
                 for k in 0..U16::USIZE {
                     let row = best_col[k] as usize;
                     let col = k + offset;
-                    let pos = col * data.rows() + row as usize;
+                    let pos = col * data.rows() + row;
                     let score = data[row][col];
                     if score > best_score || (score == best_score && pos < best_pos) {
                         best_score = data[row][col];
@@ -208,7 +208,7 @@ where
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
             u32::MAX, scores.len()
         );
-    } else if scores.len() == 0 {
+    } else if scores.is_empty() {
         Vec::new()
     } else {
         let data = scores.matrix();
@@ -228,7 +228,7 @@ where
                     ((offset + 3) * rows) as i32,
                     ((offset + 2) * rows) as i32,
                     ((offset + 1) * rows) as i32,
-                    ((offset + 0) * rows) as i32,
+                    (offset * rows) as i32,
                 );
                 let mut x2 = _mm_set_epi32(
                     ((offset + 7) * rows) as i32,
@@ -252,7 +252,7 @@ where
                 let mut dataptr = data[0].as_ptr();
                 for _ in 0..data.rows() {
                     // load scores for the current row
-                    let r1 = _mm_load_ps(dataptr.add(offset + 0x00));
+                    let r1 = _mm_load_ps(dataptr.add(offset));
                     let r2 = _mm_load_ps(dataptr.add(offset + 0x04));
                     let r3 = _mm_load_ps(dataptr.add(offset + 0x08));
                     let r4 = _mm_load_ps(dataptr.add(offset + 0x0c));

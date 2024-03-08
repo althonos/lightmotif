@@ -123,7 +123,7 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
             Ok(matrix) => matrix,
         };
         match FrequencyMatrix::<A>::new(matrix) {
-            Err(e) => return Some(Err(Error::from(e))),
+            Err(e) => Some(Err(Error::from(e))),
             Ok(matrix) => Some(Ok(Record { id, matrix })),
         }
     }

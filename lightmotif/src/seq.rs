@@ -1,6 +1,5 @@
 //! Linear and striped storage for alphabet-encoded sequences.
 
-use std::cmp::PartialEq;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
@@ -67,7 +66,7 @@ impl<A: Alphabet> EncodedSequence<A> {
     /// Iterate over the symbols in the sequence.
     #[inline]
     pub fn iter(&self) -> <&[A::Symbol] as IntoIterator>::IntoIter {
-        self.data.as_slice().into_iter()
+        self.data.as_slice().iter()
     }
 
     /// Convert the encoded sequence to a striped matrix.

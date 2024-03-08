@@ -3,7 +3,6 @@
 use std::fmt::Debug;
 use std::fmt::Error as FmtError;
 use std::fmt::Formatter;
-use std::iter::ExactSizeIterator;
 use std::iter::FusedIterator;
 use std::ops::Index;
 use std::ops::IndexMut;

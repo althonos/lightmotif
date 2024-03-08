@@ -23,7 +23,7 @@ mod dna {
         let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
         let mut striped = encoded.to_striped();
 
-        let cm = CountMatrix::<Dna>::from_sequences(&[
+        let cm = CountMatrix::<Dna>::from_sequences([
             EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
             EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
         ])
@@ -92,7 +92,7 @@ mod protein {
         let encoded = EncodedSequence::<Protein>::encode(SEQUENCE).unwrap();
         let mut striped = encoded.to_striped();
 
-        let cm = CountMatrix::<Protein>::from_sequences(&[
+        let cm = CountMatrix::<Protein>::from_sequences([
             EncodedSequence::encode("SFKELGFDSLTAVELRNRLAAAT").unwrap(),
             EncodedSequence::encode("AFKELGFDSLAAIQLRNRLLADV").unwrap(),
             EncodedSequence::encode("PSRRLGFDSLTAVELRNQLAAST").unwrap(),

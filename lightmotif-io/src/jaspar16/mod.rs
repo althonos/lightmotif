@@ -39,7 +39,7 @@ impl<A: Alphabet> Record<A> {
     }
 
     pub fn description(&self) -> Option<&str> {
-        self.description.as_ref().map(String::as_str)
+        self.description.as_deref()
     }
 
     pub fn matrix(&self) -> &CountMatrix<A> {
@@ -86,7 +86,7 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
                 } else {
                     &self.buffer[self.start..=self.start + n]
                 };
-                let text = match std::str::from_utf8(&bytes) {
+                let text = match std::str::from_utf8(bytes) {
                     Ok(text) => text,
                     Err(_) => {
                         return Some(Err(Error::Io(std::io::Error::new(
@@ -98,7 +98,7 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
                 if n == 0 && text.trim().is_empty() {
                     return None;
                 }
-                let (rest, record) = match self::parse::record::<A>(&text) {
+                let (rest, record) = match self::parse::record::<A>(text) {
                     Err(e) => return Some(Err(Error::from(e))),
                     Ok((rest, record)) => (rest, record),
                 };

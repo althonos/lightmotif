@@ -12,7 +12,6 @@ use typenum::marker_traits::Unsigned;
 
 use super::err::InvalidData;
 use super::err::InvalidSymbol;
-use super::seq::EncodedSequence;
 use super::seq::SymbolCount;
 
 // --- Symbol ------------------------------------------------------------------

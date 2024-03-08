@@ -95,9 +95,6 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
 #[cfg(test)]
 mod test {
 
-    use super::*;
-
-    use lightmotif::Alphabet;
     use lightmotif::Dna;
 
     #[test]

@@ -11,7 +11,7 @@ use lightmotif_tfmpvalue::TfmPvalue;
 
 #[bench]
 fn bench_pvalue(bencher: &mut test::Bencher) {
-    let pssm = CountMatrix::<Dna>::from_sequences(&[
+    let pssm = CountMatrix::<Dna>::from_sequences([
         EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
         EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
     ])
@@ -26,7 +26,7 @@ fn bench_pvalue(bencher: &mut test::Bencher) {
 
 #[bench]
 fn bench_score(bencher: &mut test::Bencher) {
-    let pssm = CountMatrix::<Dna>::from_sequences(&[
+    let pssm = CountMatrix::<Dna>::from_sequences([
         EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
         EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
     ])

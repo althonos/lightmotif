@@ -17,7 +17,7 @@ use lightmotif::pli::StripedScores;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::seq::EncodedSequence;
 
-const SEQUENCE: &'static str = include_str!("../lightmotif/benches/ecoli.txt");
+const SEQUENCE: &str = include_str!("../lightmotif/benches/ecoli.txt");
 
 fn bench_lightmotif<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(
     bencher: &mut test::Bencher,
@@ -28,7 +28,7 @@ fn bench_lightmotif<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(
     let mut striped = encoded.to_striped::<C>();
 
     let bg = Background::<Dna>::uniform();
-    let cm = CountMatrix::<Dna>::from_sequences(&[
+    let cm = CountMatrix::<Dna>::from_sequences([
         EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
         EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
     ])

@@ -75,8 +75,8 @@ where
         .map(f)
 }
 
-fn dict_to_alphabet_array<'py, A: lightmotif::Alphabet>(
-    d: &'py PyDict,
+fn dict_to_alphabet_array<A: lightmotif::Alphabet>(
+    d: &PyDict,
 ) -> PyResult<GenericArray<f32, A::K>> {
     let mut p = std::iter::repeat(0.0)
         .take(A::K::USIZE)
@@ -116,7 +116,7 @@ impl EncodedSequence {
         let py = sequence.py();
 
         let data = py
-            .allow_threads(|| Pipeline::<Dna, _>::dispatch().encode(&seq))
+            .allow_threads(|| Pipeline::<Dna, _>::dispatch().encode(seq))
             .map_err(|lightmotif::err::InvalidSymbol(x)| {
                 PyValueError::new_err(format!("Invalid symbol in input: {}", x))
             })?;
@@ -714,14 +714,14 @@ pub struct Motif {
 ///     `~lightmotif.Motif`: The motif corresponding to the given sequences.
 ///
 #[pyfunction]
-pub fn create<'py>(sequences: &'py PyAny) -> PyResult<Motif> {
+pub fn create(sequences: &PyAny) -> PyResult<Motif> {
     let py = sequences.py();
 
     let mut encoded = Vec::new();
     for seq in sequences.iter()? {
         let s = seq?.extract::<&PyString>()?.to_str()?;
         let x = py
-            .allow_threads(|| lightmotif::EncodedSequence::encode(&s))
+            .allow_threads(|| lightmotif::EncodedSequence::encode(s))
             .map_err(|_| PyValueError::new_err("Invalid symbol in sequence"))?;
         encoded.push(x);
     }
@@ -740,7 +740,7 @@ pub fn create<'py>(sequences: &'py PyAny) -> PyResult<Motif> {
 
 /// Encode and stripe a text sequence.
 #[pyfunction]
-pub fn stripe<'py>(sequence: &'py PyAny) -> PyResult<StripedSequence> {
+pub fn stripe(sequence: &PyAny) -> PyResult<StripedSequence> {
     let py = sequence.py();
     let s = sequence.extract::<&PyString>()?;
     let encoded = EncodedSequence::__init__(s).and_then(|e| Py::new(py, e))?;

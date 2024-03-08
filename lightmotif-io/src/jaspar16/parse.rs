@@ -159,10 +159,7 @@ mod tests {
         ))
         .unwrap();
         assert_eq!(&record.id, "MA0002.1");
-        assert_eq!(
-            record.description.as_ref().map(String::as_str),
-            Some("RUNX1")
-        );
+        assert_eq!(record.description.as_deref(), Some("RUNX1"));
         assert_eq!(&record.matrix[0][..4], &[10, 2, 11, 3]);
     }
 }

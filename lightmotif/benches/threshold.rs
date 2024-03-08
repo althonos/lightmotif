@@ -23,7 +23,7 @@ fn bench<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(
     let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
     let mut striped = encoded.to_striped();
 
-    let cm = CountMatrix::<Dna>::from_sequences(&[
+    let cm = CountMatrix::<Dna>::from_sequences([
         EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
         EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
     ])

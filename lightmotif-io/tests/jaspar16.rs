@@ -9,7 +9,7 @@ fn test_ma00001() {
     let record = reader.next().unwrap().unwrap();
     assert_eq!(record.id(), "MA0001.3");
     assert_eq!(record.description(), Some("AGL3"));
-    assert_eq!(record.matrix().counts().rows(), 10);
+    assert_eq!(record.matrix().matrix().rows(), 10);
     assert!(reader.next().is_none());
 }
 
@@ -20,6 +20,6 @@ fn test_ma00017() {
     let record = reader.next().unwrap().unwrap();
     assert_eq!(record.id(), "MA0017.3");
     assert_eq!(record.description(), Some("NR2F1"));
-    assert_eq!(record.matrix().counts().rows(), 12);
+    assert_eq!(record.matrix().matrix().rows(), 12);
     assert!(reader.next().is_none());
 }

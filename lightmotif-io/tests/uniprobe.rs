@@ -32,9 +32,9 @@ fn test_demo() {
     let mut reader = uniprobe::Reader::<_, Dna>::new(Cursor::new(DEMO));
     let r1 = reader.next().unwrap().unwrap();
     assert_eq!(r1.id(), "Arid3a_primary");
-    assert_eq!(r1.matrix().frequencies().rows(), 17);
+    assert_eq!(r1.matrix().matrix().rows(), 17);
     let r2 = reader.next().unwrap().unwrap();
     assert_eq!(r2.id(), "Arid5a_primary");
-    assert_eq!(r2.matrix().frequencies().rows(), 14);
+    assert_eq!(r2.matrix().matrix().rows(), 14);
     assert!(reader.next().is_none());
 }
