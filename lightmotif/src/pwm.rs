@@ -259,6 +259,8 @@ impl<A: Alphabet> FrequencyMatrix<A> {
 
     /// Convert to a scoring matrix using the given background frequencies.
     ///
+    /// This uses the base-2 logarithm.
+    ///
     /// # Note
     /// By convention, columns with null background frequencies receive a
     /// log-odds-ratio of [`f32::NEG_INFINITY`](https://doc.rust-lang.org/std/primitive.f32.html#associatedconstant.NEG_INFINITY).

@@ -445,7 +445,7 @@ impl ScoringMatrix {
         }
     }
 
-    /// Compute the PSSM score for all positions of the given sequence.
+    /// Calculate the PSSM score for all positions of the given sequence.
     ///
     /// Returns:
     ///     `~lightmotif.StripedScores`: The PSSM scores for every position
