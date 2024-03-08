@@ -107,7 +107,7 @@ unsafe fn argmax_sse2<C: MultipleOf<U16>>(scores: &StripedScores<C>) -> Option<u
             let mut best_col = [0u32; 16];
             let mut best_pos = 0;
             let mut best_score = -f32::INFINITY;
-            for offset in (0..C::Quotient::USIZE).map(|i| i * 16) {
+            for offset in (0..C::Quotient::USIZE).map(|i| i * <Sse2 as Backend>::LANES::USIZE) {
                 let mut dataptr = data[0].as_ptr().add(offset);
                 // the row index for the best score in each column
                 // (these are 32-bit integers but for use with `_mm256_blendv_ps`
@@ -212,7 +212,7 @@ unsafe fn threshold_sse2<C: MultipleOf<U16>>(
             let t = _mm_set1_ps(threshold);
             let ones = _mm_set1_epi32(1);
             let mut dst = indices.as_mut_ptr() as *mut __m128i;
-            for offset in (0..C::Quotient::USIZE).map(|i| i * 16) {
+            for offset in (0..C::Quotient::USIZE).map(|i| i * <Sse2 as Backend>::LANES::USIZE) {
                 // compute real sequence index for each column of the striped scores
                 let mut x1 = _mm_set_epi32(
                     ((offset + 3) * rows) as i32,

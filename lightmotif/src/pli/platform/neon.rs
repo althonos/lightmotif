@@ -131,10 +131,7 @@ unsafe fn score_neon<A: Alphabet, C: MultipleOf<U16>>(
     let zero_f32 = vdupq_n_f32(0.0);
     // process columns of the striped matrix, any multiple of 16 is supported
     let data = scores.matrix_mut();
-    for offset in (0..C::Quotient::USIZE)
-        .into_iter()
-        .map(|i| i * <Neon as Backend>::LANES::USIZE)
-    {
+    for offset in (0..C::Quotient::USIZE).map(|i| i * <Neon as Backend>::LANES::USIZE) {
         // process every position of the sequence data
         for i in 0..seq.data.rows() - seq.wrap {
             // reset sums for current position
