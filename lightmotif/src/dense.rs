@@ -90,7 +90,7 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> DenseMatrix<T, C,
         <I as IntoIterator>::IntoIter: ExactSizeIterator,
     {
         let it = rows.into_iter();
-        let mut dense = Self::new(it.len());
+        let mut dense = unsafe { Self::uninitialized(it.len()) };
 
         for (i, row) in it.enumerate() {
             dense[i].copy_from_slice(row.as_ref());
