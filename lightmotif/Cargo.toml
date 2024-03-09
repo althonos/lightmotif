@@ -13,7 +13,7 @@ keywords = ["bioinformatics", "genomics", "motif", "pssm", "matrix"]
 
 [dependencies]
 typenum = "1.16"
-generic-array = "0.14"
+generic-array = "1.0"
 
 [dependencies.rand]
 optional = true

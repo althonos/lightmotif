@@ -24,7 +24,7 @@ path = "../lightmotif-tfmpvalue"
 version = "0.6.0"
 [dependencies]
 pyo3 = "0.18.3"
-generic-array = "0.14"
+generic-array = "1.0.0"
 
 [features]
 default = ["pvalues"]
