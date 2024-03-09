@@ -7,6 +7,7 @@ pub mod abc;
 pub mod dense;
 pub mod err;
 pub mod num;
+#[doc(hidden)]
 pub mod pli;
 pub mod pwm;
 pub mod seq;
