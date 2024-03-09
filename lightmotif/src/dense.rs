@@ -9,7 +9,8 @@ use std::ops::IndexMut;
 use std::ops::Range;
 use std::ptr::NonNull;
 
-use typenum::marker_traits::Unsigned;
+use crate::num::PowerOfTwo;
+use crate::num::Unsigned;
 
 // --- DefaultAlignment --------------------------------------------------------
 
@@ -25,7 +26,8 @@ pub type DefaultAlignment = _DefaultAlignment;
 
 /// A memory-aligned dense matrix with a constant number of columns.
 #[derive(Clone, Eq)]
-pub struct DenseMatrix<T: Default + Copy, C: Unsigned, A: Unsigned = DefaultAlignment> {
+pub struct DenseMatrix<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo = DefaultAlignment>
+{
     data: Vec<T>,
     offset: usize,
     rows: usize,
@@ -33,7 +35,7 @@ pub struct DenseMatrix<T: Default + Copy, C: Unsigned, A: Unsigned = DefaultAlig
     _alignment: std::marker::PhantomData<A>,
 }
 
-impl<T: Default + Copy, C: Unsigned, A: Unsigned> DenseMatrix<T, C, A> {
+impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> DenseMatrix<T, C, A> {
     /// Create a new matrix with the given number of rows.
     pub fn new(rows: usize) -> Self {
         let data = Vec::new();
@@ -183,13 +185,17 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned> DenseMatrix<T, C, A> {
     }
 }
 
-impl<T: Default + Copy + Debug, C: Unsigned, A: Unsigned> Debug for DenseMatrix<T, C, A> {
+impl<T: Default + Copy + Debug, C: Unsigned, A: Unsigned + PowerOfTwo> Debug
+    for DenseMatrix<T, C, A>
+{
     fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
         f.debug_list().entries(self.iter()).finish()
     }
 }
 
-impl<T: Default + Copy, C: Unsigned, A: Unsigned> Index<usize> for DenseMatrix<T, C, A> {
+impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> Index<usize>
+    for DenseMatrix<T, C, A>
+{
     type Output = [T];
     #[inline]
     fn index(&self, index: usize) -> &Self::Output {
@@ -199,7 +205,9 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned> Index<usize> for DenseMatrix<T
     }
 }
 
-impl<T: Default + Copy, C: Unsigned, A: Unsigned> IndexMut<usize> for DenseMatrix<T, C, A> {
+impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> IndexMut<usize>
+    for DenseMatrix<T, C, A>
+{
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         let c = self.stride();
@@ -208,7 +216,9 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned> IndexMut<usize> for DenseMatri
     }
 }
 
-impl<'a, T: Default + Copy, C: Unsigned, A: Unsigned> IntoIterator for &'a DenseMatrix<T, C, A> {
+impl<'a, T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> IntoIterator
+    for &'a DenseMatrix<T, C, A>
+{
     type Item = &'a [T];
     type IntoIter = Iter<'a, T, C, A>;
     #[inline]
@@ -217,7 +227,7 @@ impl<'a, T: Default + Copy, C: Unsigned, A: Unsigned> IntoIterator for &'a Dense
     }
 }
 
-impl<'a, T: Default + Copy, C: Unsigned, A: Unsigned> IntoIterator
+impl<'a, T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> IntoIterator
     for &'a mut DenseMatrix<T, C, A>
 {
     type Item = &'a mut [T];
@@ -228,7 +238,7 @@ impl<'a, T: Default + Copy, C: Unsigned, A: Unsigned> IntoIterator
     }
 }
 
-impl<'a, T: Default + Copy + PartialEq, C: Unsigned, A: Unsigned> PartialEq
+impl<'a, T: Default + Copy + PartialEq, C: Unsigned, A: Unsigned + PowerOfTwo> PartialEq
     for DenseMatrix<T, C, A>
 {
     fn eq(&self, other: &Self) -> bool {
@@ -258,7 +268,7 @@ pub struct Iter<'a, T, C, A>
 where
     T: 'a + Default + Copy,
     C: Unsigned,
-    A: Unsigned,
+    A: Unsigned + PowerOfTwo,
 {
     matrix: &'a DenseMatrix<T, C, A>,
     indices: Range<usize>,
@@ -269,7 +279,7 @@ impl<'a, T, C, A> Iter<'a, T, C, A>
 where
     T: 'a + Default + Copy,
     C: Unsigned,
-    A: Unsigned,
+    A: Unsigned + PowerOfTwo,
 {
     fn new(matrix: &'a DenseMatrix<T, C, A>) -> Self {
         let indices = 0..matrix.rows();
@@ -295,7 +305,7 @@ pub struct IterMut<'a, T, C, A>
 where
     T: 'a + Default + Copy,
     C: Unsigned,
-    A: Unsigned,
+    A: Unsigned + PowerOfTwo,
 {
     matrix: &'a mut DenseMatrix<T, C, A>,
     indices: Range<usize>,
@@ -306,7 +316,7 @@ impl<'a, T, C, A> IterMut<'a, T, C, A>
 where
     T: 'a + Default + Copy,
     C: Unsigned,
-    A: Unsigned,
+    A: Unsigned + PowerOfTwo,
 {
     fn new(matrix: &'a mut DenseMatrix<T, C, A>) -> Self {
         let indices = 0..matrix.rows();
@@ -334,7 +344,7 @@ macro_rules! iterator {
         where
             $T: Default + Copy,
             C: Unsigned,
-            A: Unsigned,
+            A: Unsigned + PowerOfTwo,
         {
             type Item = &'a $($item)*;
             fn next(&mut self) -> Option<Self::Item> {
@@ -346,7 +356,7 @@ macro_rules! iterator {
         where
             $T: Default + Copy,
             C: Unsigned,
-            A: Unsigned,
+            A: Unsigned + PowerOfTwo,
         {
             #[inline]
             fn len(&self) -> usize {
@@ -358,14 +368,14 @@ macro_rules! iterator {
         where
             $T: Default + Copy,
             C: Unsigned,
-            A: Unsigned,
+            A: Unsigned + PowerOfTwo,
         {}
 
         impl<'a, $T, C, A> DoubleEndedIterator for $t<'a, $T, C, A>
         where
             $T: Default + Copy,
             C: Unsigned,
-            A: Unsigned,
+            A: Unsigned + PowerOfTwo,
         {
             fn next_back(&mut self) -> Option<Self::Item> {
                 self.indices.next_back().map(|i| self.get(i))
