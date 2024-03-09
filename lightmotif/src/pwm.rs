@@ -486,6 +486,20 @@ impl<A: Alphabet> ScoringMatrix<A> {
         let pli = Pipeline::dispatch();
         pli.score(seq, self)
     }
+
+    /// Compute the PSSM scores into the given buffer.
+    ///
+    /// # Note
+    /// Uses platform-accelerated implementation when available.
+    pub fn score_into<S, C>(&self, seq: S, scores: &mut StripedScores<C>)
+    where
+        C: StrictlyPositive,
+        S: AsRef<StripedSequence<A, C>>,
+        Pipeline<A, Dispatch>: Score<A, C>,
+    {
+        let pli = Pipeline::dispatch();
+        pli.score_into(seq, self, scores);
+    }
 }
 
 impl<A: Alphabet> From<WeightMatrix<A>> for ScoringMatrix<A> {
