@@ -14,3 +14,14 @@ keywords = ["bioinformatics", "genomics", "motif", "pssm", "matrix"]
 [dependencies]
 typenum = "1.16"
 generic-array = "0.14"
+
+[dependencies.rand]
+optional = true
+version = "0.8.5"
+[dependencies.rand_distr]
+optional = true
+version = "0.4.3"
+
+[features]
+default = ["sample"]
+sample = ["rand", "rand_distr"]

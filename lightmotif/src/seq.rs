@@ -6,7 +6,11 @@ use std::fmt::Result as FmtResult;
 use std::ops::Index;
 use std::str::FromStr;
 
+#[cfg(feature = "sample")]
+use rand::Rng;
+
 use super::abc::Alphabet;
+use super::abc::Background;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
 use super::err::InvalidData;
@@ -56,6 +60,18 @@ impl<A: Alphabet> EncodedSequence<A> {
     pub fn encode<S: AsRef<str>>(sequence: S) -> Result<Self, InvalidSymbol> {
         let pli = Pipeline::<A, _>::dispatch();
         pli.encode(sequence.as_ref())
+    }
+
+    /// Sample a new random sequence from the given background frequencies.
+    #[cfg(feature = "sample")]
+    pub fn sample<R: Rng>(rng: R, background: Background<A>, length: usize) -> Self {
+        let symbols = <A as Alphabet>::symbols();
+        let dist = rand_distr::WeightedAliasIndex::new(background.frequencies().into())
+            .expect("`Background` always stores frequencies valid for `WeightedAliasIndex::new`");
+        rng.sample_iter(&dist)
+            .take(length)
+            .map(|i| symbols[i])
+            .collect()
     }
 
     /// Return the number of symbols in the sequence.
@@ -189,6 +205,10 @@ pub struct StripedSequence<A: Alphabet, C: StrictlyPositive> {
 
 impl<A: Alphabet, C: StrictlyPositive> StripedSequence<A, C> {
     /// Create a new striped sequence from the given dense matrix.
+    ///
+    /// # Errors
+    /// Returns `InvalidData` when the `DenseMatrix` given as input stores
+    /// less symbols than the given `length`.
     pub fn new(data: DenseMatrix<A::Symbol, C>, length: usize) -> Result<Self, InvalidData> {
         if data.rows() * data.columns() < length {
             Err(InvalidData)
@@ -200,6 +220,21 @@ impl<A: Alphabet, C: StrictlyPositive> StripedSequence<A, C> {
                 alphabet: std::marker::PhantomData,
             })
         }
+    }
+
+    /// Sample a new random sequence from the given background frequencies.
+    #[cfg(feature = "sample")]
+    pub fn sample<R: Rng>(mut rng: R, background: Background<A>, length: usize) -> Self {
+        let symbols = <A as Alphabet>::symbols();
+        let dist = rand_distr::WeightedAliasIndex::new(background.frequencies().into())
+            .expect("`Background` always stores frequencies valid for `WeightedAliasIndex::new`");
+        let mut data = unsafe { DenseMatrix::uninitialized((length + C::USIZE - 1) / C::USIZE) };
+        for row in data.iter_mut() {
+            for (x, y) in row.iter_mut().zip((&mut rng).sample_iter(&dist)) {
+                *x = symbols[y];
+            }
+        }
+        Self::new(data, length).expect("`EncodedSequence::sample` computes length properly")
     }
 
     /// Get the length of the sequence.
@@ -252,6 +287,15 @@ impl<A: Alphabet, C: StrictlyPositive> AsRef<StripedSequence<A, C>> for StripedS
 impl<A: Alphabet, C: StrictlyPositive> AsRef<DenseMatrix<A::Symbol, C>> for StripedSequence<A, C> {
     fn as_ref(&self) -> &DenseMatrix<A::Symbol, C> {
         &self.data
+    }
+}
+
+impl<A: Alphabet, C: StrictlyPositive> From<EncodedSequence<A>> for StripedSequence<A, C>
+where
+    Pipeline<A, Dispatch>: Stripe<A, C>,
+{
+    fn from(encoded: EncodedSequence<A>) -> Self {
+        encoded.to_striped()
     }
 }
 
