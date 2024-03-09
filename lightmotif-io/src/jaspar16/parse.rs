@@ -7,6 +7,7 @@ use lightmotif::abc::Symbol;
 use lightmotif::dense::DefaultAlignment;
 use lightmotif::dense::DenseMatrix;
 use lightmotif::err::InvalidData;
+use lightmotif::num::PowerOfTwo;
 use lightmotif::num::Unsigned;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::pwm::FrequencyMatrix;
@@ -47,7 +48,7 @@ pub fn matrix_column<A: Alphabet>(input: &str) -> IResult<&str, (A::Symbol, Vec<
     terminated(separated_pair(symbol::<A>, space1, counts), line_ending)(input)
 }
 
-pub fn build_matrix<A: Alphabet, B: Unsigned>(
+pub fn build_matrix<A: Alphabet, B: Unsigned + PowerOfTwo>(
     input: Vec<(A::Symbol, Vec<u32>)>,
 ) -> Result<DenseMatrix<u32, A::K, B>, InvalidData> {
     let mut done = vec![false; A::K::USIZE];
@@ -72,7 +73,9 @@ pub fn build_matrix<A: Alphabet, B: Unsigned>(
     Ok(matrix)
 }
 
-pub fn matrix<A: Alphabet, B: Unsigned>(input: &str) -> IResult<&str, DenseMatrix<u32, A::K, B>> {
+pub fn matrix<A: Alphabet, B: Unsigned + PowerOfTwo>(
+    input: &str,
+) -> IResult<&str, DenseMatrix<u32, A::K, B>> {
     map_res(nom::multi::many1(matrix_column::<A>), build_matrix::<A, B>)(input)
 }
 

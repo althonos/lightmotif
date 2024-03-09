@@ -57,7 +57,7 @@ impl<A: Alphabet> EncodedSequence<A> {
     ///
     /// # Note
     /// Uses platform-accelerated implementation when available.
-    pub fn encode<S: AsRef<str>>(sequence: S) -> Result<Self, InvalidSymbol> {
+    pub fn encode<S: AsRef<[u8]>>(sequence: S) -> Result<Self, InvalidSymbol> {
         let pli = Pipeline::<A, _>::dispatch();
         pli.encode(sequence.as_ref())
     }
