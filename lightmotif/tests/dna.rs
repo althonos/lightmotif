@@ -51,12 +51,12 @@ fn test_score_rows<C: StrictlyPositive, P: Score<Dna, C>>(pli: &P) {
     striped.configure(&pssm);
     let mut scores = StripedScores::empty();
 
-    pli.score_rows_into(&striped, &pssm, &mut scores, 0..2);
+    pli.score_rows_into(&pssm, &striped, 0..2, &mut scores);
     assert_eq!(scores.matrix().rows(), 2);
     assert_eq!(scores.matrix()[0][0], EXPECTED[0]);
     assert_eq!(scores.matrix()[1][0], EXPECTED[1]);
 
-    pli.score_rows_into(&striped, &pssm, &mut scores, 1..2);
+    pli.score_rows_into(&pssm, &striped, 1..2, &mut scores);
     assert_eq!(scores.matrix().rows(), 1);
     assert_eq!(scores.matrix()[0][0], EXPECTED[1]);
 }
@@ -74,7 +74,7 @@ fn test_score<C: StrictlyPositive, P: Score<Dna, C>>(pli: &P) {
     let pssm = pwm.into();
 
     striped.configure(&pssm);
-    let result = pli.score(&striped, &pssm);
+    let result = pli.score(&pssm, &striped);
     let scores = result.to_vec();
 
     assert_eq!(scores.len(), EXPECTED.len());
@@ -102,7 +102,7 @@ fn test_argmax<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(pli: &P) {
     let pssm = pwm.into();
 
     striped.configure(&pssm);
-    let result = pli.score(&striped, &pssm);
+    let result = pli.score(&pssm, &striped);
     assert_eq!(pli.argmax(&result), Some(18));
 }
 
@@ -119,7 +119,7 @@ fn test_threshold<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(pli: &P)
     let pssm = pwm.into();
 
     striped.configure(&pssm);
-    let result = pli.score(&striped, &pssm);
+    let result = pli.score(&pssm, &striped);
 
     let mut positions = pli.threshold(&result, -10.0);
     positions.sort_unstable();
