@@ -484,7 +484,7 @@ impl<A: Alphabet> ScoringMatrix<A> {
         Pipeline<A, Dispatch>: Score<A, C>,
     {
         let pli = Pipeline::dispatch();
-        pli.score(seq, self)
+        pli.score(self, seq)
     }
 
     /// Compute the PSSM scores into the given buffer.
@@ -498,7 +498,7 @@ impl<A: Alphabet> ScoringMatrix<A> {
         Pipeline<A, Dispatch>: Score<A, C>,
     {
         let pli = Pipeline::dispatch();
-        pli.score_into(seq, self, scores);
+        pli.score_into(self, seq, scores);
     }
 }
 

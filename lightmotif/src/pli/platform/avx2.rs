@@ -4,6 +4,7 @@
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+use std::ops::Range;
 
 use typenum::consts::U32;
 use typenum::consts::U5;
@@ -93,8 +94,9 @@ where
 #[target_feature(enable = "avx2")]
 #[allow(overflowing_literals)]
 unsafe fn score_avx2_permute<A>(
-    seq: &StripedSequence<A, <Avx2 as Backend>::LANES>,
     pssm: &ScoringMatrix<A>,
+    seq: &StripedSequence<A, <Avx2 as Backend>::LANES>,
+    rows: Range<usize>,
     scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
 ) where
     A: Alphabet,
@@ -127,7 +129,7 @@ unsafe fn score_avx2_permute<A>(
         0xFFFFFF0F, 0xFFFFFF0E, 0xFFFFFF0D, 0xFFFFFF0C,
     );
     // process every position of the sequence data
-    for i in 0..seq.data.rows() - seq.wrap {
+    for i in rows {
         // reset sums for current position
         let mut s1 = _mm256_setzero_ps();
         let mut s2 = _mm256_setzero_ps();
@@ -710,8 +712,9 @@ impl Avx2 {
 
     #[allow(unused)]
     pub fn score_into_permute<A, S, M>(
-        seq: S,
         pssm: M,
+        seq: S,
+        rows: Range<usize>,
         scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
     ) where
         A: Alphabet,
@@ -735,10 +738,10 @@ impl Avx2 {
             return;
         }
 
-        scores.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
+        scores.resize(seq.length - pssm.len() + 1, rows.len());
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
-            score_avx2_permute(seq, pssm, scores)
+            score_avx2_permute(pssm, seq, rows, scores)
         };
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
         panic!("attempting to run AVX2 code on a non-x86 host")

@@ -74,10 +74,10 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
     /// Compute the PSSM scores into the given striped score matrix.
     fn score_rows_into<S, M>(
         &self,
-        seq: S,
         pssm: M,
-        scores: &mut StripedScores<C>,
+        seq: S,
         rows: Range<usize>,
+        scores: &mut StripedScores<C>,
     ) where
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A>>,
@@ -94,39 +94,35 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
         scores.resize(seq.length - pssm.len() + 1, rows.len());
         scores.rows = rows.clone();
 
-        let start_row = scores.rows.start;
         let result = scores.matrix_mut();
         let matrix = pssm.matrix();
 
-        for (i, row) in rows.enumerate() {
+        for (res_row, seq_row) in rows.enumerate() {
             for col in 0..C::USIZE {
                 let mut score = 0.0;
                 for j in 0..pssm.len() {
-                    let symbol = seq.data[row + j][col];
+                    let symbol = seq.data[seq_row + j][col];
                     score += matrix[j][symbol.as_index()];
                 }
-                result[i][col] = score;
+                result[res_row][col] = score;
             }
         }
     }
 
     /// Compute the PSSM scores into the given striped score matrix.
-    fn score_into<S, M>(&self, seq: S, pssm: M, scores: &mut StripedScores<C>)
+    fn score_into<S, M>(&self, pssm: M, seq: S, scores: &mut StripedScores<C>)
     where
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A>>,
     {
         let s = seq.as_ref();
         let m = pssm.as_ref();
-
-        // let length = s.length - m.len() + 1;
-        // let rows = (length + C::USIZE - 1) / C::USIZE;
         let rows = s.data.rows() - s.wrap;
-        Self::score_rows_into(&self, s, m, scores, 0..rows)
+        Self::score_rows_into(&self, m, s, 0..rows, scores)
     }
 
     /// Compute the PSSM scores for every sequence positions.
-    fn score<S, M>(&self, seq: S, pssm: M) -> StripedScores<C>
+    fn score<S, M>(&self, pssm: M, seq: S) -> StripedScores<C>
     where
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A>>,
@@ -136,7 +132,7 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
         let data = unsafe { DenseMatrix::uninitialized(seq.data.rows() - seq.wrap) };
         let length = seq.length - pssm.len() + 1;
         let mut scores = StripedScores::new(length, data);
-        self.score_into(seq, pssm, &mut scores);
+        self.score_into(pssm, seq, &mut scores);
         scores
     }
 }
@@ -374,17 +370,18 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Avx2> {
 }
 
 impl Score<Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
-    // fn score_into<S, M>(
-    //     &self,
-    //     seq: S,
-    //     pssm: M,
-    //     scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
-    // ) where
-    //     S: AsRef<StripedSequence<Dna, <Avx2 as Backend>::LANES>>,
-    //     M: AsRef<ScoringMatrix<Dna>>,
-    // {
-    //     Avx2::score_into_permute(seq, pssm, scores)
-    // }
+    fn score_rows_into<S, M>(
+        &self,
+        pssm: M,
+        seq: S,
+        rows: Range<usize>,
+        scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
+    ) where
+        S: AsRef<StripedSequence<Dna, <Avx2 as Backend>::LANES>>,
+        M: AsRef<ScoringMatrix<Dna>>,
+    {
+        Avx2::score_into_permute(pssm, seq, rows, scores)
+    }
 }
 
 impl Score<Protein, <Avx2 as Backend>::LANES> for Pipeline<Protein, Avx2> {

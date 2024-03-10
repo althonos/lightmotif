@@ -6,6 +6,7 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 use std::ops::Div;
 use std::ops::Mul;
+use std::ops::Range;
 use std::ops::Rem;
 
 use super::Backend;
@@ -29,8 +30,9 @@ impl Backend for Sse2 {
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
 unsafe fn score_sse2<A: Alphabet, C: MultipleOf<U16>>(
-    seq: &StripedSequence<A, C>,
     pssm: &ScoringMatrix<A>,
+    seq: &StripedSequence<A, C>,
+    rows: Range<usize>,
     scores: &mut StripedScores<C>,
 ) {
     // mask vectors for broadcasting uint8x16_t to uint32x4_t to floatx4_t
@@ -40,7 +42,7 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<U16>>(
     for offset in (0..C::Quotient::USIZE).map(|i| i * U16::USIZE) {
         let mut rowptr = data[0].as_mut_ptr().add(offset);
         // process every position of the sequence data
-        for i in 0..seq.data.rows() - seq.wrap {
+        for i in rows.clone() {
             // reset sums for current position
             let mut s1 = _mm_setzero_ps();
             let mut s2 = _mm_setzero_ps();
@@ -296,8 +298,12 @@ unsafe fn threshold_sse2<C: MultipleOf<U16>>(
 
 impl Sse2 {
     #[allow(unused)]
-    pub fn score_into<A, C, S, M>(seq: S, pssm: M, scores: &mut StripedScores<C>)
-    where
+    pub fn score_rows_into<A, C, S, M>(
+        pssm: M,
+        seq: S,
+        rows: Range<usize>,
+        scores: &mut StripedScores<C>,
+    ) where
         A: Alphabet,
         C: MultipleOf<U16>,
         S: AsRef<StripedSequence<A, C>>,
@@ -321,7 +327,7 @@ impl Sse2 {
         scores.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
-            score_sse2(seq, pssm, scores);
+            score_sse2(pssm, seq, rows, scores);
         }
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
         panic!("attempting to run SSE2 code on a non-x86 host")
