@@ -138,6 +138,32 @@ fn test_threshold<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(pli: &P)
     assert_eq!(indices, vec![10, 13, 14, 18, 24, 27, 32, 35, 40, 47]);
 }
 
+#[test]
+fn test_score_position() {
+    let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
+    let mut striped = encoded.to_striped();
+
+    let cm = CountMatrix::<Dna>::from_sequences(
+        PATTERNS.iter().map(|x| EncodedSequence::encode(x).unwrap()),
+    )
+    .unwrap();
+    let pbm = cm.to_freq(0.1);
+    let pwm = pbm.to_weight(None);
+    let pssm = pwm.to_scoring();
+
+    striped.configure(&pssm);
+    for i in 0..encoded.len() - pssm.len() + 1 {
+        let score = pssm.score_position(&striped, i);
+        assert!(
+            (score - EXPECTED[i]).abs() < 1e-5,
+            "{} != {} at position {}",
+            score,
+            EXPECTED[i],
+            i
+        );
+    }
+}
+
 mod generic {
     use super::*;
 

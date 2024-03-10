@@ -46,16 +46,12 @@ impl<C: StrictlyPositive> StripedScores<C> {
         Self::new(DenseMatrix::new(0), 0..0, 0).unwrap()
     }
 
-    /// Get the rows for which these scores were computed.
+    /// The rows for which these scores were computed.
     pub fn range(&self) -> Range<usize> {
         self.range.clone()
     }
 
-    // /// FIXME: remove
-    // pub fn sequence_length(&self) -> usize {
-    //     self.max_index
-    // }
-
+    /// The maximum sequence index (the length of the scored sequence).
     pub fn max_index(&self) -> usize {
         self.max_index
     }

@@ -204,19 +204,14 @@ pub trait Threshold<C: StrictlyPositive> {
     /// implementation.
     fn threshold(&self, scores: &StripedScores<C>, threshold: f32) -> Vec<(usize, usize)> {
         let mut positions = Vec::new();
-        let matrix = scores.matrix();
-
-        let seq_rows = (scores.max_index() + C::USIZE - 1) / C::USIZE;
-        for (row_res, row_seq) in scores.range().enumerate() {
-            let row = &matrix[row_res];
+        for (i, row) in scores.matrix().iter().enumerate() {
             for col in 0..C::USIZE {
+                assert!(!row[col].is_nan());
                 if row[col] >= threshold {
-                    let i = col * seq_rows + row_seq;
-                    positions.push((row_res, col));
+                    positions.push((i, col));
                 }
             }
         }
-
         positions
     }
 }
@@ -456,13 +451,6 @@ where
     A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,
 {
-    // fn score_into<S, M>(&self, seq: S, pssm: M, scores: &mut StripedScores<C>)
-    // where
-    //     S: AsRef<StripedSequence<A, C>>,
-    //     M: AsRef<ScoringMatrix<A>>,
-    // {
-    //     Neon::score_into(seq, pssm, scores)
-    // }
 }
 
 impl<A, C> Maximum<C> for Pipeline<A, Neon>

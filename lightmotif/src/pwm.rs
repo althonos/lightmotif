@@ -500,6 +500,20 @@ impl<A: Alphabet> ScoringMatrix<A> {
         let pli = Pipeline::dispatch();
         pli.score_into(self, seq, scores);
     }
+
+    /// Compute the score for a single sequence position.
+    pub fn score_position<S, C>(&self, seq: S, pos: usize) -> f32
+    where
+        C: StrictlyPositive,
+        S: AsRef<StripedSequence<A, C>>,
+    {
+        let mut score = 0.0;
+        let s = seq.as_ref();
+        for (j, row) in self.data.iter().enumerate() {
+            score += row[s[pos + j].as_index()]
+        }
+        score
+    }
 }
 
 impl<A: Alphabet> From<WeightMatrix<A>> for ScoringMatrix<A> {
