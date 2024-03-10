@@ -6,6 +6,7 @@ use std::arch::aarch64::*;
 use std::arch::arm::*;
 use std::ops::Div;
 use std::ops::Mul;
+use std::ops::Range;
 use std::ops::Rem;
 
 use super::Backend;
@@ -123,8 +124,9 @@ where
 #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
 #[target_feature(enable = "neon")]
 unsafe fn score_neon<A: Alphabet, C: MultipleOf<U16>>(
-    seq: &StripedSequence<A, C>,
     pssm: &ScoringMatrix<A>,
+    seq: &StripedSequence<A, C>,
+    rows: Range<usize>,
     scores: &mut StripedScores<C>,
 ) {
     let zero_u8 = vdupq_n_u8(0);
@@ -133,7 +135,7 @@ unsafe fn score_neon<A: Alphabet, C: MultipleOf<U16>>(
     let data = scores.matrix_mut();
     for offset in (0..C::Quotient::USIZE).map(|i| i * <Neon as Backend>::LANES::USIZE) {
         // process every position of the sequence data
-        for i in 0..seq.data.rows() - seq.wrap {
+        for i in 0..rows.clone() {
             // reset sums for current position
             let mut s = float32x4x4_t(zero_f32, zero_f32, zero_f32, zero_f32);
             // reset position
@@ -275,8 +277,12 @@ impl Neon {
     }
 
     #[allow(unused)]
-    pub fn score_into<A, C, S, M>(seq: S, pssm: M, scores: &mut StripedScores<C>)
-    where
+    pub fn score_rows_into<A, C, S, M>(
+        pssm: M,
+        seq: S,
+        rows: Range<usize>,
+        scores: &mut StripedScores<C>,
+    ) where
         A: Alphabet,
         C: MultipleOf<U16>,
         S: AsRef<StripedSequence<A, C>>,
@@ -297,10 +303,10 @@ impl Neon {
             return;
         }
 
-        scores.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
+        scores.resize(seq.length - pssm.len() + 1, rows.len());
         #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
         unsafe {
-            score_neon(seq, pssm, scores);
+            score_neon(pssm, seq, rows, scores);
         }
         #[cfg(not(any(target_arch = "arm", target_arch = "aarch64")))]
         panic!("attempting to run NEON code on a non-Arm host")

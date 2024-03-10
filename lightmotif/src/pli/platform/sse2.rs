@@ -29,7 +29,7 @@ impl Backend for Sse2 {
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn score_sse2<A: Alphabet, C: MultipleOf<U16>>(
+unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES>>(
     pssm: &ScoringMatrix<A>,
     seq: &StripedSequence<A, C>,
     rows: Range<usize>,
@@ -39,7 +39,7 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<U16>>(
     let zero = _mm_setzero_si128();
     // process columns of the striped matrix, any multiple of 16 is supported
     let data = scores.matrix_mut();
-    for offset in (0..C::Quotient::USIZE).map(|i| i * U16::USIZE) {
+    for offset in (0..C::Quotient::USIZE).map(|i| i * <Sse2 as Backend>::LANES::USIZE) {
         let mut rowptr = data[0].as_mut_ptr().add(offset);
         // process every position of the sequence data
         for i in rows.clone() {
@@ -95,7 +95,9 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<U16>>(
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn argmax_sse2<C: MultipleOf<U16>>(scores: &StripedScores<C>) -> Option<usize> {
+unsafe fn argmax_sse2<C: MultipleOf<<Sse2 as Backend>::LANES>>(
+    scores: &StripedScores<C>,
+) -> Option<usize> {
     if scores.len() > u32::MAX as usize {
         panic!(
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
@@ -189,7 +191,7 @@ unsafe fn argmax_sse2<C: MultipleOf<U16>>(scores: &StripedScores<C>) -> Option<u
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn threshold_sse2<C: MultipleOf<U16>>(
+unsafe fn threshold_sse2<C: MultipleOf<<Sse2 as Backend>::LANES>>(
     scores: &StripedScores<C>,
     threshold: f32,
 ) -> Vec<usize> {
@@ -305,7 +307,7 @@ impl Sse2 {
         scores: &mut StripedScores<C>,
     ) where
         A: Alphabet,
-        C: MultipleOf<U16>,
+        C: MultipleOf<<Sse2 as Backend>::LANES>,
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A>>,
     {
@@ -334,7 +336,9 @@ impl Sse2 {
     }
 
     #[allow(unused)]
-    pub fn argmax<C: MultipleOf<U16>>(scores: &StripedScores<C>) -> Option<usize> {
+    pub fn argmax<C: MultipleOf<<Sse2 as Backend>::LANES>>(
+        scores: &StripedScores<C>,
+    ) -> Option<usize> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             argmax_sse2(scores)
@@ -344,7 +348,10 @@ impl Sse2 {
     }
 
     #[allow(unused)]
-    pub fn threshold<C: MultipleOf<U16>>(scores: &StripedScores<C>, threshold: f32) -> Vec<usize> {
+    pub fn threshold<C: MultipleOf<<Sse2 as Backend>::LANES>>(
+        scores: &StripedScores<C>,
+        threshold: f32,
+    ) -> Vec<usize> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             threshold_sse2(scores, threshold)

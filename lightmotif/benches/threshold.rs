@@ -34,7 +34,7 @@ fn bench<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(
 
     striped.configure(&pssm);
     let mut scores = StripedScores::empty();
-    pli.score_into(&striped, &pssm, &mut scores);
+    pli.score_into(&pssm, &striped, &mut scores);
 
     bencher.bytes = (std::mem::size_of::<f32>() * scores.len()) as u64;
     bencher.iter(|| {

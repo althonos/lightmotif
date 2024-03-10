@@ -191,8 +191,9 @@ unsafe fn score_avx2_permute<A>(
 #[target_feature(enable = "avx2")]
 #[allow(overflowing_literals)]
 unsafe fn score_avx2_gather<A>(
-    seq: &StripedSequence<A, <Avx2 as Backend>::LANES>,
     pssm: &ScoringMatrix<A>,
+    seq: &StripedSequence<A, <Avx2 as Backend>::LANES>,
+    rows: Range<usize>,
     scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
 ) where
     A: Alphabet,
@@ -221,7 +222,7 @@ unsafe fn score_avx2_gather<A>(
         0xFFFFFF0F, 0xFFFFFF0E, 0xFFFFFF0D, 0xFFFFFF0C,
     );
     // process every position of the sequence data
-    for i in 0..seq.data.rows() - seq.wrap {
+    for i in rows {
         // reset sums for current position
         let mut s1 = _mm256_setzero_ps();
         let mut s2 = _mm256_setzero_ps();
@@ -711,7 +712,7 @@ impl Avx2 {
     }
 
     #[allow(unused)]
-    pub fn score_into_permute<A, S, M>(
+    pub fn score_rows_into_permute<A, S, M>(
         pssm: M,
         seq: S,
         rows: Range<usize>,
@@ -748,9 +749,10 @@ impl Avx2 {
     }
 
     #[allow(unused)]
-    pub fn score_into_gather<A, S, M>(
-        seq: S,
+    pub fn score_rows_into_gather<A, S, M>(
         pssm: M,
+        seq: S,
+        rows: Range<usize>,
         scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
     ) where
         A: Alphabet,
@@ -770,7 +772,7 @@ impl Avx2 {
         scores.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
-            score_avx2_gather(seq, pssm, scores)
+            score_avx2_gather(pssm, seq, rows, scores)
         };
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
         panic!("attempting to run AVX2 code on a non-x86 host")

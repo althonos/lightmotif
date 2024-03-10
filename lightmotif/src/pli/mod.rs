@@ -380,7 +380,7 @@ impl Score<Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
         S: AsRef<StripedSequence<Dna, <Avx2 as Backend>::LANES>>,
         M: AsRef<ScoringMatrix<Dna>>,
     {
-        Avx2::score_into_permute(pssm, seq, rows, scores)
+        Avx2::score_rows_into_permute(pssm, seq, rows, scores)
     }
 }
 
