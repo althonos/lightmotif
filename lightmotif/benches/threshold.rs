@@ -36,9 +36,9 @@ fn bench<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(
     let mut scores = StripedScores::empty();
     pli.score_into(&pssm, &striped, &mut scores);
 
-    bencher.bytes = (std::mem::size_of::<f32>() * scores.len()) as u64;
+    bencher.bytes = (std::mem::size_of::<f32>() * scores.matrix().rows() * C::USIZE) as u64;
     bencher.iter(|| {
-        test::black_box(pli.threshold(&scores, 0.0));
+        test::black_box(pli.threshold(&scores, 10.0));
     });
 }
 

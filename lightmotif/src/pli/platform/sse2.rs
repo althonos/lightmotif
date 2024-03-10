@@ -98,10 +98,10 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES>>(
 unsafe fn argmax_sse2<C: MultipleOf<<Sse2 as Backend>::LANES>>(
     scores: &StripedScores<C>,
 ) -> Option<usize> {
-    if scores.len() > u32::MAX as usize {
+    if scores.sequence_length() > u32::MAX as usize {
         panic!(
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
-            u32::MAX, scores.len()
+            u32::MAX, scores.sequence_length()
         );
     } else if scores.is_empty() {
         None
@@ -197,17 +197,18 @@ unsafe fn threshold_sse2<C: MultipleOf<<Sse2 as Backend>::LANES>>(
 ) -> Vec<usize> {
     use std::ops::Mul;
 
-    if scores.len() >= u32::MAX as usize {
+    if scores.sequence_length() >= u32::MAX as usize {
         panic!(
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
-            u32::MAX, scores.len()
+            u32::MAX, scores.sequence_length()
         );
     } else if scores.is_empty() {
         Vec::new()
     } else {
         let data = scores.matrix();
+        let offset = scores.range().start;
         let rows = data.rows();
-        let mut indices = Vec::<u32>::with_capacity(data.columns() * rows);
+        let mut indices = Vec::<u32>::with_capacity(data.columns() * data.rows());
         unsafe {
             indices.set_len(indices.capacity());
             // NOTE(@althonos): Using `u32::MAX` as a sentinel instead of `0`
@@ -216,40 +217,42 @@ unsafe fn threshold_sse2<C: MultipleOf<<Sse2 as Backend>::LANES>>(
             let t = _mm_set1_ps(threshold);
             let ones = _mm_set1_epi32(1);
             let mut dst = indices.as_mut_ptr() as *mut __m128i;
-            for offset in (0..C::Quotient::USIZE).map(|i| i * <Sse2 as Backend>::LANES::USIZE) {
+            for column_offset in
+                (0..C::Quotient::USIZE).map(|i| i * <Sse2 as Backend>::LANES::USIZE)
+            {
                 // compute real sequence index for each column of the striped scores
                 let mut x1 = _mm_set_epi32(
-                    ((offset + 3) * rows) as i32,
-                    ((offset + 2) * rows) as i32,
-                    ((offset + 1) * rows) as i32,
-                    (offset * rows) as i32,
+                    ((column_offset + 3) * rows + offset) as i32,
+                    ((column_offset + 2) * rows + offset) as i32,
+                    ((column_offset + 1) * rows + offset) as i32,
+                    (column_offset * rows + offset) as i32,
                 );
                 let mut x2 = _mm_set_epi32(
-                    ((offset + 7) * rows) as i32,
-                    ((offset + 6) * rows) as i32,
-                    ((offset + 5) * rows) as i32,
-                    ((offset + 4) * rows) as i32,
+                    ((column_offset + 7) * rows + offset) as i32,
+                    ((column_offset + 6) * rows + offset) as i32,
+                    ((column_offset + 5) * rows + offset) as i32,
+                    ((column_offset + 4) * rows + offset) as i32,
                 );
                 let mut x3 = _mm_set_epi32(
-                    ((offset + 11) * rows) as i32,
-                    ((offset + 10) * rows) as i32,
-                    ((offset + 9) * rows) as i32,
-                    ((offset + 8) * rows) as i32,
+                    ((column_offset + 11) * rows + offset) as i32,
+                    ((column_offset + 10) * rows + offset) as i32,
+                    ((column_offset + 9) * rows + offset) as i32,
+                    ((column_offset + 8) * rows + offset) as i32,
                 );
                 let mut x4 = _mm_set_epi32(
-                    ((offset + 15) * rows) as i32,
-                    ((offset + 14) * rows) as i32,
-                    ((offset + 13) * rows) as i32,
-                    ((offset + 12) * rows) as i32,
+                    ((column_offset + 15) * rows + offset) as i32,
+                    ((column_offset + 14) * rows + offset) as i32,
+                    ((column_offset + 13) * rows + offset) as i32,
+                    ((column_offset + 12) * rows + offset) as i32,
                 );
                 // Process rows iteratively
                 let mut dataptr = data[0].as_ptr();
                 for _ in 0..data.rows() {
                     // load scores for the current row
-                    let r1 = _mm_load_ps(dataptr.add(offset));
-                    let r2 = _mm_load_ps(dataptr.add(offset + 0x04));
-                    let r3 = _mm_load_ps(dataptr.add(offset + 0x08));
-                    let r4 = _mm_load_ps(dataptr.add(offset + 0x0c));
+                    let r1 = _mm_load_ps(dataptr.add(column_offset));
+                    let r2 = _mm_load_ps(dataptr.add(column_offset + 0x04));
+                    let r3 = _mm_load_ps(dataptr.add(column_offset + 0x08));
+                    let r4 = _mm_load_ps(dataptr.add(column_offset + 0x0c));
                     // check whether scores are greater or equal to the threshold
                     let m1 = _mm_castps_si128(_mm_cmplt_ps(t, r1));
                     let m2 = _mm_castps_si128(_mm_cmplt_ps(t, r2));
@@ -293,7 +296,7 @@ unsafe fn threshold_sse2<C: MultipleOf<<Sse2 as Backend>::LANES>>(
         //        clipping the vector with `indices.set_len`.
 
         // Remove all masked items and convert the indices to usize
-        indices.retain(|&x| (x as usize) < scores.len());
+        indices.retain(|&x| (x as usize) < scores.sequence_length());
         indices.into_iter().map(|i| i as usize).collect()
     }
 }
@@ -322,11 +325,11 @@ impl Sse2 {
         }
 
         if seq.length < pssm.len() {
-            scores.resize(0, 0);
+            scores.resize(0..0, 0);
             return;
         }
 
-        scores.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
+        scores.resize(rows.clone(), seq.length);
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             score_sse2(pssm, seq, rows, scores);

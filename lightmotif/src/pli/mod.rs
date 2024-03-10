@@ -86,13 +86,12 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
         let pssm = pssm.as_ref();
 
         if seq.length < pssm.len() {
-            scores.resize(0, 0);
+            scores.resize(0..0, 0);
             return;
         }
 
         // FIXME?
-        scores.resize(seq.length - pssm.len() + 1, rows.len());
-        scores.rows = rows.clone();
+        scores.resize(rows.clone(), seq.length - pssm.len() + 1);
 
         let result = scores.matrix_mut();
         let matrix = pssm.matrix();
@@ -129,9 +128,7 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
-        let data = unsafe { DenseMatrix::uninitialized(seq.data.rows() - seq.wrap) };
-        let length = seq.length - pssm.len() + 1;
-        let mut scores = StripedScores::new(length, data);
+        let mut scores = StripedScores::empty();
         self.score_into(pssm, seq, &mut scores);
         scores
     }
@@ -146,11 +143,16 @@ pub trait Maximum<C: StrictlyPositive> {
         }
 
         let mut best_pos = 0;
-        let mut best_score = scores[0];
-        for i in 1..scores.len() {
-            if scores[i] > best_score {
-                best_score = scores[i];
-                best_pos = i;
+        let mut best_score = f32::NEG_INFINITY;
+        let matrix = scores.matrix();
+
+        let seq_rows = (scores.sequence_length() + C::USIZE - 1) / C::USIZE;
+        for (row_res, row_seq) in scores.range().enumerate() {
+            for col in 0..C::USIZE {
+                if matrix[row_res][col] >= best_score {
+                    best_pos = col * seq_rows + row_seq;
+                    best_score = matrix[row_res][col];
+                }
             }
         }
 
@@ -198,15 +200,23 @@ pub trait Threshold<C: StrictlyPositive> {
     /// Return the indices of positions with score equal to or greater than the threshold.
     ///
     /// # Note
-    ///
-    /// The indices may or may not be sorted, depending on the implementation.
+    /// The indices are not be sorted, and the actual order depends on the
+    /// implementation.
     fn threshold(&self, scores: &StripedScores<C>, threshold: f32) -> Vec<usize> {
         let mut positions = Vec::new();
-        for i in 0..scores.len() {
-            if scores[i] >= threshold {
-                positions.push(i);
+        let matrix = scores.matrix();
+
+        let seq_rows = (scores.sequence_length() + C::USIZE - 1) / C::USIZE;
+        for (row_res, row_seq) in scores.range().enumerate() {
+            let row = &matrix[row_res];
+            for col in 0..C::USIZE {
+                if row[col] >= threshold {
+                    let i = col * seq_rows + row_seq;
+                    positions.push(i);
+                }
             }
         }
+
         positions
     }
 }
@@ -329,9 +339,9 @@ where
     <C as Rem<U16>>::Output: Zero,
     <C as Div<U16>>::Output: Unsigned,
 {
-    fn argmax(&self, scores: &StripedScores<C>) -> Option<usize> {
-        Sse2::argmax(scores)
-    }
+    // fn argmax(&self, scores: &StripedScores<C>) -> Option<usize> {
+    //     Sse2::argmax(scores)
+    // }
 }
 
 impl<A: Alphabet, C: StrictlyPositive> Threshold<C> for Pipeline<A, Sse2>
@@ -410,9 +420,9 @@ impl<A: Alphabet> Stripe<A, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
 }
 
 impl<A: Alphabet> Maximum<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
-    fn argmax(&self, scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
-        Avx2::argmax(scores)
-    }
+    // fn argmax(&self, scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
+    //     Avx2::argmax(scores)
+    // }
 }
 
 impl<A: Alphabet> Threshold<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
@@ -484,7 +494,7 @@ where
     <C as Rem<U16>>::Output: Zero,
     <C as Div<U16>>::Output: Unsigned,
 {
-    fn threshold(&self, scores: &StripedScores<C>, threshold: f32) -> Vec<usize> {
-        Neon::threshold(scores, threshold)
-    }
+    // fn threshold(&self, scores: &StripedScores<C>, threshold: f32) -> Vec<usize> {
+    //     Neon::threshold(scores, threshold)
+    // }
 }

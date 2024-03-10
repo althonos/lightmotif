@@ -275,10 +275,10 @@ unsafe fn score_avx2_gather<A>(
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 unsafe fn argmax_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
-    if scores.len() > u32::MAX as usize {
+    if scores.sequence_length() > u32::MAX as usize {
         panic!(
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
-            u32::MAX, scores.len()
+            u32::MAX, scores.sequence_length()
         );
     } else if scores.is_empty() {
         None
@@ -352,18 +352,21 @@ unsafe fn threshold_avx2(
     scores: &StripedScores<<Avx2 as Backend>::LANES>,
     threshold: f32,
 ) -> Vec<usize> {
-    if scores.len() >= u32::MAX as usize {
+    if scores.sequence_length() >= u32::MAX as usize {
         panic!(
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
-            u32::MAX, scores.len()
+            u32::MAX, scores.sequence_length()
         );
     } else if scores.is_empty() {
         Vec::new()
     } else {
         let data = scores.matrix();
-        let rows = data.rows();
-        let mut indices =
-            Vec::<u32>::with_capacity(data.columns() * rows + std::mem::align_of::<__m256i>());
+        let offset = scores.range().start;
+        let rows = (scores.max_index() + 32 - 1) / 32;
+        let mut indices = Vec::<u32>::with_capacity(
+            data.columns() * data.rows() + std::mem::align_of::<__m256i>(),
+        );
+
         unsafe {
             // prepare AVX2 constants
             let t = _mm256_set1_ps(threshold);
@@ -378,44 +381,44 @@ unsafe fn threshold_avx2(
 
             // compute real sequence index for each column of the striped scores
             let mut x1 = _mm256_set_epi32(
-                (7 * rows) as i32,
-                (6 * rows) as i32,
-                (5 * rows) as i32,
-                (4 * rows) as i32,
-                (3 * rows) as i32,
-                (2 * rows) as i32,
-                rows as i32,
-                (0 * rows) as i32,
+                (7 * rows + offset) as i32,
+                (6 * rows + offset) as i32,
+                (5 * rows + offset) as i32,
+                (4 * rows + offset) as i32,
+                (3 * rows + offset) as i32,
+                (2 * rows + offset) as i32,
+                (rows + offset) as i32,
+                (0 * rows + offset) as i32,
             );
             let mut x2 = _mm256_set_epi32(
-                (15 * rows) as i32,
-                (14 * rows) as i32,
-                (13 * rows) as i32,
-                (12 * rows) as i32,
-                (11 * rows) as i32,
-                (10 * rows) as i32,
-                (9 * rows) as i32,
-                (8 * rows) as i32,
+                (15 * rows + offset) as i32,
+                (14 * rows + offset) as i32,
+                (13 * rows + offset) as i32,
+                (12 * rows + offset) as i32,
+                (11 * rows + offset) as i32,
+                (10 * rows + offset) as i32,
+                (9 * rows + offset) as i32,
+                (8 * rows + offset) as i32,
             );
             let mut x3 = _mm256_set_epi32(
-                (23 * rows) as i32,
-                (22 * rows) as i32,
-                (21 * rows) as i32,
-                (20 * rows) as i32,
-                (19 * rows) as i32,
-                (18 * rows) as i32,
-                (17 * rows) as i32,
-                (16 * rows) as i32,
+                (23 * rows + offset) as i32,
+                (22 * rows + offset) as i32,
+                (21 * rows + offset) as i32,
+                (20 * rows + offset) as i32,
+                (19 * rows + offset) as i32,
+                (18 * rows + offset) as i32,
+                (17 * rows + offset) as i32,
+                (16 * rows + offset) as i32,
             );
             let mut x4 = _mm256_set_epi32(
-                (31 * rows) as i32,
-                (30 * rows) as i32,
-                (29 * rows) as i32,
-                (28 * rows) as i32,
-                (27 * rows) as i32,
-                (26 * rows) as i32,
-                (25 * rows) as i32,
-                (24 * rows) as i32,
+                (31 * rows + offset) as i32,
+                (30 * rows + offset) as i32,
+                (29 * rows + offset) as i32,
+                (28 * rows + offset) as i32,
+                (27 * rows + offset) as i32,
+                (26 * rows + offset) as i32,
+                (25 * rows + offset) as i32,
+                (24 * rows + offset) as i32,
             );
             // Process rows iteratively
             let mut dataptr = data[0].as_ptr();
@@ -466,7 +469,7 @@ unsafe fn threshold_avx2(
         //       `indices.into_iter().filter(...).
 
         // Remove all masked items and convert the indices to usize
-        indices.retain(|&x| (x as usize) < scores.len());
+        indices.retain(|&x| (x as usize) < scores.sequence_length());
         indices.into_iter().map(|i| i as usize).collect()
     }
 }
@@ -735,11 +738,11 @@ impl Avx2 {
         }
 
         if seq.length < pssm.len() {
-            scores.resize(0, 0);
+            scores.resize(0..0, 0);
             return;
         }
 
-        scores.resize(seq.length - pssm.len() + 1, rows.len());
+        scores.resize(rows.clone(), seq.length - pssm.len() + 1);
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             score_avx2_permute(pssm, seq, rows, scores)
@@ -769,7 +772,12 @@ impl Avx2 {
             );
         }
 
-        scores.resize(seq.length - pssm.len() + 1, seq.data.rows() - seq.wrap);
+        if seq.length < pssm.len() {
+            scores.resize(0..0, 0);
+            return;
+        }
+
+        scores.resize(rows.clone(), seq.length - pssm.len() + 1);
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             score_avx2_gather(pssm, seq, rows, scores)
