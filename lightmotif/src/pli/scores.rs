@@ -2,8 +2,6 @@ use std::iter::FusedIterator;
 use std::ops::Index;
 use std::ops::Range;
 
-use rand_distr::num_traits::Inv;
-
 use crate::abc::Dna;
 use crate::dense::DenseMatrix;
 use crate::err::InvalidData;
@@ -43,7 +41,7 @@ impl<C: StrictlyPositive> StripedScores<C> {
         }
     }
 
-    /// Create an empty score matrix with the given length and row count.
+    /// Create an empty buffer to store striped scores.
     pub fn empty() -> Self {
         Self::new(DenseMatrix::new(0), 0..0, 0).unwrap()
     }
@@ -125,7 +123,8 @@ where
     ///
     /// The indices are not necessarily returned in a particular order,
     /// since different implementations use a different internal memory
-    /// representation.
+    /// representation. The indices are corrected by offset depending on
+    /// the range for which the scores were computed.
     ///
     /// # Note
     /// Uses platform-accelerated implementation when available.

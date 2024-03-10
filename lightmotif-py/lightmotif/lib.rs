@@ -516,17 +516,17 @@ pub struct StripedScores {
 
 #[pymethods]
 impl StripedScores {
-    fn __len__(&self) -> usize {
-        self.scores.len()
-    }
+    // fn __len__(&self) -> usize {
+    //     self.scores.rows()
+    // }
 
-    fn __getitem__(&self, index: isize) -> PyResult<f32> {
-        if index < self.scores.len() as isize && index >= 0 {
-            Ok(self.scores[index as usize])
-        } else {
-            Err(PyIndexError::new_err("list index out of range"))
-        }
-    }
+    // fn __getitem__(&self, index: isize) -> PyResult<f32> {
+    //     if index < self.scores.len() as isize && index >= 0 {
+    //         Ok(self.scores[index as usize])
+    //     } else {
+    //         Err(PyIndexError::new_err("list index out of range"))
+    //     }
+    // }
 
     unsafe fn __getbuffer__(
         mut slf: PyRefMut<'_, Self>,
@@ -545,7 +545,7 @@ impl StripedScores {
         let data = slf.scores.matrix()[0].as_ptr();
 
         (*view).buf = data as *mut std::os::raw::c_void;
-        (*view).len = slf.scores.len() as isize;
+        (*view).len = (slf.scores.matrix().rows() * slf.scores.matrix().columns()) as isize;
         (*view).readonly = 1;
         (*view).itemsize = std::mem::size_of::<f32>() as isize;
 
@@ -619,13 +619,13 @@ impl From<lightmotif::pli::StripedScores<C>> for StripedScores {
             (scores.matrix().stride() * std::mem::size_of::<f32>()) as Py_ssize_t,
         ];
         // mask the remaining positions that are outside the sequence length
-        let length = scores.len();
-        let data = scores.matrix_mut();
-        for i in length..rows * cols {
-            let row = i % rows;
-            let col = i / rows;
-            data[row][col] = -f32::INFINITY;
-        }
+        // let length = scores.len();
+        // let data = scores.matrix_mut();
+        // for i in length..rows * cols {
+        //     let row = i % rows;
+        //     let col = i / rows;
+        //     data[row][col] = -f32::INFINITY;
+        // }
         // return a Python object implementing the buffer protocol
         Self {
             scores,

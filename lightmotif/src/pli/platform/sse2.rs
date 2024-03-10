@@ -189,118 +189,6 @@ unsafe fn argmax_sse2<C: MultipleOf<<Sse2 as Backend>::LANES>>(
     }
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[target_feature(enable = "sse2")]
-unsafe fn threshold_sse2<C: MultipleOf<<Sse2 as Backend>::LANES>>(
-    scores: &StripedScores<C>,
-    threshold: f32,
-) -> Vec<usize> {
-    use std::ops::Mul;
-
-    if scores.sequence_length() >= u32::MAX as usize {
-        panic!(
-            "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
-            u32::MAX, scores.sequence_length()
-        );
-    } else if scores.is_empty() {
-        Vec::new()
-    } else {
-        let data = scores.matrix();
-        let offset = scores.range().start;
-        let rows = data.rows();
-        let mut indices = Vec::<u32>::with_capacity(data.columns() * data.rows());
-        unsafe {
-            indices.set_len(indices.capacity());
-            // NOTE(@althonos): Using `u32::MAX` as a sentinel instead of `0`
-            //                  because `0` may be a valid index.
-            let max = _mm_set1_epi32(u32::MAX as i32);
-            let t = _mm_set1_ps(threshold);
-            let ones = _mm_set1_epi32(1);
-            let mut dst = indices.as_mut_ptr() as *mut __m128i;
-            for column_offset in
-                (0..C::Quotient::USIZE).map(|i| i * <Sse2 as Backend>::LANES::USIZE)
-            {
-                // compute real sequence index for each column of the striped scores
-                let mut x1 = _mm_set_epi32(
-                    ((column_offset + 3) * rows + offset) as i32,
-                    ((column_offset + 2) * rows + offset) as i32,
-                    ((column_offset + 1) * rows + offset) as i32,
-                    (column_offset * rows + offset) as i32,
-                );
-                let mut x2 = _mm_set_epi32(
-                    ((column_offset + 7) * rows + offset) as i32,
-                    ((column_offset + 6) * rows + offset) as i32,
-                    ((column_offset + 5) * rows + offset) as i32,
-                    ((column_offset + 4) * rows + offset) as i32,
-                );
-                let mut x3 = _mm_set_epi32(
-                    ((column_offset + 11) * rows + offset) as i32,
-                    ((column_offset + 10) * rows + offset) as i32,
-                    ((column_offset + 9) * rows + offset) as i32,
-                    ((column_offset + 8) * rows + offset) as i32,
-                );
-                let mut x4 = _mm_set_epi32(
-                    ((column_offset + 15) * rows + offset) as i32,
-                    ((column_offset + 14) * rows + offset) as i32,
-                    ((column_offset + 13) * rows + offset) as i32,
-                    ((column_offset + 12) * rows + offset) as i32,
-                );
-                // Process rows iteratively
-                let mut dataptr = data[0].as_ptr();
-                for _ in 0..data.rows() {
-                    // load scores for the current row
-                    let r1 = _mm_load_ps(dataptr.add(column_offset));
-                    let r2 = _mm_load_ps(dataptr.add(column_offset + 0x04));
-                    let r3 = _mm_load_ps(dataptr.add(column_offset + 0x08));
-                    let r4 = _mm_load_ps(dataptr.add(column_offset + 0x0c));
-                    // check whether scores are greater or equal to the threshold
-                    let m1 = _mm_castps_si128(_mm_cmplt_ps(t, r1));
-                    let m2 = _mm_castps_si128(_mm_cmplt_ps(t, r2));
-                    let m3 = _mm_castps_si128(_mm_cmplt_ps(t, r3));
-                    let m4 = _mm_castps_si128(_mm_cmplt_ps(t, r4));
-                    // NOTE: Code below could use `_mm_blendv_ps` instead,
-                    //       but this instruction is only available on SSE4.1
-                    //       while the rest of the code is actually using SSE2
-                    //       instructions only.
-                    // Mask indices that should be removed
-                    let i1 = _mm_or_si128(_mm_and_si128(x1, m1), _mm_andnot_si128(m1, max));
-                    let i2 = _mm_or_si128(_mm_and_si128(x2, m2), _mm_andnot_si128(m2, max));
-                    let i3 = _mm_or_si128(_mm_and_si128(x3, m3), _mm_andnot_si128(m3, max));
-                    let i4 = _mm_or_si128(_mm_and_si128(x4, m4), _mm_andnot_si128(m4, max));
-                    // Store masked indices into the destination vector
-                    _mm_storeu_si128(dst, i1);
-                    _mm_storeu_si128(dst.add(1), i2);
-                    _mm_storeu_si128(dst.add(2), i3);
-                    _mm_storeu_si128(dst.add(3), i4);
-                    // Advance result buffer to next row
-                    dst = dst.add(4);
-                    // Advance sequence indices to next row
-                    x1 = _mm_add_epi32(x1, ones);
-                    x2 = _mm_add_epi32(x2, ones);
-                    x3 = _mm_add_epi32(x3, ones);
-                    x4 = _mm_add_epi32(x4, ones);
-                    // Advance data pointer to next row
-                    dataptr = dataptr.add(data.stride());
-                }
-            }
-        }
-
-        // NOTE: Benchmarks suggest that `indices.retain(...)` is faster than
-        //       `indices.into_iter().filter(...).
-
-        // FIXME: The `Vec::retain` implementation may not be optimal for this,
-        //        since it takes extra care of the vector elements deallocation
-        //        because they may implement `Drop`. It may be faster to use
-        //        a double-pointer algorithm, swapping sentinels and concrete
-        //        values until the end of the vector is reached, and then
-        //        clipping the vector with `indices.set_len`.
-
-        // Remove all masked items and convert the indices to usize
-        indices.retain(|&x| (x as usize) < scores.sequence_length());
-        indices.into_iter().map(|i| i as usize).collect()
-    }
-}
-
 impl Sse2 {
     #[allow(unused)]
     pub fn score_rows_into<A, C, S, M>(
@@ -345,19 +233,6 @@ impl Sse2 {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             argmax_sse2(scores)
-        }
-        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-        panic!("attempting to run SSE2 code on a non-x86 host")
-    }
-
-    #[allow(unused)]
-    pub fn threshold<C: MultipleOf<<Sse2 as Backend>::LANES>>(
-        scores: &StripedScores<C>,
-        threshold: f32,
-    ) -> Vec<usize> {
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        unsafe {
-            threshold_sse2(scores, threshold)
         }
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
         panic!("attempting to run SSE2 code on a non-x86 host")

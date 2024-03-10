@@ -157,22 +157,4 @@ impl<A: Alphabet> Maximum<<Dispatch as Backend>::LANES> for Pipeline<A, Dispatch
     }
 }
 
-impl<A: Alphabet> Threshold<<Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {
-    fn threshold(
-        &self,
-        scores: &StripedScores<<Dispatch as Backend>::LANES>,
-        threshold: f32,
-    ) -> Vec<usize> {
-        match self.backend {
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            Dispatch::Avx2 => Avx2::threshold(scores, threshold),
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            Dispatch::Sse2 => Sse2::threshold(scores, threshold),
-            // #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-            // Dispatch::Neon => Neon::threshold(scores, threshold),
-            _ => <Generic as Threshold<<Dispatch as Backend>::LANES>>::threshold(
-                &Generic, scores, threshold,
-            ),
-        }
-    }
-}
+impl<A: Alphabet> Threshold<<Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {}

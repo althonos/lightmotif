@@ -19,14 +19,14 @@ use super::abc::Symbol;
 use super::dense::DenseMatrix;
 use super::err::InvalidSymbol;
 use super::err::UnsupportedBackend;
+use super::num::MultipleOf;
 use super::num::StrictlyPositive;
+use super::num::Unsigned;
+use super::num::Zero;
+use super::num::U16;
 use super::pwm::ScoringMatrix;
 use super::seq::EncodedSequence;
 use super::seq::StripedSequence;
-
-use typenum::consts::U16;
-use typenum::marker_traits::Unsigned;
-use typenum::marker_traits::Zero;
 
 pub mod dispatch;
 pub mod platform;
@@ -319,25 +319,26 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Sse2> {}
 impl<A, C> Score<A, C> for Pipeline<A, Sse2>
 where
     A: Alphabet,
-    C: StrictlyPositive + Rem<U16> + Div<U16>,
-    <C as Rem<U16>>::Output: Zero,
-    <C as Div<U16>>::Output: Unsigned,
+    C: StrictlyPositive + MultipleOf<U16>,
 {
-    // fn score_into<S, M>(&self, seq: S, pssm: M, scores: &mut StripedScores<C>)
-    // where
-    //     S: AsRef<StripedSequence<A, C>>,
-    //     M: AsRef<ScoringMatrix<A>>,
-    // {
-    //     Sse2::score_into(seq, pssm, scores)
-    // }
+    fn score_rows_into<S, M>(
+        &self,
+        pssm: M,
+        seq: S,
+        rows: Range<usize>,
+        scores: &mut StripedScores<C>,
+    ) where
+        S: AsRef<StripedSequence<A, C>>,
+        M: AsRef<ScoringMatrix<A>>,
+    {
+        Sse2::score_rows_into(pssm, seq, rows, scores)
+    }
 }
 
 impl<A, C> Maximum<C> for Pipeline<A, Sse2>
 where
     A: Alphabet,
-    C: StrictlyPositive + Rem<U16> + Div<U16>,
-    <C as Rem<U16>>::Output: Zero,
-    <C as Div<U16>>::Output: Unsigned,
+    C: StrictlyPositive + MultipleOf<U16>,
 {
     // fn argmax(&self, scores: &StripedScores<C>) -> Option<usize> {
     //     Sse2::argmax(scores)
@@ -347,13 +348,8 @@ where
 impl<A: Alphabet, C: StrictlyPositive> Threshold<C> for Pipeline<A, Sse2>
 where
     A: Alphabet,
-    C: StrictlyPositive + Rem<U16> + Div<U16>,
-    <C as Rem<U16>>::Output: Zero,
-    <C as Div<U16>>::Output: Unsigned,
+    C: StrictlyPositive + MultipleOf<U16>,
 {
-    fn threshold(&self, scores: &StripedScores<C>, threshold: f32) -> Vec<usize> {
-        Sse2::threshold(scores, threshold)
-    }
 }
 
 // --- AVX2 pipeline -----------------------------------------------------------
@@ -395,17 +391,18 @@ impl Score<Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
 }
 
 impl Score<Protein, <Avx2 as Backend>::LANES> for Pipeline<Protein, Avx2> {
-    // fn score_into<S, M>(
-    //     &self,
-    //     seq: S,
-    //     pssm: M,
-    //     scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
-    // ) where
-    //     S: AsRef<StripedSequence<Protein, <Avx2 as Backend>::LANES>>,
-    //     M: AsRef<ScoringMatrix<Protein>>,
-    // {
-    //     Avx2::score_into_gather(seq, pssm, scores)
-    // }
+    fn score_rows_into<S, M>(
+        &self,
+        pssm: M,
+        seq: S,
+        rows: Range<usize>,
+        scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
+    ) where
+        S: AsRef<StripedSequence<Protein, <Avx2 as Backend>::LANES>>,
+        M: AsRef<ScoringMatrix<Protein>>,
+    {
+        Avx2::score_rows_into_gather(pssm, seq, rows, scores)
+    }
 }
 
 impl<A: Alphabet> Stripe<A, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
@@ -425,15 +422,7 @@ impl<A: Alphabet> Maximum<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
     // }
 }
 
-impl<A: Alphabet> Threshold<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
-    fn threshold(
-        &self,
-        scores: &StripedScores<<Avx2 as Backend>::LANES>,
-        threshold: f32,
-    ) -> Vec<usize> {
-        Avx2::threshold(scores, threshold)
-    }
-}
+impl<A: Alphabet> Threshold<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {}
 
 // --- NEON pipeline -----------------------------------------------------------
 
@@ -465,9 +454,7 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Neon> {
 impl<A, C> Score<A, C> for Pipeline<A, Neon>
 where
     A: Alphabet,
-    C: StrictlyPositive + Rem<U16> + Div<U16>,
-    <C as Rem<U16>>::Output: Zero,
-    <C as Div<U16>>::Output: Unsigned,
+    C: StrictlyPositive + MultipleOf<U16>,
 {
     // fn score_into<S, M>(&self, seq: S, pssm: M, scores: &mut StripedScores<C>)
     // where
@@ -481,20 +468,13 @@ where
 impl<A, C> Maximum<C> for Pipeline<A, Neon>
 where
     A: Alphabet,
-    C: StrictlyPositive + Rem<U16> + Div<U16>,
-    <C as Rem<U16>>::Output: Zero,
-    <C as Div<U16>>::Output: Unsigned,
+    C: StrictlyPositive + MultipleOf<U16>,
 {
 }
 
 impl<A, C> Threshold<C> for Pipeline<A, Neon>
 where
     A: Alphabet,
-    C: StrictlyPositive + Rem<U16> + Div<U16>,
-    <C as Rem<U16>>::Output: Zero,
-    <C as Div<U16>>::Output: Unsigned,
+    C: StrictlyPositive + MultipleOf<U16>,
 {
-    // fn threshold(&self, scores: &StripedScores<C>, threshold: f32) -> Vec<usize> {
-    //     Neon::threshold(scores, threshold)
-    // }
 }
