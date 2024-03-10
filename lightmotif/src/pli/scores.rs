@@ -51,10 +51,10 @@ impl<C: StrictlyPositive> StripedScores<C> {
         self.range.clone()
     }
 
-    /// FIXME: remove
-    pub fn sequence_length(&self) -> usize {
-        self.max_index
-    }
+    // /// FIXME: remove
+    // pub fn sequence_length(&self) -> usize {
+    //     self.max_index
+    // }
 
     pub fn max_index(&self) -> usize {
         self.max_index
@@ -83,36 +83,11 @@ impl<C: StrictlyPositive> StripedScores<C> {
         self.max_index = max_index;
     }
 
-    /// Convert coordinates inside the striped scores into the sequence index.
+    /// Convert coordinates inside the striped scores into a sequence index.
     #[inline]
     pub fn sequence_index(&self, row: usize, column: usize) -> usize {
         let seq_rows = (self.max_index + C::USIZE - 1) / C::USIZE;
-        let row_seq = self.range.start + row;
-        column * seq_rows + row_seq
-    }
-
-    /// Return the positions with score equal to or greater than the threshold.
-    ///
-    /// The indices are not necessarily returned in a particular order,
-    /// since different implementations use a different internal memory
-    /// representation. The indices are corrected by offset depending on
-    /// the range for which the scores were computed.
-    pub fn threshold(&self, threshold: f32) -> Vec<(usize, usize)> {
-        let mut positions = Vec::new();
-        let matrix = self.matrix();
-
-        let seq_rows = (self.sequence_length() + C::USIZE - 1) / C::USIZE;
-        for (row_res, row_seq) in self.range.clone().enumerate() {
-            let row = &matrix[row_res];
-            for col in 0..C::USIZE {
-                if row[col] >= threshold {
-                    let i = col * seq_rows + row_seq;
-                    positions.push((row_res, col));
-                }
-            }
-        }
-
-        positions
+        column * seq_rows + self.range.start + row
     }
 
     /// Iterate over scores of individual sequence positions.
@@ -146,6 +121,23 @@ where
     /// Uses platform-accelerated implementation when available.
     pub fn argmax(&self) -> Option<usize> {
         Pipeline::dispatch().argmax(self)
+    }
+}
+
+impl<C: StrictlyPositive> StripedScores<C>
+where
+    Pipeline<Dna, Dispatch>: Threshold<C>,
+{
+    /// Return the positions with score equal to or greater than the threshold.
+    ///
+    /// The indices are not necessarily returned in a particular order,
+    /// since different implementations use a different internal memory
+    /// representation.
+    ///
+    /// # Note
+    /// Uses platform-accelerated implementation when available.
+    pub fn threshold(&self, threshold: f32) -> Vec<(usize, usize)> {
+        Pipeline::dispatch().threshold(self, threshold)
     }
 }
 

@@ -146,7 +146,7 @@ pub trait Maximum<C: StrictlyPositive> {
         let mut best_score = f32::NEG_INFINITY;
         let matrix = scores.matrix();
 
-        let seq_rows = (scores.sequence_length() + C::USIZE - 1) / C::USIZE;
+        let seq_rows = (scores.max_index() + C::USIZE - 1) / C::USIZE;
         for (row_res, row_seq) in scores.range().enumerate() {
             for col in 0..C::USIZE {
                 if matrix[row_res][col] >= best_score {
@@ -206,7 +206,7 @@ pub trait Threshold<C: StrictlyPositive> {
         let mut positions = Vec::new();
         let matrix = scores.matrix();
 
-        let seq_rows = (scores.sequence_length() + C::USIZE - 1) / C::USIZE;
+        let seq_rows = (scores.max_index() + C::USIZE - 1) / C::USIZE;
         for (row_res, row_seq) in scores.range().enumerate() {
             let row = &matrix[row_res];
             for col in 0..C::USIZE {

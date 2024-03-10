@@ -275,10 +275,10 @@ unsafe fn score_avx2_gather<A>(
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 unsafe fn argmax_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
-    if scores.sequence_length() > u32::MAX as usize {
+    if scores.max_index() > u32::MAX as usize {
         panic!(
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
-            u32::MAX, scores.sequence_length()
+            u32::MAX, scores.max_index()
         );
     } else if scores.is_empty() {
         None

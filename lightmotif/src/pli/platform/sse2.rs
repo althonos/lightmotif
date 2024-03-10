@@ -98,10 +98,10 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES>>(
 unsafe fn argmax_sse2<C: MultipleOf<<Sse2 as Backend>::LANES>>(
     scores: &StripedScores<C>,
 ) -> Option<usize> {
-    if scores.sequence_length() > u32::MAX as usize {
+    if scores.max_index() > u32::MAX as usize {
         panic!(
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
-            u32::MAX, scores.sequence_length()
+            u32::MAX, scores.max_index()
         );
     } else if scores.is_empty() {
         None

@@ -121,13 +121,21 @@ fn test_threshold<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(pli: &P)
     striped.configure(&pssm);
     let result = pli.score(&pssm, &striped);
 
-    let mut positions = pli.threshold(&result, -10.0);
-    positions.sort_unstable();
-    assert_eq!(positions, vec![18, 27, 32]);
+    let positions = pli.threshold(&result, -10.0);
+    let mut indices = positions
+        .into_iter()
+        .map(|(row, col)| result.sequence_index(row, col))
+        .collect::<Vec<_>>();
+    indices.sort_unstable();
+    assert_eq!(indices, vec![18, 27, 32]);
 
-    let mut positions = pli.threshold(&result, -15.0);
-    positions.sort_unstable();
-    assert_eq!(positions, vec![10, 13, 14, 18, 24, 27, 32, 35, 40, 47]);
+    let positions = pli.threshold(&result, -15.0);
+    let mut indices = positions
+        .into_iter()
+        .map(|(row, col)| result.sequence_index(row, col))
+        .collect::<Vec<_>>();
+    indices.sort_unstable();
+    assert_eq!(indices, vec![10, 13, 14, 18, 24, 27, 32, 35, 40, 47]);
 }
 
 mod generic {
