@@ -70,57 +70,57 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Dispatch> {
 }
 
 impl Score<Dna, <Dispatch as Backend>::LANES> for Pipeline<Dna, Dispatch> {
-    fn score_into<S, M>(
-        &self,
-        seq: S,
-        pssm: M,
-        scores: &mut StripedScores<<Dispatch as Backend>::LANES>,
-    ) where
-        S: AsRef<StripedSequence<Dna, <Dispatch as Backend>::LANES>>,
-        M: AsRef<ScoringMatrix<Dna>>,
-    {
-        match self.backend {
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            Dispatch::Avx2 => Avx2::score_into_permute(seq.as_ref(), pssm, scores),
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            Dispatch::Sse2 => Sse2::score_into(seq.as_ref(), pssm, scores),
-            #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-            Dispatch::Neon => Neon::score_into(seq.as_ref(), pssm, scores),
-            _ => <Generic as Score<Dna, <Dispatch as Backend>::LANES>>::score_into(
-                &Generic,
-                seq.as_ref(),
-                pssm,
-                scores,
-            ),
-        }
-    }
+    // fn score_into<S, M>(
+    //     &self,
+    //     seq: S,
+    //     pssm: M,
+    //     scores: &mut StripedScores<<Dispatch as Backend>::LANES>,
+    // ) where
+    //     S: AsRef<StripedSequence<Dna, <Dispatch as Backend>::LANES>>,
+    //     M: AsRef<ScoringMatrix<Dna>>,
+    // {
+    //     match self.backend {
+    //         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    //         Dispatch::Avx2 => Avx2::score_into_permute(seq.as_ref(), pssm, scores),
+    //         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    //         Dispatch::Sse2 => Sse2::score_into(seq.as_ref(), pssm, scores),
+    //         #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+    //         Dispatch::Neon => Neon::score_into(seq.as_ref(), pssm, scores),
+    //         _ => <Generic as Score<Dna, <Dispatch as Backend>::LANES>>::score_into(
+    //             &Generic,
+    //             seq.as_ref(),
+    //             pssm,
+    //             scores,
+    //         ),
+    //     }
+    // }
 }
 
 impl Score<Protein, <Dispatch as Backend>::LANES> for Pipeline<Protein, Dispatch> {
-    fn score_into<S, M>(
-        &self,
-        seq: S,
-        pssm: M,
-        scores: &mut StripedScores<<Dispatch as Backend>::LANES>,
-    ) where
-        S: AsRef<StripedSequence<Protein, <Dispatch as Backend>::LANES>>,
-        M: AsRef<ScoringMatrix<Protein>>,
-    {
-        match self.backend {
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            Dispatch::Avx2 => Avx2::score_into_gather(seq.as_ref(), pssm, scores),
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            Dispatch::Sse2 => Sse2::score_into(seq.as_ref(), pssm, scores),
-            #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-            Dispatch::Neon => Neon::score_into(seq.as_ref(), pssm, scores),
-            _ => <Generic as Score<Protein, <Dispatch as Backend>::LANES>>::score_into(
-                &Generic,
-                seq.as_ref(),
-                pssm,
-                scores,
-            ),
-        }
-    }
+    // fn score_into<S, M>(
+    //     &self,
+    //     seq: S,
+    //     pssm: M,
+    //     scores: &mut StripedScores<<Dispatch as Backend>::LANES>,
+    // ) where
+    //     S: AsRef<StripedSequence<Protein, <Dispatch as Backend>::LANES>>,
+    //     M: AsRef<ScoringMatrix<Protein>>,
+    // {
+    //     match self.backend {
+    //         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    //         Dispatch::Avx2 => Avx2::score_into_gather(seq.as_ref(), pssm, scores),
+    //         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    //         Dispatch::Sse2 => Sse2::score_into(seq.as_ref(), pssm, scores),
+    //         #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+    //         Dispatch::Neon => Neon::score_into(seq.as_ref(), pssm, scores),
+    //         _ => <Generic as Score<Protein, <Dispatch as Backend>::LANES>>::score_into(
+    //             &Generic,
+    //             seq.as_ref(),
+    //             pssm,
+    //             scores,
+    //         ),
+    //     }
+    // }
 }
 
 impl<A: Alphabet> Stripe<A, <Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {

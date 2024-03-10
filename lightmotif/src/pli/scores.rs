@@ -15,13 +15,18 @@ use super::Threshold;
 #[derive(Clone, Debug)]
 pub struct StripedScores<C: StrictlyPositive> {
     data: DenseMatrix<f32, C>,
+    pub rows: Range<usize>,
     length: usize,
 }
 
 impl<C: StrictlyPositive> StripedScores<C> {
     /// Create a new striped score matrix with the given length and data.
     pub fn new(length: usize, data: DenseMatrix<f32, C>) -> Self {
-        Self { length, data }
+        Self {
+            length,
+            data,
+            rows: 0..(length + C::USIZE - 1) / C::USIZE,
+        }
     }
 
     /// Create an empty score matrix with the given length and row count.

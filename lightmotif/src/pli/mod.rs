@@ -1,6 +1,7 @@
 //! Concrete implementations of the sequence scoring pipeline.
 
 use std::ops::Div;
+use std::ops::Range;
 use std::ops::Rem;
 
 pub use self::scores::StripedScores;
@@ -71,8 +72,13 @@ pub trait Encode<A: Alphabet> {
 /// Used computing sequence scores with a PSSM.
 pub trait Score<A: Alphabet, C: StrictlyPositive> {
     /// Compute the PSSM scores into the given striped score matrix.
-    fn score_into<S, M>(&self, seq: S, pssm: M, scores: &mut StripedScores<C>)
-    where
+    fn score_rows_into<S, M>(
+        &self,
+        seq: S,
+        pssm: M,
+        scores: &mut StripedScores<C>,
+        rows: Range<usize>,
+    ) where
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A>>,
     {
@@ -84,22 +90,39 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
             return;
         }
 
-        let seq_rows = seq.data.rows() - seq.wrap;
-        scores.resize(seq.length - pssm.len() + 1, seq_rows);
+        // FIXME?
+        scores.resize(seq.length - pssm.len() + 1, rows.len());
+        scores.rows = rows.clone();
 
+        let start_row = scores.rows.start;
         let result = scores.matrix_mut();
-        for i in 0..seq.length - pssm.len() + 1 {
-            let mut score = 0.0;
-            for j in 0..pssm.len() {
-                let offset = i + j;
-                let col = offset / seq_rows;
-                let row = offset % seq_rows;
-                score += pssm.matrix()[j][seq.data[row][col].as_index()];
+        let matrix = pssm.matrix();
+
+        for (i, row) in rows.enumerate() {
+            for col in 0..C::USIZE {
+                let mut score = 0.0;
+                for j in 0..pssm.len() {
+                    let symbol = seq.data[row + j][col];
+                    score += matrix[j][symbol.as_index()];
+                }
+                result[i][col] = score;
             }
-            let col = i / result.rows();
-            let row = i % result.rows();
-            result[row][col] = score;
         }
+    }
+
+    /// Compute the PSSM scores into the given striped score matrix.
+    fn score_into<S, M>(&self, seq: S, pssm: M, scores: &mut StripedScores<C>)
+    where
+        S: AsRef<StripedSequence<A, C>>,
+        M: AsRef<ScoringMatrix<A>>,
+    {
+        let s = seq.as_ref();
+        let m = pssm.as_ref();
+
+        // let length = s.length - m.len() + 1;
+        // let rows = (length + C::USIZE - 1) / C::USIZE;
+        let rows = s.data.rows() - s.wrap;
+        Self::score_rows_into(&self, s, m, scores, 0..rows)
     }
 
     /// Compute the PSSM scores for every sequence positions.
@@ -294,13 +317,13 @@ where
     <C as Rem<U16>>::Output: Zero,
     <C as Div<U16>>::Output: Unsigned,
 {
-    fn score_into<S, M>(&self, seq: S, pssm: M, scores: &mut StripedScores<C>)
-    where
-        S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<ScoringMatrix<A>>,
-    {
-        Sse2::score_into(seq, pssm, scores)
-    }
+    // fn score_into<S, M>(&self, seq: S, pssm: M, scores: &mut StripedScores<C>)
+    // where
+    //     S: AsRef<StripedSequence<A, C>>,
+    //     M: AsRef<ScoringMatrix<A>>,
+    // {
+    //     Sse2::score_into(seq, pssm, scores)
+    // }
 }
 
 impl<A, C> Maximum<C> for Pipeline<A, Sse2>
@@ -351,31 +374,31 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Avx2> {
 }
 
 impl Score<Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
-    fn score_into<S, M>(
-        &self,
-        seq: S,
-        pssm: M,
-        scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
-    ) where
-        S: AsRef<StripedSequence<Dna, <Avx2 as Backend>::LANES>>,
-        M: AsRef<ScoringMatrix<Dna>>,
-    {
-        Avx2::score_into_permute(seq, pssm, scores)
-    }
+    // fn score_into<S, M>(
+    //     &self,
+    //     seq: S,
+    //     pssm: M,
+    //     scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
+    // ) where
+    //     S: AsRef<StripedSequence<Dna, <Avx2 as Backend>::LANES>>,
+    //     M: AsRef<ScoringMatrix<Dna>>,
+    // {
+    //     Avx2::score_into_permute(seq, pssm, scores)
+    // }
 }
 
 impl Score<Protein, <Avx2 as Backend>::LANES> for Pipeline<Protein, Avx2> {
-    fn score_into<S, M>(
-        &self,
-        seq: S,
-        pssm: M,
-        scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
-    ) where
-        S: AsRef<StripedSequence<Protein, <Avx2 as Backend>::LANES>>,
-        M: AsRef<ScoringMatrix<Protein>>,
-    {
-        Avx2::score_into_gather(seq, pssm, scores)
-    }
+    // fn score_into<S, M>(
+    //     &self,
+    //     seq: S,
+    //     pssm: M,
+    //     scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
+    // ) where
+    //     S: AsRef<StripedSequence<Protein, <Avx2 as Backend>::LANES>>,
+    //     M: AsRef<ScoringMatrix<Protein>>,
+    // {
+    //     Avx2::score_into_gather(seq, pssm, scores)
+    // }
 }
 
 impl<A: Alphabet> Stripe<A, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
@@ -439,13 +462,13 @@ where
     <C as Rem<U16>>::Output: Zero,
     <C as Div<U16>>::Output: Unsigned,
 {
-    fn score_into<S, M>(&self, seq: S, pssm: M, scores: &mut StripedScores<C>)
-    where
-        S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<ScoringMatrix<A>>,
-    {
-        Neon::score_into(seq, pssm, scores)
-    }
+    // fn score_into<S, M>(&self, seq: S, pssm: M, scores: &mut StripedScores<C>)
+    // where
+    //     S: AsRef<StripedSequence<A, C>>,
+    //     M: AsRef<ScoringMatrix<A>>,
+    // {
+    //     Neon::score_into(seq, pssm, scores)
+    // }
 }
 
 impl<A, C> Maximum<C> for Pipeline<A, Neon>

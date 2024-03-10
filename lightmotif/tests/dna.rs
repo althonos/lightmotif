@@ -10,6 +10,7 @@ use lightmotif::pli::Maximum;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
 use lightmotif::pli::Stripe;
+use lightmotif::pli::StripedScores;
 use lightmotif::pli::Threshold;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::seq::EncodedSequence;
@@ -34,6 +35,31 @@ const EXPECTED: &[f32] = &[
     -17.745737 , -18.678621 , -17.745737 , -14.286304 , 
     -30.922688 , -18.678621 
 ];
+
+fn test_score_rows<C: StrictlyPositive, P: Score<Dna, C>>(pli: &P) {
+    let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
+    let mut striped = Pipeline::generic().stripe(encoded);
+
+    let cm = CountMatrix::<Dna>::from_sequences(
+        PATTERNS.iter().map(|x| EncodedSequence::encode(x).unwrap()),
+    )
+    .unwrap();
+    let pbm = cm.to_freq(0.1);
+    let pwm = pbm.to_weight(None);
+    let pssm = pwm.into();
+
+    striped.configure(&pssm);
+    let mut scores = StripedScores::empty();
+
+    pli.score_rows_into(&striped, &pssm, &mut scores, 0..2);
+    assert_eq!(scores.matrix().rows(), 2);
+    assert_eq!(scores.matrix()[0][0], EXPECTED[0]);
+    assert_eq!(scores.matrix()[1][0], EXPECTED[1]);
+
+    pli.score_rows_into(&striped, &pssm, &mut scores, 1..2);
+    assert_eq!(scores.matrix().rows(), 1);
+    assert_eq!(scores.matrix()[0][0], EXPECTED[1]);
+}
 
 fn test_score<C: StrictlyPositive, P: Score<Dna, C>>(pli: &P) {
     let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
@@ -104,24 +130,37 @@ fn test_threshold<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(pli: &P)
     assert_eq!(positions, vec![10, 13, 14, 18, 24, 27, 32, 35, 40, 47]);
 }
 
-#[test]
-fn test_score_generic() {
-    let pli = Pipeline::generic();
-    test_score::<U32, _>(&pli);
-    test_score::<U1, _>(&pli);
-}
+mod generic {
+    use super::*;
 
-#[test]
-fn test_argmax_generic() {
-    let pli = Pipeline::generic();
-    test_argmax::<U32, _>(&pli);
-    test_argmax::<U1, _>(&pli);
-}
+    #[test]
+    fn test_score() {
+        let pli = Pipeline::generic();
+        super::test_score::<U32, _>(&pli);
+        super::test_score::<U16, _>(&pli);
+        super::test_score::<U1, _>(&pli);
+    }
 
-#[test]
-fn test_threshold_generic() {
-    let pli = Pipeline::generic();
-    test_threshold::<U32, _>(&pli);
+    #[test]
+    fn test_score_rows() {
+        let pli = Pipeline::generic();
+        super::test_score_rows::<U32, _>(&pli);
+        super::test_score_rows::<U16, _>(&pli);
+        super::test_score_rows::<U1, _>(&pli);
+    }
+
+    #[test]
+    fn test_argmax() {
+        let pli = Pipeline::generic();
+        super::test_argmax::<U32, _>(&pli);
+        super::test_argmax::<U1, _>(&pli);
+    }
+
+    #[test]
+    fn test_threshold() {
+        let pli = Pipeline::generic();
+        super::test_threshold::<U32, _>(&pli);
+    }
 }
 
 #[test]
