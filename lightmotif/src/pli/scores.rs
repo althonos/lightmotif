@@ -83,6 +83,27 @@ impl<C: StrictlyPositive> StripedScores<C> {
         self.max_index = max_index;
     }
 
+    /// Return the positions with score equal to or greater than the threshold.
+    ///
+    /// The indices are not necessarily returned in a particular order,
+    /// since different implementations use a different internal memory
+    /// representation. The indices are corrected by offset depending on
+    /// the range for which the scores were computed.
+    pub fn threshold(&self, threshold: f32) -> Vec<usize> {
+        let mut positions = Vec::new();
+        let seq_rows = (self.max_index + C::USIZE - 1) / C::USIZE;
+        for (row_res, row_seq) in self.range.clone().enumerate() {
+            let row = &self.data[row_res];
+            for col in 0..C::USIZE {
+                if row[col] >= threshold {
+                    let i = col * seq_rows + row_seq;
+                    positions.push(i);
+                }
+            }
+        }
+        positions
+    }
+
     /// Iterate over scores of individual sequence positions.
     pub fn iter(&self) -> Iter<'_, C> {
         Iter::new(self)
@@ -112,24 +133,6 @@ where
     /// Uses platform-accelerated implementation when available.
     pub fn argmax(&self) -> Option<usize> {
         Pipeline::dispatch().argmax(self)
-    }
-}
-
-impl<C: StrictlyPositive> StripedScores<C>
-where
-    Pipeline<Dna, Dispatch>: Threshold<C>,
-{
-    /// Return the positions with score equal to or greater than the threshold.
-    ///
-    /// The indices are not necessarily returned in a particular order,
-    /// since different implementations use a different internal memory
-    /// representation. The indices are corrected by offset depending on
-    /// the range for which the scores were computed.
-    ///
-    /// # Note
-    /// Uses platform-accelerated implementation when available.
-    pub fn threshold(&self, threshold: f32) -> Vec<usize> {
-        Pipeline::dispatch().threshold(self, threshold)
     }
 }
 
@@ -183,14 +186,12 @@ impl<'a, C: StrictlyPositive> Iter<'a, C> {
         // Check if the rows range contains some unneeded indices
         let mut i = scores.range.len() * C::USIZE;
         let end = scores.range.end * C::USIZE;
-        let indices = if end + offset >= scores.max_index {
+        if end + offset >= scores.max_index {
             i -= end - scores.max_index;
-            0..i
-        } else {
-            0..i
-        };
+        }
 
         // Create the iterator
+        let indices = 0..i;
         Self { scores, indices }
     }
 
