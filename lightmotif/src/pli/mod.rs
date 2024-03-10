@@ -197,12 +197,12 @@ pub trait Stripe<A: Alphabet, C: StrictlyPositive> {
 
 /// Used for finding positions above a score threshold in a striped score matrix.
 pub trait Threshold<C: StrictlyPositive> {
-    /// Return the indices of positions with score equal to or greater than the threshold.
+    /// Return the coordinates of positions with score equal to or greater than the threshold.
     ///
     /// # Note
     /// The indices are not be sorted, and the actual order depends on the
     /// implementation.
-    fn threshold(&self, scores: &StripedScores<C>, threshold: f32) -> Vec<usize> {
+    fn threshold(&self, scores: &StripedScores<C>, threshold: f32) -> Vec<(usize, usize)> {
         let mut positions = Vec::new();
         let matrix = scores.matrix();
 
@@ -212,7 +212,7 @@ pub trait Threshold<C: StrictlyPositive> {
             for col in 0..C::USIZE {
                 if row[col] >= threshold {
                     let i = col * seq_rows + row_seq;
-                    positions.push(i);
+                    positions.push((row_res, col));
                 }
             }
         }

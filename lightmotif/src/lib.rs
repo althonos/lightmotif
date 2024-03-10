@@ -10,6 +10,7 @@ pub mod num;
 #[doc(hidden)]
 pub mod pli;
 pub mod pwm;
+pub mod scan;
 pub mod seq;
 
 pub use abc::Alphabet;

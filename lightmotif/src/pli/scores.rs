@@ -83,33 +83,46 @@ impl<C: StrictlyPositive> StripedScores<C> {
         self.max_index = max_index;
     }
 
+    /// Convert coordinates inside the striped scores into the sequence index.
+    #[inline]
+    pub fn sequence_index(&self, row: usize, column: usize) -> usize {
+        let seq_rows = (self.max_index + C::USIZE - 1) / C::USIZE;
+        let row_seq = self.range.start + row;
+        column * seq_rows + row_seq
+    }
+
     /// Return the positions with score equal to or greater than the threshold.
     ///
     /// The indices are not necessarily returned in a particular order,
     /// since different implementations use a different internal memory
     /// representation. The indices are corrected by offset depending on
     /// the range for which the scores were computed.
-    pub fn threshold(&self, threshold: f32) -> Vec<usize> {
+    pub fn threshold(&self, threshold: f32) -> Vec<(usize, usize)> {
         let mut positions = Vec::new();
-        let seq_rows = (self.max_index + C::USIZE - 1) / C::USIZE;
+        let matrix = self.matrix();
+
+        let seq_rows = (self.sequence_length() + C::USIZE - 1) / C::USIZE;
         for (row_res, row_seq) in self.range.clone().enumerate() {
-            let row = &self.data[row_res];
+            let row = &matrix[row_res];
             for col in 0..C::USIZE {
                 if row[col] >= threshold {
                     let i = col * seq_rows + row_seq;
-                    positions.push(i);
+                    positions.push((row_res, col));
                 }
             }
         }
+
         positions
     }
 
     /// Iterate over scores of individual sequence positions.
+    #[inline]
     pub fn iter(&self) -> Iter<'_, C> {
         Iter::new(self)
     }
 
     /// Convert the striped scores to a vector of scores.
+    #[inline]
     pub fn to_vec(&self) -> Vec<f32> {
         self.iter().cloned().collect()
     }

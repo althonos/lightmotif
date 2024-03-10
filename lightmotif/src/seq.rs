@@ -284,11 +284,11 @@ impl<A: Alphabet, C: StrictlyPositive> AsRef<StripedSequence<A, C>> for StripedS
     }
 }
 
-impl<A: Alphabet, C: StrictlyPositive> AsRef<DenseMatrix<A::Symbol, C>> for StripedSequence<A, C> {
-    fn as_ref(&self) -> &DenseMatrix<A::Symbol, C> {
-        &self.data
-    }
-}
+// impl<A: Alphabet, C: StrictlyPositive> AsRef<DenseMatrix<A::Symbol, C>> for StripedSequence<A, C> {
+//     fn as_ref(&self) -> &DenseMatrix<A::Symbol, C> {
+//         &self.data
+//     }
+// }
 
 impl<A: Alphabet, C: StrictlyPositive> From<EncodedSequence<A>> for StripedSequence<A, C>
 where
