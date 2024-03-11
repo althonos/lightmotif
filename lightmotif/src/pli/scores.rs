@@ -21,6 +21,8 @@ pub struct StripedScores<C: StrictlyPositive> {
     range: Range<usize>,
     /// The total length of the `StripedSequence` these scores were obtained from.
     max_index: usize,
+    /// The total number of sequence rows in the `StripedSequence` these scores were obtained from.
+    sequence_rows: usize,
 }
 
 impl<C: StrictlyPositive> StripedScores<C> {
@@ -37,6 +39,7 @@ impl<C: StrictlyPositive> StripedScores<C> {
                 data,
                 range,
                 max_index,
+                sequence_rows: (max_index + C::USIZE - 1) / C::USIZE,
             })
         }
     }
@@ -82,8 +85,7 @@ impl<C: StrictlyPositive> StripedScores<C> {
     /// Convert coordinates inside the striped scores into a sequence index.
     #[inline]
     pub fn sequence_index(&self, row: usize, column: usize) -> usize {
-        let seq_rows = (self.max_index + C::USIZE - 1) / C::USIZE;
-        column * seq_rows + self.range.start + row
+        column * self.sequence_rows + self.range.start + row
     }
 
     /// Iterate over scores of individual sequence positions.
