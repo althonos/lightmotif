@@ -103,7 +103,11 @@ fn test_argmax<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(pli: &P) {
 
     striped.configure(&pssm);
     let result = pli.score(&pssm, &striped);
-    assert_eq!(pli.argmax(&result), Some(18));
+    assert_eq!(
+        pli.argmax(&result)
+            .map(|(i, j)| result.sequence_index(i, j)),
+        Some(18)
+    );
 }
 
 fn test_threshold<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(pli: &P) {

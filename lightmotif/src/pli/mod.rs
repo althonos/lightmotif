@@ -156,7 +156,7 @@ pub trait Maximum<C: StrictlyPositive> {
             }
         }
 
-        Some((best_col, best_row))
+        Some((best_row, best_col))
     }
 
     /// Find the highest score.
