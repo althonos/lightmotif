@@ -24,6 +24,14 @@ pub type DefaultAlignment = _DefaultAlignment;
 
 // --- DenseMatrix -------------------------------------------------------------
 
+#[derive(Debug, Default, Clone)]
+pub struct MatrixCoordinates {
+    pub row: usize,
+    pub col: usize,
+}
+
+// --- DenseMatrix -------------------------------------------------------------
+
 /// A memory-aligned dense matrix with a constant number of columns.
 #[derive(Clone, Eq)]
 pub struct DenseMatrix<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo = DefaultAlignment>

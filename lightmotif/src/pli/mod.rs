@@ -136,32 +136,32 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
 
 /// Used for finding the highest scoring site in a striped score matrix.
 pub trait Maximum<C: StrictlyPositive> {
-    /// Find the sequence position with the highest score.
-    fn argmax(&self, scores: &StripedScores<C>) -> Option<usize> {
+    /// Find the matrix coordinates with the highest score.
+    fn argmax(&self, scores: &StripedScores<C>) -> Option<(usize, usize)> {
         if scores.is_empty() {
             return None;
         }
 
-        let mut best_pos = 0;
+        let mut best_row = 0;
+        let mut best_col = 0;
         let mut best_score = f32::NEG_INFINITY;
-        let matrix = scores.matrix();
 
-        let seq_rows = (scores.max_index() + C::USIZE - 1) / C::USIZE;
-        for (row_res, row_seq) in scores.range().enumerate() {
-            for col in 0..C::USIZE {
-                if matrix[row_res][col] >= best_score {
-                    best_pos = col * seq_rows + row_seq;
-                    best_score = matrix[row_res][col];
+        for (i, row) in scores.matrix().iter().enumerate() {
+            for j in 0..C::USIZE {
+                if row[j] >= best_score {
+                    best_row = i;
+                    best_col = j;
+                    best_score = row[j];
                 }
             }
         }
 
-        Some(best_pos)
+        Some((best_col, best_row))
     }
 
     /// Find the highest score.
     fn max(&self, scores: &StripedScores<C>) -> Option<f32> {
-        self.argmax(scores).map(|i| scores[i])
+        self.argmax(scores).map(|(i, j)| scores.matrix()[i][j])
     }
 }
 
@@ -413,7 +413,7 @@ impl<A: Alphabet> Stripe<A, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
 
 impl<A: Alphabet> Maximum<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
     // fn argmax(&self, scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
-    //     Avx2::argmax(scores)
+    //      Avx2::argmax(scores)
     // }
 }
 

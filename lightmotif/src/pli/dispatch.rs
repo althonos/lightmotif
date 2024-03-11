@@ -146,12 +146,15 @@ impl<A: Alphabet> Stripe<A, <Dispatch as Backend>::LANES> for Pipeline<A, Dispat
 }
 
 impl<A: Alphabet> Maximum<<Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {
-    fn argmax(&self, scores: &StripedScores<<Dispatch as Backend>::LANES>) -> Option<usize> {
+    fn argmax(
+        &self,
+        scores: &StripedScores<<Dispatch as Backend>::LANES>,
+    ) -> Option<(usize, usize)> {
         match self.backend {
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            Dispatch::Avx2 => Avx2::argmax(scores),
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            Dispatch::Sse2 => Sse2::argmax(scores),
+            // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            // Dispatch::Avx2 => Avx2::argmax(scores),
+            // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            // Dispatch::Sse2 => Sse2::argmax(scores),
             _ => <Generic as Maximum<<Dispatch as Backend>::LANES>>::argmax(&Generic, scores),
         }
     }

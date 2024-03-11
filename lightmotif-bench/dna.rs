@@ -41,7 +41,7 @@ fn bench_lightmotif<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(
     let mut scores = StripedScores::empty();
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
-        pli.score_into(&striped, &pssm, &mut scores);
+        pli.score_into(&pssm, &striped, &mut scores);
         test::black_box(pli.argmax(&scores));
     });
 }

@@ -115,7 +115,7 @@ where
     ///
     /// # Note
     /// Uses platform-accelerated implementation when available.
-    pub fn argmax(&self) -> Option<usize> {
+    pub fn argmax(&self) -> Option<(usize, usize)> {
         Pipeline::dispatch().argmax(self)
     }
 }
