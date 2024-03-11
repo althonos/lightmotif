@@ -80,6 +80,7 @@ impl<C: StrictlyPositive> StripedScores<C> {
         self.data.resize(range.len());
         self.range = range;
         self.max_index = max_index;
+        self.sequence_rows = (max_index + C::USIZE - 1) / C::USIZE;
     }
 
     /// Convert coordinates inside the striped scores into a sequence index.

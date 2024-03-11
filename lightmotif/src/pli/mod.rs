@@ -99,9 +99,9 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
         for (res_row, seq_row) in rows.enumerate() {
             for col in 0..C::USIZE {
                 let mut score = 0.0;
-                for j in 0..pssm.len() {
+                for (j, pssm_row) in matrix.iter().enumerate() {
                     let symbol = seq.data[seq_row + j][col];
-                    score += matrix[j][symbol.as_index()];
+                    score += pssm_row[symbol.as_index()];
                 }
                 result[res_row][col] = score;
             }
