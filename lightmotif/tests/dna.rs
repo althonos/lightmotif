@@ -104,8 +104,7 @@ fn test_argmax<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(pli: &P) {
     striped.configure(&pssm);
     let result = pli.score(&pssm, &striped);
     assert_eq!(
-        pli.argmax(&result)
-            .map(|(i, j)| result.sequence_index(i, j)),
+        pli.argmax(&result).map(|c| result.sequence_index(c)),
         Some(18)
     );
 }
@@ -128,7 +127,7 @@ fn test_threshold<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(pli: &P)
     let positions = pli.threshold(&result, -10.0);
     let mut indices = positions
         .into_iter()
-        .map(|(row, col)| result.sequence_index(row, col))
+        .map(|c| result.sequence_index(c))
         .collect::<Vec<_>>();
     indices.sort_unstable();
     assert_eq!(indices, vec![18, 27, 32]);
@@ -136,7 +135,7 @@ fn test_threshold<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(pli: &P)
     let positions = pli.threshold(&result, -15.0);
     let mut indices = positions
         .into_iter()
-        .map(|(row, col)| result.sequence_index(row, col))
+        .map(|c| result.sequence_index(c))
         .collect::<Vec<_>>();
     indices.sort_unstable();
     assert_eq!(indices, vec![10, 13, 14, 18, 24, 27, 32, 35, 40, 47]);

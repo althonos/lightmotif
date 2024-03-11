@@ -275,7 +275,9 @@ unsafe fn score_avx2_gather<A>(
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
-unsafe fn argmax_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<(usize, usize)> {
+unsafe fn argmax_avx2(
+    scores: &StripedScores<<Avx2 as Backend>::LANES>,
+) -> Option<MatrixCoordinates> {
     if scores.max_index() > u32::MAX as usize {
         panic!(
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
@@ -337,11 +339,11 @@ unsafe fn argmax_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Optio
             let mut best_score = data[best_pos];
 
             for (col, &row) in x.iter().enumerate() {
-                let score = data[MatrixCoordinates::new(row as usize, col)];
+                let pos = MatrixCoordinates::new(row as usize, col);
+                let score = data[pos];
                 if score > best_score {
                     best_score = score;
-                    best_pos.row = row as usize;
-                    best_pos.col = col;
+                    best_pos = pos;
                 }
             }
 
@@ -352,7 +354,7 @@ unsafe fn argmax_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Optio
             //         best_col = col;
             //     }
             // }
-            Some((best_pos.row, best_pos.col))
+            Some(best_pos)
         }
     }
 }
@@ -670,7 +672,7 @@ impl Avx2 {
     }
 
     #[allow(unused)]
-    pub fn argmax(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<(usize, usize)> {
+    pub fn argmax(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<MatrixCoordinates> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             argmax_avx2(scores)

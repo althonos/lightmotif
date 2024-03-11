@@ -579,7 +579,7 @@ impl StripedScores {
             scores
                 .threshold(threshold)
                 .into_iter()
-                .map(|(i, j)| scores.sequence_index(i, j))
+                .map(|c| scores.sequence_index(c))
                 .collect()
         })
     }
@@ -610,7 +610,7 @@ impl StripedScores {
     pub fn argmax(slf: PyRef<'_, Self>) -> Option<usize> {
         let scores = &slf.scores;
         slf.py()
-            .allow_threads(|| scores.argmax().map(|(i, j)| scores.sequence_index(i, j)))
+            .allow_threads(|| scores.argmax().map(|c| scores.sequence_index(c)))
     }
 }
 

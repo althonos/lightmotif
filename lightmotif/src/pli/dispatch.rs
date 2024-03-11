@@ -17,6 +17,7 @@ use super::Threshold;
 use crate::abc::Alphabet;
 use crate::abc::Dna;
 use crate::abc::Protein;
+use crate::dense::MatrixCoordinates;
 use crate::err::InvalidSymbol;
 #[allow(unused)]
 use crate::num::U1;
@@ -149,7 +150,7 @@ impl<A: Alphabet> Maximum<<Dispatch as Backend>::LANES> for Pipeline<A, Dispatch
     fn argmax(
         &self,
         scores: &StripedScores<<Dispatch as Backend>::LANES>,
-    ) -> Option<(usize, usize)> {
+    ) -> Option<MatrixCoordinates> {
         match self.backend {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Avx2 => Avx2::argmax(scores),

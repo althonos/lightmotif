@@ -11,6 +11,7 @@ use std::ops::Rem;
 
 use super::Backend;
 use crate::abc::Alphabet;
+use crate::dense::MatrixCoordinates;
 use crate::num::consts::U16;
 use crate::num::MultipleOf;
 use crate::num::StrictlyPositive;
@@ -97,7 +98,7 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES>>(
 #[target_feature(enable = "sse2")]
 unsafe fn argmax_sse2<C: MultipleOf<<Sse2 as Backend>::LANES>>(
     scores: &StripedScores<C>,
-) -> Option<(usize, usize)> {
+) -> Option<MatrixCoordinates> {
     if scores.max_index() > u32::MAX as usize {
         panic!(
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
@@ -176,7 +177,7 @@ unsafe fn argmax_sse2<C: MultipleOf<<Sse2 as Backend>::LANES>>(
                     }
                 }
             }
-            Some((best_row, best_col))
+            Some(MatrixCoordinates::new(best_row, best_col))
         }
     }
 }
@@ -221,7 +222,7 @@ impl Sse2 {
     #[allow(unused)]
     pub fn argmax<C: MultipleOf<<Sse2 as Backend>::LANES>>(
         scores: &StripedScores<C>,
-    ) -> Option<(usize, usize)> {
+    ) -> Option<MatrixCoordinates> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             argmax_sse2(scores)

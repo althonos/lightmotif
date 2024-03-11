@@ -24,14 +24,15 @@ pub type DefaultAlignment = _DefaultAlignment;
 
 // --- DenseMatrix -------------------------------------------------------------
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct MatrixCoordinates {
     pub row: usize,
     pub col: usize,
 }
 
 impl MatrixCoordinates {
-    pub fn new(row: usize, col: usize) -> Self {
+    #[inline]
+    pub const fn new(row: usize, col: usize) -> Self {
         Self { row, col }
     }
 }

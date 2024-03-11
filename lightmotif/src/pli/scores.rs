@@ -4,6 +4,7 @@ use std::ops::Range;
 
 use crate::abc::Dna;
 use crate::dense::DenseMatrix;
+use crate::dense::MatrixCoordinates;
 use crate::err::InvalidData;
 use crate::num::StrictlyPositive;
 use crate::pli::Pipeline;
@@ -85,8 +86,8 @@ impl<C: StrictlyPositive> StripedScores<C> {
 
     /// Convert coordinates inside the striped scores into a sequence index.
     #[inline]
-    pub fn sequence_index(&self, row: usize, column: usize) -> usize {
-        column * self.sequence_rows + self.range.start + row
+    pub fn sequence_index(&self, mc: MatrixCoordinates) -> usize {
+        mc.col * self.sequence_rows + self.range.start + mc.row
     }
 
     /// Iterate over scores of individual sequence positions.
@@ -118,7 +119,7 @@ where
     ///
     /// # Note
     /// Uses platform-accelerated implementation when available.
-    pub fn argmax(&self) -> Option<(usize, usize)> {
+    pub fn argmax(&self) -> Option<MatrixCoordinates> {
         Pipeline::dispatch().argmax(self)
     }
 }
@@ -135,7 +136,7 @@ where
     ///
     /// # Note
     /// Uses platform-accelerated implementation when available.
-    pub fn threshold(&self, threshold: f32) -> Vec<(usize, usize)> {
+    pub fn threshold(&self, threshold: f32) -> Vec<MatrixCoordinates> {
         Pipeline::dispatch().threshold(self, threshold)
     }
 }

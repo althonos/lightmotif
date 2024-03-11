@@ -4,6 +4,8 @@ use std::ops::Div;
 use std::ops::Range;
 use std::ops::Rem;
 
+use crate::dense::MatrixCoordinates;
+
 pub use self::scores::StripedScores;
 
 use self::dispatch::Dispatch;
@@ -137,7 +139,7 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
 /// Used for finding the highest scoring site in a striped score matrix.
 pub trait Maximum<C: StrictlyPositive> {
     /// Find the matrix coordinates with the highest score.
-    fn argmax(&self, scores: &StripedScores<C>) -> Option<(usize, usize)> {
+    fn argmax(&self, scores: &StripedScores<C>) -> Option<MatrixCoordinates> {
         if scores.is_empty() {
             return None;
         }
@@ -156,12 +158,12 @@ pub trait Maximum<C: StrictlyPositive> {
             }
         }
 
-        Some((best_row, best_col))
+        Some(MatrixCoordinates::new(best_row, best_col))
     }
 
     /// Find the highest score.
     fn max(&self, scores: &StripedScores<C>) -> Option<f32> {
-        self.argmax(scores).map(|(i, j)| scores.matrix()[i][j])
+        self.argmax(scores).map(|c| scores.matrix()[c])
     }
 }
 
@@ -202,13 +204,13 @@ pub trait Threshold<C: StrictlyPositive> {
     /// # Note
     /// The indices are not be sorted, and the actual order depends on the
     /// implementation.
-    fn threshold(&self, scores: &StripedScores<C>, threshold: f32) -> Vec<(usize, usize)> {
+    fn threshold(&self, scores: &StripedScores<C>, threshold: f32) -> Vec<MatrixCoordinates> {
         let mut positions = Vec::new();
         for (i, row) in scores.matrix().iter().enumerate() {
             for col in 0..C::USIZE {
                 assert!(!row[col].is_nan());
                 if row[col] >= threshold {
-                    positions.push((i, col));
+                    positions.push(MatrixCoordinates::new(i, col));
                 }
             }
         }
@@ -335,7 +337,7 @@ where
     A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,
 {
-    fn argmax(&self, scores: &StripedScores<C>) -> Option<(usize, usize)> {
+    fn argmax(&self, scores: &StripedScores<C>) -> Option<MatrixCoordinates> {
         Sse2::argmax(scores)
     }
 }
@@ -412,7 +414,10 @@ impl<A: Alphabet> Stripe<A, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
 }
 
 impl<A: Alphabet> Maximum<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
-    fn argmax(&self, scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<(usize, usize)> {
+    fn argmax(
+        &self,
+        scores: &StripedScores<<Avx2 as Backend>::LANES>,
+    ) -> Option<MatrixCoordinates> {
         Avx2::argmax(scores)
     }
 }
