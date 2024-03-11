@@ -335,9 +335,9 @@ where
     A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,
 {
-    // fn argmax(&self, scores: &StripedScores<C>) -> Option<usize> {
-    //     Sse2::argmax(scores)
-    // }
+    fn argmax(&self, scores: &StripedScores<C>) -> Option<(usize, usize)> {
+        Sse2::argmax(scores)
+    }
 }
 
 impl<A: Alphabet, C: StrictlyPositive> Threshold<C> for Pipeline<A, Sse2>
@@ -412,9 +412,9 @@ impl<A: Alphabet> Stripe<A, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
 }
 
 impl<A: Alphabet> Maximum<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
-    // fn argmax(&self, scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<usize> {
-    //      Avx2::argmax(scores)
-    // }
+    fn argmax(&self, scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<(usize, usize)> {
+        Avx2::argmax(scores)
+    }
 }
 
 impl<A: Alphabet> Threshold<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {}

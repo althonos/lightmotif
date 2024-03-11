@@ -97,7 +97,7 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES>>(
 #[target_feature(enable = "sse2")]
 unsafe fn argmax_sse2<C: MultipleOf<<Sse2 as Backend>::LANES>>(
     scores: &StripedScores<C>,
-) -> Option<usize> {
+) -> Option<(usize, usize)> {
     if scores.max_index() > u32::MAX as usize {
         panic!(
             "This implementation only supports sequences with at most {} positions, found a sequence with {} positions. Contact the developers at https://github.com/althonos/lightmotif.",
@@ -108,9 +108,11 @@ unsafe fn argmax_sse2<C: MultipleOf<<Sse2 as Backend>::LANES>>(
     } else {
         let data = scores.matrix();
         unsafe {
-            let mut best_col = [0u32; 16];
-            let mut best_pos = 0;
+            let mut output = [0u32; 16];
+            let mut best_col = 0;
+            let mut best_row = 0;
             let mut best_score = -f32::INFINITY;
+
             for offset in (0..C::Quotient::USIZE).map(|i| i * <Sse2 as Backend>::LANES::USIZE) {
                 let mut dataptr = data[0].as_ptr().add(offset);
                 // the row index for the best score in each column
@@ -157,34 +159,24 @@ unsafe fn argmax_sse2<C: MultipleOf<<Sse2 as Backend>::LANES>>(
                     dataptr = dataptr.add(data.stride());
                 }
                 // find the global maximum across all columns
-                _mm_storeu_si128(
-                    best_col[0x00..].as_mut_ptr() as *mut _,
-                    _mm_castps_si128(p1),
-                );
-                _mm_storeu_si128(
-                    best_col[0x04..].as_mut_ptr() as *mut _,
-                    _mm_castps_si128(p2),
-                );
-                _mm_storeu_si128(
-                    best_col[0x08..].as_mut_ptr() as *mut _,
-                    _mm_castps_si128(p3),
-                );
-                _mm_storeu_si128(
-                    best_col[0x0c..].as_mut_ptr() as *mut _,
-                    _mm_castps_si128(p4),
-                );
+                _mm_storeu_si128(output[0x00..].as_mut_ptr() as *mut _, _mm_castps_si128(p1));
+                _mm_storeu_si128(output[0x04..].as_mut_ptr() as *mut _, _mm_castps_si128(p2));
+                _mm_storeu_si128(output[0x08..].as_mut_ptr() as *mut _, _mm_castps_si128(p3));
+                _mm_storeu_si128(output[0x0c..].as_mut_ptr() as *mut _, _mm_castps_si128(p4));
                 for k in 0..U16::USIZE {
-                    let row = best_col[k] as usize;
+                    let row = output[k] as usize;
                     let col = k + offset;
-                    let pos = col * data.rows() + row;
                     let score = data[row][col];
-                    if score > best_score || (score == best_score && pos < best_pos) {
+                    if score > best_score
+                        || (score == best_score && (row, col) < (best_row, best_col))
+                    {
                         best_score = data[row][col];
-                        best_pos = pos;
+                        best_row = row;
+                        best_col = col;
                     }
                 }
             }
-            Some(best_pos)
+            Some((best_row, best_col))
         }
     }
 }
@@ -229,7 +221,7 @@ impl Sse2 {
     #[allow(unused)]
     pub fn argmax<C: MultipleOf<<Sse2 as Backend>::LANES>>(
         scores: &StripedScores<C>,
-    ) -> Option<usize> {
+    ) -> Option<(usize, usize)> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             argmax_sse2(scores)
