@@ -15,6 +15,7 @@ use typenum::Unsigned;
 use super::Backend;
 use crate::abc::Alphabet;
 use crate::abc::Symbol;
+use crate::dense::MatrixCoordinates;
 use crate::err::InvalidSymbol;
 use crate::pli::scores::StripedScores;
 use crate::pli::Encode;
@@ -331,19 +332,27 @@ unsafe fn argmax_avx2(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Optio
             _mm256_storeu_si256(x[0x08..].as_mut_ptr() as *mut _, _mm256_castps_si256(p2));
             _mm256_storeu_si256(x[0x10..].as_mut_ptr() as *mut _, _mm256_castps_si256(p3));
             _mm256_storeu_si256(x[0x18..].as_mut_ptr() as *mut _, _mm256_castps_si256(p4));
-            let mut best_row = 0;
-            let mut best_col = 0;
-            let mut best_score = -f32::INFINITY;
+
+            let mut best_pos = MatrixCoordinates::default();
+            let mut best_score = data[best_pos];
+
             for (col, &row) in x.iter().enumerate() {
-                let score = data[row as usize][col];
-                if score > best_score || (score == best_score && (row, col) < (best_row, best_col))
-                {
-                    best_score = data[row as usize][col];
-                    best_row = row;
-                    best_col = col;
+                let score = data[MatrixCoordinates::new(row as usize, col)];
+                if score > best_score {
+                    best_score = score;
+                    best_pos.row = row as usize;
+                    best_pos.col = col;
                 }
             }
-            Some((best_row as usize, best_col))
+
+            //     if score > best_score || (score == best_score && (row, col) < (best_row, best_col))
+            //     {
+            //         best_score = data[row as usize][col];
+            //         best_row = row;
+            //         best_col = col;
+            //     }
+            // }
+            Some((best_pos.row, best_pos.col))
         }
     }
 }

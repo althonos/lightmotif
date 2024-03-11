@@ -24,10 +24,16 @@ pub type DefaultAlignment = _DefaultAlignment;
 
 // --- DenseMatrix -------------------------------------------------------------
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct MatrixCoordinates {
     pub row: usize,
     pub col: usize,
+}
+
+impl MatrixCoordinates {
+    pub fn new(row: usize, col: usize) -> Self {
+        Self { row, col }
+    }
 }
 
 // --- DenseMatrix -------------------------------------------------------------
@@ -221,6 +227,18 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> IndexMut<usize>
         let c = self.stride();
         let row = self.offset + c * index;
         &mut self.data[row..row + C::USIZE]
+    }
+}
+
+impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> Index<MatrixCoordinates>
+    for DenseMatrix<T, C, A>
+{
+    type Output = T;
+    #[inline]
+    fn index(&self, index: MatrixCoordinates) -> &Self::Output {
+        let c = self.stride();
+        let i = self.offset + c * index.row + index.col;
+        &self.data[i]
     }
 }
 
@@ -475,5 +493,25 @@ mod test {
         assert_eq!(dense[1][0], 8);
         assert_eq!(dense[2][0], 12);
         assert_eq!(dense[3][0], 16);
+    }
+
+    #[test]
+    fn test_index_matrix_coordinates() {
+        let mut dense = DenseMatrix::<u64, U32>::new(4);
+        for i in 0..4 {
+            dense[i][0] = (i + 1) as u64;
+        }
+        assert_eq!(dense[MatrixCoordinates::new(0, 0)], 1);
+        assert_eq!(dense[MatrixCoordinates::new(1, 0)], 2);
+        assert_eq!(dense[MatrixCoordinates::new(2, 0)], 3);
+        assert_eq!(dense[MatrixCoordinates::new(3, 0)], 4);
+
+        for row in dense.iter_mut() {
+            row[0] *= 4;
+        }
+        assert_eq!(dense[MatrixCoordinates::new(0, 0)], 4);
+        assert_eq!(dense[MatrixCoordinates::new(1, 0)], 8);
+        assert_eq!(dense[MatrixCoordinates::new(2, 0)], 12);
+        assert_eq!(dense[MatrixCoordinates::new(3, 0)], 16);
     }
 }
