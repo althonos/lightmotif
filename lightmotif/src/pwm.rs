@@ -368,11 +368,20 @@ impl<A: Alphabet> WeightMatrix<A> {
 
     /// Get a position-specific scoring matrix from this position weight matrix.
     pub fn to_scoring(&self) -> ScoringMatrix<A> {
+        self.to_scoring_with_base(2.0)
+    }
+
+    /// Get a position-specific scoring matrix from this position weight matrix.
+    pub fn to_scoring_with_base(&self, base: f32) -> ScoringMatrix<A> {
         let background = self.background.clone();
         let mut data = self.data.clone();
         for row in data.iter_mut() {
             for item in row.iter_mut() {
-                *item = item.log2();
+                *item = match base {
+                    2.0 => item.log2(),
+                    10.0 => item.log10(),
+                    _ => item.log(base),
+                };
             }
         }
         ScoringMatrix::new(background, data)
@@ -409,7 +418,7 @@ matrix_traits!(WeightMatrix, f32);
 
 // --- ScoringMatrix -----------------------------------------------------------
 
-/// A matrix storing odds ratio of symbol occurrences at each position.
+/// A matrix storing log-odds ratio of symbol occurrences at each position.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ScoringMatrix<A: Alphabet> {
     background: Background<A>,
