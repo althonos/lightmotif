@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 [Unreleased]: https://github.com/althonos/lightmotif/compare/v0.6.0...HEAD
 
 
-## [v0.6.0] - 2023-08-31
+## [v0.6.0] - 2023-12-13
 [v0.6.0]: https://github.com/althonos/lightmotif/compare/v0.5.1...v0.6.0
 
 ### Added
