@@ -15,16 +15,63 @@ use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
 use lightmotif::pli::Stripe;
 use lightmotif::pwm::CountMatrix;
+use lightmotif::scan::ScannerBuilder;
 use lightmotif::scores::StripedScores;
 use lightmotif::seq::EncodedSequence;
 
 const SEQUENCE: &str = include_str!("../lightmotif/benches/ecoli.txt");
+const N: usize = 10000;
+
+#[bench]
+fn bench_scanner_max_by(bencher: &mut test::Bencher) {
+    let seq = &SEQUENCE[..N];
+    let encoded = EncodedSequence::<Dna>::encode(seq).unwrap();
+    let mut striped = Pipeline::generic().stripe(encoded);
+
+    let bg = Background::<Dna>::uniform();
+    let cm = CountMatrix::<Dna>::from_sequences([
+        EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
+        EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
+    ])
+    .unwrap();
+    let pbm = cm.to_freq(0.1);
+    let pssm = pbm.to_scoring(bg);
+
+    striped.configure(&pssm);
+    bencher.iter(|| {
+        ScannerBuilder::new(&pssm, &striped)
+            .scan()
+            .max_by(|x, y| x.score.partial_cmp(&y.score).unwrap())
+            .unwrap();
+    });
+    bencher.bytes = seq.len() as u64;
+}
+
+#[bench]
+fn bench_scanner_best(bencher: &mut test::Bencher) {
+    let seq = &SEQUENCE[..N];
+    let encoded = EncodedSequence::<Dna>::encode(seq).unwrap();
+    let mut striped = Pipeline::generic().stripe(encoded);
+
+    let bg = Background::<Dna>::uniform();
+    let cm = CountMatrix::<Dna>::from_sequences([
+        EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
+        EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
+    ])
+    .unwrap();
+    let pbm = cm.to_freq(0.1);
+    let pssm = pbm.to_scoring(bg);
+
+    striped.configure(&pssm);
+    bencher.iter(|| ScannerBuilder::new(&pssm, &striped).best().unwrap());
+    bencher.bytes = seq.len() as u64;
+}
 
 fn bench_lightmotif<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(
     bencher: &mut test::Bencher,
     pli: &P,
 ) {
-    let seq = &SEQUENCE[..10000];
+    let seq = &SEQUENCE[..N];
     let encoded = EncodedSequence::<Dna>::encode(seq).unwrap();
     let mut striped = Pipeline::generic().stripe(encoded);
 
@@ -39,6 +86,7 @@ fn bench_lightmotif<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(
 
     striped.configure(&pssm);
     let mut scores = StripedScores::empty();
+    scores.resize(striped.data.rows(), striped.length);
     bencher.bytes = seq.len() as u64;
     bencher.iter(|| {
         test::black_box(pli.score_into(&pssm, &striped, &mut scores));
@@ -77,7 +125,7 @@ fn bench_bio(bencher: &mut test::Bencher) {
     use bio::pattern_matching::pssm::DNAMotif;
     use bio::pattern_matching::pssm::Motif;
 
-    let seq = &SEQUENCE[..10000];
+    let seq = &SEQUENCE[..N];
 
     let pssm = DNAMotif::from_seqs(
         vec![b"GTTGACCTTATCAAC".to_vec(), b"GTTGATCCAGTCAAC".to_vec()].as_ref(),
