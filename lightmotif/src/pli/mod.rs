@@ -23,8 +23,6 @@ use super::err::InvalidSymbol;
 use super::err::UnsupportedBackend;
 use super::num::MultipleOf;
 use super::num::StrictlyPositive;
-use super::num::Unsigned;
-use super::num::Zero;
 use super::num::U16;
 use super::pwm::ScoringMatrix;
 use super::seq::EncodedSequence;

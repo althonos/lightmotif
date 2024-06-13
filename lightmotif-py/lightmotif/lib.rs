@@ -516,17 +516,17 @@ pub struct StripedScores {
 
 #[pymethods]
 impl StripedScores {
-    // fn __len__(&self) -> usize {
-    //     self.scores.rows()
-    // }
+    fn __len__(&self) -> usize {
+        self.scores.max_index()
+    }
 
-    // fn __getitem__(&self, index: isize) -> PyResult<f32> {
-    //     if index < self.scores.len() as isize && index >= 0 {
-    //         Ok(self.scores[index as usize])
-    //     } else {
-    //         Err(PyIndexError::new_err("list index out of range"))
-    //     }
-    // }
+    fn __getitem__(&self, index: isize) -> PyResult<f32> {
+        if index < self.scores.max_index() as isize && index >= 0 {
+            Ok(self.scores[index as usize])
+        } else {
+            Err(PyIndexError::new_err("list index out of range"))
+        }
+    }
 
     unsafe fn __getbuffer__(
         mut slf: PyRefMut<'_, Self>,
@@ -615,7 +615,8 @@ impl StripedScores {
 }
 
 impl From<lightmotif::pli::StripedScores<C>> for StripedScores {
-    fn from(mut scores: lightmotif::pli::StripedScores<C>) -> Self {
+    fn from(scores: lightmotif::pli::StripedScores<C>) -> Self {
+        assert_eq!(scores.range().start, 0);
         // extract the matrix shape
         let cols = scores.matrix().columns();
         let rows = scores.matrix().rows();
