@@ -17,10 +17,10 @@ use crate::abc::Alphabet;
 use crate::abc::Symbol;
 use crate::dense::MatrixCoordinates;
 use crate::err::InvalidSymbol;
-use crate::pli::scores::StripedScores;
 use crate::pli::Encode;
 use crate::pli::Pipeline;
 use crate::pwm::ScoringMatrix;
+use crate::scores::StripedScores;
 use crate::seq::StripedSequence;
 
 /// A marker type for the AVX2 implementation of the pipeline.

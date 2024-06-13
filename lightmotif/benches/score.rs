@@ -9,8 +9,8 @@ use lightmotif::num::U32;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
 use lightmotif::pli::Stripe;
-use lightmotif::pli::StripedScores;
 use lightmotif::pwm::CountMatrix;
+use lightmotif::scores::StripedScores;
 use lightmotif::seq::EncodedSequence;
 
 mod dna {

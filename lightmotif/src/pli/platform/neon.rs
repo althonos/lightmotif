@@ -18,9 +18,9 @@ use crate::num::MultipleOf;
 use crate::num::StrictlyPositive;
 use crate::num::Unsigned;
 use crate::num::Zero;
-use crate::pli::scores::StripedScores;
 use crate::pli::Encode;
 use crate::pli::Pipeline;
+use crate::scores::StripedScores;
 
 use crate::pwm::ScoringMatrix;
 use crate::seq::StripedSequence;

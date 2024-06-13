@@ -1,4 +1,5 @@
 use std::iter::FusedIterator;
+use std::ops::Deref;
 use std::ops::Index;
 use std::ops::Range;
 
@@ -7,11 +8,64 @@ use crate::dense::DenseMatrix;
 use crate::dense::MatrixCoordinates;
 use crate::err::InvalidData;
 use crate::num::StrictlyPositive;
+use crate::pli::dispatch::Dispatch;
+use crate::pli::Maximum;
 use crate::pli::Pipeline;
+use crate::pli::Threshold;
 
-use super::dispatch::Dispatch;
-use super::Maximum;
-use super::Threshold;
+// --- Scores ------------------------------------------------------------------
+
+/// Striped matrix storing scores for an equally striped sequence.
+#[derive(Clone, Debug)]
+pub struct Scores {
+    /// The raw data matrix storing the scores.
+    data: Vec<f32>,
+}
+
+impl Scores {
+    pub fn new(data: Vec<f32>) -> Self {
+        Self { data }
+    }
+
+    pub fn argmax(&self) -> Option<usize> {
+        self.data
+            .iter()
+            .enumerate()
+            .max_by(|x, y| x.1.partial_cmp(y.1).unwrap())
+            .map(|(i, _)| i)
+    }
+
+    pub fn max(&self) -> Option<f32> {
+        self.data
+            .iter()
+            .max_by(|x, y| x.partial_cmp(y).unwrap())
+            .cloned()
+    }
+
+    pub fn threshold(&self, threshold: f32) -> Vec<usize> {
+        self.data
+            .iter()
+            .enumerate()
+            .filter(|(_, &x)| x >= threshold)
+            .map(|(i, _)| i)
+            .collect()
+    }
+}
+
+impl Deref for Scores {
+    type Target = Vec<f32>;
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl From<Vec<f32>> for Scores {
+    fn from(data: Vec<f32>) -> Self {
+        Self::new(data)
+    }
+}
+
+// --- StripedScores -----------------------------------------------------------
 
 /// Striped matrix storing scores for an equally striped sequence.
 #[derive(Clone, Debug)]

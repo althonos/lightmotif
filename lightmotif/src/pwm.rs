@@ -4,21 +4,20 @@ use std::ops::Index;
 
 use typenum::marker_traits::Unsigned;
 
+use crate::abc::Alphabet;
+use crate::abc::Background;
+use crate::abc::ComplementableAlphabet;
+use crate::abc::Pseudocounts;
+use crate::abc::Symbol;
+use crate::dense::DenseMatrix;
+use crate::err::InvalidData;
 use crate::num::StrictlyPositive;
-use crate::pli::StripedScores;
-
-use super::abc::Alphabet;
-use super::abc::Background;
-use super::abc::ComplementableAlphabet;
-use super::abc::Pseudocounts;
-use super::abc::Symbol;
-use super::dense::DenseMatrix;
-use super::err::InvalidData;
-use super::pli::dispatch::Dispatch;
-use super::pli::Pipeline;
-use super::pli::Score;
-use super::seq::EncodedSequence;
-use super::seq::StripedSequence;
+use crate::pli::dispatch::Dispatch;
+use crate::pli::Pipeline;
+use crate::pli::Score;
+use crate::scores::Scores;
+use crate::seq::EncodedSequence;
+use crate::seq::StripedSequence;
 
 macro_rules! matrix_traits {
     ($mx:ident, $t:ty) => {
@@ -486,28 +485,14 @@ impl<A: Alphabet> ScoringMatrix<A> {
     ///
     /// # Note
     /// Uses platform-accelerated implementation when available.
-    pub fn score<S, C>(&self, seq: S) -> StripedScores<C>
+    pub fn score<S, C>(&self, seq: S) -> Scores
     where
         C: StrictlyPositive,
         S: AsRef<StripedSequence<A, C>>,
         Pipeline<A, Dispatch>: Score<A, C>,
     {
         let pli = Pipeline::dispatch();
-        pli.score(self, seq)
-    }
-
-    /// Compute the PSSM scores into the given buffer.
-    ///
-    /// # Note
-    /// Uses platform-accelerated implementation when available.
-    pub fn score_into<S, C>(&self, seq: S, scores: &mut StripedScores<C>)
-    where
-        C: StrictlyPositive,
-        S: AsRef<StripedSequence<A, C>>,
-        Pipeline<A, Dispatch>: Score<A, C>,
-    {
-        let pli = Pipeline::dispatch();
-        pli.score_into(self, seq, scores);
+        pli.score(self, seq).to_vec().into()
     }
 
     /// Compute the score for a single sequence position.

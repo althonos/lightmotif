@@ -4,9 +4,22 @@ use std::ops::Div;
 use std::ops::Range;
 use std::ops::Rem;
 
+use crate::abc::Alphabet;
+use crate::abc::Dna;
+use crate::abc::Protein;
+use crate::abc::Symbol;
+use crate::dense::DenseMatrix;
 use crate::dense::MatrixCoordinates;
-
-pub use self::scores::StripedScores;
+use crate::err::InvalidSymbol;
+use crate::err::UnsupportedBackend;
+use crate::num::MultipleOf;
+use crate::num::StrictlyPositive;
+use crate::num::U16;
+use crate::pwm::ScoringMatrix;
+use crate::scores::Scores;
+use crate::scores::StripedScores;
+use crate::seq::EncodedSequence;
+use crate::seq::StripedSequence;
 
 use self::dispatch::Dispatch;
 use self::platform::Avx2;
@@ -14,23 +27,9 @@ use self::platform::Backend;
 use self::platform::Generic;
 use self::platform::Neon;
 use self::platform::Sse2;
-use super::abc::Alphabet;
-use super::abc::Dna;
-use super::abc::Protein;
-use super::abc::Symbol;
-use super::dense::DenseMatrix;
-use super::err::InvalidSymbol;
-use super::err::UnsupportedBackend;
-use super::num::MultipleOf;
-use super::num::StrictlyPositive;
-use super::num::U16;
-use super::pwm::ScoringMatrix;
-use super::seq::EncodedSequence;
-use super::seq::StripedSequence;
 
 pub mod dispatch;
 pub mod platform;
-mod scores;
 
 // --- Score -------------------------------------------------------------------
 

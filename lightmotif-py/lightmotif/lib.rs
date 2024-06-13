@@ -12,6 +12,7 @@ use lightmotif::abc::Symbol;
 use lightmotif::dense::DenseMatrix;
 use lightmotif::num::Unsigned;
 use lightmotif::pli::platform::Backend;
+use lightmotif::pli::Score;
 
 use generic_array::GenericArray;
 use pyo3::exceptions::PyBufferError;
@@ -473,7 +474,8 @@ impl ScoringMatrix {
         let pssm = &slf.data;
         let seq = &mut sequence.data;
         seq.configure(pssm);
-        slf.py().allow_threads(|| pssm.score(seq)).into()
+        let pli = lightmotif::pli::Pipeline::dispatch();
+        slf.py().allow_threads(|| pli.score(pssm, seq)).into()
     }
 
     /// Translate an absolute score to a P-value for this PSSM.
@@ -514,7 +516,7 @@ impl From<lightmotif::ScoringMatrix<lightmotif::Dna>> for ScoringMatrix {
 #[pyclass(module = "lightmotif.lib", sequence)]
 #[derive(Clone, Debug)]
 pub struct StripedScores {
-    scores: lightmotif::pli::StripedScores<C>,
+    scores: lightmotif::scores::StripedScores<C>,
     shape: [Py_ssize_t; 2],
     strides: [Py_ssize_t; 2],
 }
@@ -619,8 +621,8 @@ impl StripedScores {
     }
 }
 
-impl From<lightmotif::pli::StripedScores<C>> for StripedScores {
-    fn from(scores: lightmotif::pli::StripedScores<C>) -> Self {
+impl From<lightmotif::scores::StripedScores<C>> for StripedScores {
+    fn from(scores: lightmotif::scores::StripedScores<C>) -> Self {
         // assert_eq!(scores.range().start, 0);
         // extract the matrix shape
         let cols = scores.matrix().columns();

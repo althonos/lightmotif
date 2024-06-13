@@ -16,8 +16,8 @@ use crate::num::consts::U16;
 use crate::num::MultipleOf;
 use crate::num::StrictlyPositive;
 use crate::num::Unsigned;
-use crate::pli::scores::StripedScores;
 use crate::pwm::ScoringMatrix;
+use crate::scores::StripedScores;
 use crate::seq::StripedSequence;
 
 /// A marker type for the SSE2 implementation of the pipeline.

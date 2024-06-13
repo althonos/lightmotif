@@ -80,7 +80,7 @@ assert_eq!(scores[0], -23.07094);
 assert_eq!(v[0], -23.07094);
 
 // Find the highest scoring position.
-let best = scores.argmax().map(|c| scores.offset(c)).unwrap();
+let best = scores.argmax().unwrap();
 assert_eq!(best, 18);
 
 // Find the positions above an absolute score threshold.

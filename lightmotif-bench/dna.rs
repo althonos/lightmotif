@@ -14,8 +14,8 @@ use lightmotif::pli::Maximum;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
 use lightmotif::pli::Stripe;
-use lightmotif::pli::StripedScores;
 use lightmotif::pwm::CountMatrix;
+use lightmotif::scores::StripedScores;
 use lightmotif::seq::EncodedSequence;
 
 const SEQUENCE: &str = include_str!("../lightmotif/benches/ecoli.txt");

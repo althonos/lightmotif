@@ -6,7 +6,6 @@ use super::platform::Avx2;
 use super::platform::Generic;
 use super::platform::Neon;
 use super::platform::Sse2;
-use super::scores::StripedScores;
 use super::Backend;
 use super::Encode;
 use super::Maximum;
@@ -22,6 +21,7 @@ use crate::err::InvalidSymbol;
 #[allow(unused)]
 use crate::num::U1;
 use crate::pwm::ScoringMatrix;
+use crate::scores::StripedScores;
 use crate::seq::StripedSequence;
 
 /// A dynamic dispatcher that selects the best available pipeline backend at runtime.
