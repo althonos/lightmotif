@@ -15,7 +15,6 @@ use crate::num::StrictlyPositive;
 use crate::pli::dispatch::Dispatch;
 use crate::pli::Pipeline;
 use crate::pli::Score;
-use crate::scores::Scores;
 use crate::scores::StripedScores;
 use crate::seq::EncodedSequence;
 use crate::seq::StripedSequence;

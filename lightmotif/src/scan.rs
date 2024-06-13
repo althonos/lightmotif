@@ -106,10 +106,9 @@ where
     Pipeline<A, Dispatch>: Score<A, C>,
 {
     /// Consume the scanner to find the best hit.
-    pub fn best(mut self) -> Option<Hit> {
+    pub fn best(&mut self) -> Option<Hit> {
         let pli = Pipeline::dispatch();
-        let mut best = self
-            .hits
+        let mut best = std::mem::take(&mut self.hits)
             .into_iter()
             .max_by(|x, y| x.score.partial_cmp(&y.score).unwrap());
         while self.row < self.seq.as_inner().rows() {

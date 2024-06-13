@@ -1,8 +1,6 @@
 //! Concrete implementations of the sequence scoring pipeline.
 
-use std::ops::Div;
 use std::ops::Range;
-use std::ops::Rem;
 
 use crate::abc::Alphabet;
 use crate::abc::Dna;
@@ -16,7 +14,6 @@ use crate::num::MultipleOf;
 use crate::num::StrictlyPositive;
 use crate::num::U16;
 use crate::pwm::ScoringMatrix;
-use crate::scores::Scores;
 use crate::scores::StripedScores;
 use crate::seq::EncodedSequence;
 use crate::seq::StripedSequence;

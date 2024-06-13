@@ -1,14 +1,11 @@
 use std::str::FromStr;
 
 use nom::branch::alt;
-
 use nom::bytes::complete::tag;
 use nom::bytes::complete::take_till;
-
 use nom::character::complete::anychar;
 use nom::character::complete::char;
 use nom::character::complete::line_ending;
-
 use nom::character::complete::space0;
 use nom::character::streaming::space1;
 use nom::combinator::eof;
@@ -17,9 +14,7 @@ use nom::combinator::opt;
 use nom::error::Error;
 use nom::error::ErrorKind;
 use nom::multi::count;
-
 use nom::multi::many1;
-
 use nom::multi::separated_list1;
 use nom::sequence::delimited;
 use nom::sequence::preceded;
