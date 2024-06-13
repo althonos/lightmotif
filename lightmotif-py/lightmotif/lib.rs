@@ -495,6 +495,11 @@ impl ScoringMatrix {
             "package compiled without p-value support",
         ));
     }
+
+    /// Compute the reverse complement of this scoring matrix.
+    pub fn reverse_complement(slf: PyRef<'_, Self>) -> ScoringMatrix {
+        slf.data.reverse_complement().into()
+    }
 }
 
 impl From<lightmotif::ScoringMatrix<lightmotif::Dna>> for ScoringMatrix {
@@ -506,7 +511,7 @@ impl From<lightmotif::ScoringMatrix<lightmotif::Dna>> for ScoringMatrix {
 // --- Scores ------------------------------------------------------------------
 
 /// A striped matrix storing scores obtained with a scoring matrix.
-#[pyclass(module = "lightmotif.lib")]
+#[pyclass(module = "lightmotif.lib", sequence)]
 #[derive(Clone, Debug)]
 pub struct StripedScores {
     scores: lightmotif::pli::StripedScores<C>,
