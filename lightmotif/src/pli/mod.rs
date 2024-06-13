@@ -86,12 +86,12 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
         let pssm = pssm.as_ref();
 
         if seq.length < pssm.len() {
-            scores.resize(0..0, 0);
+            scores.resize(0, 0);
             return;
         }
 
         // FIXME?
-        scores.resize(rows.clone(), seq.length - pssm.len() + 1);
+        scores.resize(rows.len(), seq.length - pssm.len() + 1);
 
         let result = scores.matrix_mut();
         let matrix = pssm.matrix();

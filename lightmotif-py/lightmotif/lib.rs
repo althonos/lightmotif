@@ -584,7 +584,7 @@ impl StripedScores {
             scores
                 .threshold(threshold)
                 .into_iter()
-                .map(|c| scores.sequence_index(c))
+                .map(|c| scores.offset(c))
                 .collect()
         })
     }
@@ -615,13 +615,13 @@ impl StripedScores {
     pub fn argmax(slf: PyRef<'_, Self>) -> Option<usize> {
         let scores = &slf.scores;
         slf.py()
-            .allow_threads(|| scores.argmax().map(|c| scores.sequence_index(c)))
+            .allow_threads(|| scores.argmax().map(|c| scores.offset(c)))
     }
 }
 
 impl From<lightmotif::pli::StripedScores<C>> for StripedScores {
     fn from(scores: lightmotif::pli::StripedScores<C>) -> Self {
-        assert_eq!(scores.range().start, 0);
+        // assert_eq!(scores.range().start, 0);
         // extract the matrix shape
         let cols = scores.matrix().columns();
         let rows = scores.matrix().rows();

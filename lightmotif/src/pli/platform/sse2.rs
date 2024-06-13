@@ -206,11 +206,11 @@ impl Sse2 {
         }
 
         if seq.length < pssm.len() {
-            scores.resize(0..0, 0);
+            scores.resize(0, 0);
             return;
         }
 
-        scores.resize(rows.clone(), seq.length - pssm.len() + 1);
+        scores.resize(rows.len(), seq.length - pssm.len() + 1);
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             score_sse2(pssm, seq, rows, scores);

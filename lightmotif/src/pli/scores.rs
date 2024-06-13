@@ -18,41 +18,19 @@ use super::Threshold;
 pub struct StripedScores<C: StrictlyPositive> {
     /// The raw data matrix storing the scores.
     data: DenseMatrix<f32, C>,
-    /// The range of rows over the `StripedSequence` these scores were obtained from.
-    range: Range<usize>,
     /// The total length of the `StripedSequence` these scores were obtained from.
     max_index: usize,
-    /// The total number of sequence rows in the `StripedSequence` these scores were obtained from.
-    sequence_rows: usize,
 }
 
 impl<C: StrictlyPositive> StripedScores<C> {
     /// Create a new striped score matrix with the given length and data.
-    fn new(
-        data: DenseMatrix<f32, C>,
-        range: Range<usize>,
-        max_index: usize,
-    ) -> Result<Self, InvalidData> {
-        if data.rows() != range.len() {
-            Err(InvalidData)
-        } else {
-            Ok(Self {
-                data,
-                range,
-                max_index,
-                sequence_rows: (max_index + C::USIZE - 1) / C::USIZE,
-            })
-        }
+    fn new(data: DenseMatrix<f32, C>, max_index: usize) -> Result<Self, InvalidData> {
+        Ok(Self { data, max_index })
     }
 
     /// Create an empty buffer to store striped scores.
     pub fn empty() -> Self {
-        Self::new(DenseMatrix::new(0), 0..0, 0).unwrap()
-    }
-
-    /// The rows for which these scores were computed.
-    pub fn range(&self) -> Range<usize> {
-        self.range.clone()
+        Self::new(DenseMatrix::new(0), 0).unwrap()
     }
 
     /// The maximum sequence index (the length of the scored sequence).
@@ -77,17 +55,15 @@ impl<C: StrictlyPositive> StripedScores<C> {
 
     /// Resize the striped scores storage for the given range of rows.
     #[doc(hidden)]
-    pub fn resize(&mut self, range: Range<usize>, max_index: usize) {
-        self.data.resize(range.len());
-        self.range = range;
+    pub fn resize(&mut self, rows: usize, max_index: usize) {
+        self.data.resize(rows);
         self.max_index = max_index;
-        self.sequence_rows = (max_index + C::USIZE - 1) / C::USIZE;
     }
 
-    /// Convert coordinates inside the striped scores into a sequence index.
+    /// Convert coordinates into a column-major offset.
     #[inline]
-    pub fn sequence_index(&self, mc: MatrixCoordinates) -> usize {
-        mc.col * self.sequence_rows + self.range.start + mc.row
+    pub fn offset(&self, mc: MatrixCoordinates) -> usize {
+        mc.col * self.data.rows() + mc.row
     }
 
     /// Iterate over scores of individual sequence positions.
@@ -185,18 +161,22 @@ pub struct Iter<'a, C: StrictlyPositive> {
 impl<'a, C: StrictlyPositive> Iter<'a, C> {
     fn new(scores: &'a StripedScores<C>) -> Self {
         // Compute number of rows of source sequence
-        let seq_rows = (scores.max_index + C::USIZE - 1) / C::USIZE;
-        let offset = seq_rows * (C::USIZE - 1) + scores.range.start;
+        // let seq_rows = (scores.max_index + C::USIZE - 1) / C::USIZE;
+        // let offset = seq_rows * (C::USIZE - 1);
 
         // Check if the rows range contains some unneeded indices
-        let mut i = scores.range.len() * C::USIZE;
-        let end = scores.range.end * C::USIZE;
-        if end + offset >= scores.max_index {
-            i -= end - scores.max_index;
-        }
+        // let mut i = scores.range.len() * C::USIZE;
+        // let end = scores.range.end * C::USIZE;
+        // if end + offset >= scores.max_index {
+        //     i -= end - scores.max_index;
+        // }
+
+        let end = scores
+            .max_index
+            .min(scores.data.rows() * scores.data.columns());
 
         // Create the iterator
-        let indices = 0..i;
+        let indices = 0..end;
         Self { scores, indices }
     }
 
@@ -237,11 +217,11 @@ mod tests {
     #[test]
     fn test_iter() {
         let data = DenseMatrix::<f32, U4>::new(6);
-        let scores = StripedScores::new(data, 0..6, 22).unwrap();
+        let scores = StripedScores::new(data, 22).unwrap();
         assert_eq!(scores.to_vec().len(), 22);
 
         let data = DenseMatrix::<f32, U4>::new(3);
-        let scores = StripedScores::new(data, 3..6, 22).unwrap();
+        let scores = StripedScores::new(data, 10).unwrap();
         assert_eq!(scores.to_vec().len(), 10);
     }
 }
