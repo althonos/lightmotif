@@ -135,7 +135,7 @@ unsafe fn score_neon<A: Alphabet, C: MultipleOf<U16>>(
     let data = scores.matrix_mut();
     for offset in (0..C::Quotient::USIZE).map(|i| i * <Neon as Backend>::LANES::USIZE) {
         // process every position of the sequence data
-        for i in 0..rows.clone() {
+        for i in rows.clone() {
             // reset sums for current position
             let mut s = float32x4x4_t(zero_f32, zero_f32, zero_f32, zero_f32);
             // reset position
