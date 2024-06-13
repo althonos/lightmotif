@@ -582,13 +582,7 @@ impl StripedScores {
     ///
     pub fn threshold(slf: PyRef<'_, Self>, threshold: f32) -> Vec<usize> {
         let scores = &slf.scores;
-        slf.py().allow_threads(|| {
-            scores
-                .threshold(threshold)
-                .into_iter()
-                .map(|c| scores.offset(c))
-                .collect()
-        })
+        slf.py().allow_threads(|| scores.threshold(threshold))
     }
 
     /// Return the maximum score, if the score matrix is not empty.
@@ -616,8 +610,7 @@ impl StripedScores {
     ///
     pub fn argmax(slf: PyRef<'_, Self>) -> Option<usize> {
         let scores = &slf.scores;
-        slf.py()
-            .allow_threads(|| scores.argmax().map(|c| scores.offset(c)))
+        slf.py().allow_threads(|| scores.argmax())
     }
 }
 

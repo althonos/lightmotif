@@ -1,3 +1,5 @@
+//! Wrapper types for storing scores.
+
 use std::iter::FusedIterator;
 use std::ops::Deref;
 use std::ops::Index;
@@ -15,18 +17,20 @@ use crate::pli::Threshold;
 
 // --- Scores ------------------------------------------------------------------
 
-/// Striped matrix storing scores for an equally striped sequence.
+/// Simple vector storing scores for a score sequence.
 #[derive(Clone, Debug)]
 pub struct Scores {
-    /// The raw data matrix storing the scores.
+    /// The raw vector storing the scores.
     data: Vec<f32>,
 }
 
 impl Scores {
+    /// Create a new collection from an array of scores.
     pub fn new(data: Vec<f32>) -> Self {
         Self { data }
     }
 
+    /// Find the position with the highest score.
     pub fn argmax(&self) -> Option<usize> {
         self.data
             .iter()
@@ -35,6 +39,7 @@ impl Scores {
             .map(|(i, _)| i)
     }
 
+    /// Find the highest score.
     pub fn max(&self) -> Option<f32> {
         self.data
             .iter()
@@ -42,6 +47,7 @@ impl Scores {
             .cloned()
     }
 
+    /// Return the positions with score equal to or greater than the threshold.
     pub fn threshold(&self, threshold: f32) -> Vec<usize> {
         self.data
             .iter()
@@ -62,6 +68,12 @@ impl Deref for Scores {
 impl From<Vec<f32>> for Scores {
     fn from(data: Vec<f32>) -> Self {
         Self::new(data)
+    }
+}
+
+impl From<Scores> for Vec<f32> {
+    fn from(scores: Scores) -> Self {
+        scores.data
     }
 }
 
@@ -108,7 +120,6 @@ impl<C: StrictlyPositive> StripedScores<C> {
     }
 
     /// Resize the striped scores storage for the given range of rows.
-    #[doc(hidden)]
     pub fn resize(&mut self, rows: usize, max_index: usize) {
         self.data.resize(rows);
         self.max_index = max_index;
@@ -126,10 +137,10 @@ impl<C: StrictlyPositive> StripedScores<C> {
         Iter::new(self)
     }
 
-    /// Convert the striped scores to a vector of scores.
+    /// Convert the striped scores into an array.
     #[inline]
-    pub fn to_vec(&self) -> Vec<f32> {
-        self.iter().cloned().collect()
+    pub fn unstripe(&self) -> Scores {
+        self.iter().cloned().collect::<Vec<f32>>().into()
     }
 }
 
@@ -149,8 +160,8 @@ where
     ///
     /// # Note
     /// Uses platform-accelerated implementation when available.
-    pub fn argmax(&self) -> Option<MatrixCoordinates> {
-        Pipeline::dispatch().argmax(self)
+    pub fn argmax(&self) -> Option<usize> {
+        Pipeline::dispatch().argmax(self).map(|mc| self.offset(mc))
     }
 }
 
@@ -166,8 +177,12 @@ where
     ///
     /// # Note
     /// Uses platform-accelerated implementation when available.
-    pub fn threshold(&self, threshold: f32) -> Vec<MatrixCoordinates> {
-        Pipeline::dispatch().threshold(self, threshold)
+    pub fn threshold(&self, threshold: f32) -> Vec<usize> {
+        Pipeline::dispatch()
+            .threshold(self, threshold)
+            .into_iter()
+            .map(|m| self.offset(m))
+            .collect()
     }
 }
 
@@ -214,21 +229,10 @@ pub struct Iter<'a, C: StrictlyPositive> {
 
 impl<'a, C: StrictlyPositive> Iter<'a, C> {
     fn new(scores: &'a StripedScores<C>) -> Self {
-        // Compute number of rows of source sequence
-        // let seq_rows = (scores.max_index + C::USIZE - 1) / C::USIZE;
-        // let offset = seq_rows * (C::USIZE - 1);
-
-        // Check if the rows range contains some unneeded indices
-        // let mut i = scores.range.len() * C::USIZE;
-        // let end = scores.range.end * C::USIZE;
-        // if end + offset >= scores.max_index {
-        //     i -= end - scores.max_index;
-        // }
-
+        // Compute the last index
         let end = scores
             .max_index
             .min(scores.data.rows() * scores.data.columns());
-
         // Create the iterator
         let indices = 0..end;
         Self { scores, indices }
@@ -272,10 +276,10 @@ mod tests {
     fn test_iter() {
         let data = DenseMatrix::<f32, U4>::new(6);
         let scores = StripedScores::new(data, 22).unwrap();
-        assert_eq!(scores.to_vec().len(), 22);
+        assert_eq!(scores.unstripe().len(), 22);
 
         let data = DenseMatrix::<f32, U4>::new(3);
         let scores = StripedScores::new(data, 10).unwrap();
-        assert_eq!(scores.to_vec().len(), 10);
+        assert_eq!(scores.unstripe().len(), 10);
     }
 }

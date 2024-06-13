@@ -16,6 +16,7 @@ use crate::pli::dispatch::Dispatch;
 use crate::pli::Pipeline;
 use crate::pli::Score;
 use crate::scores::Scores;
+use crate::scores::StripedScores;
 use crate::seq::EncodedSequence;
 use crate::seq::StripedSequence;
 
@@ -485,14 +486,14 @@ impl<A: Alphabet> ScoringMatrix<A> {
     ///
     /// # Note
     /// Uses platform-accelerated implementation when available.
-    pub fn score<S, C>(&self, seq: S) -> Scores
+    pub fn score<S, C>(&self, seq: S) -> StripedScores<C>
     where
         C: StrictlyPositive,
         S: AsRef<StripedSequence<A, C>>,
         Pipeline<A, Dispatch>: Score<A, C>,
     {
         let pli = Pipeline::dispatch();
-        pli.score(self, seq).to_vec().into()
+        pli.score(self, seq)
     }
 
     /// Compute the score for a single sequence position.

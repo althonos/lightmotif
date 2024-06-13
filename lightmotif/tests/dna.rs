@@ -75,7 +75,7 @@ fn test_score<C: StrictlyPositive, P: Score<Dna, C>>(pli: &P) {
 
     striped.configure(&pssm);
     let result = pli.score(&pssm, &striped);
-    let scores = result.to_vec();
+    let scores = result.unstripe();
 
     assert_eq!(scores.len(), EXPECTED.len());
     for i in 0..scores.len() {

@@ -34,6 +34,7 @@ mod dna {
 
         striped.configure(&pssm);
         let mut scores = StripedScores::empty();
+        scores.resize(striped.data.rows(), striped.length);
         bencher.bytes = SEQUENCE.len() as u64;
         bencher.iter(|| {
             test::black_box(pli.score_into(&pssm, &striped, &mut scores));
@@ -106,6 +107,7 @@ mod protein {
 
         striped.configure(&pssm);
         let mut scores = StripedScores::empty();
+        scores.resize(striped.data.rows(), striped.length);
         bencher.bytes = SEQUENCE.len() as u64;
         bencher.iter(|| {
             test::black_box(pli.score_into(&pssm, &striped, &mut scores));

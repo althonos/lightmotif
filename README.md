@@ -50,7 +50,6 @@ Other crates from the ecosystem provide additional features if needed:
 ```rust
 use lightmotif::*;
 use lightmotif::abc::Nucleotide;
-use typenum::U32;
 
 // Create a count matrix from an iterable of motif sequences
 let counts = CountMatrix::<Dna>::from_sequences(
@@ -75,7 +74,7 @@ striped.configure(&pssm);
 let scores = pssm.score(&striped);
 
 // Scores can be extracted into a Vec<f32>, or indexed directly.
-let v = scores.to_vec();
+let v = scores.unstripe();
 assert_eq!(scores[0], -23.07094);
 assert_eq!(v[0], -23.07094);
 
