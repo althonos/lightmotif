@@ -15,12 +15,12 @@ use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
 use lightmotif::pli::Stripe;
 use lightmotif::pwm::CountMatrix;
-use lightmotif::scan::ScannerBuilder;
+use lightmotif::scan::Scanner;
 use lightmotif::scores::StripedScores;
 use lightmotif::seq::EncodedSequence;
 
 const SEQUENCE: &str = include_str!("../lightmotif/benches/ecoli.txt");
-const N: usize = 10000;
+const N: usize = SEQUENCE.len() / 10;
 
 #[bench]
 fn bench_scanner_max_by(bencher: &mut test::Bencher) {
@@ -39,8 +39,7 @@ fn bench_scanner_max_by(bencher: &mut test::Bencher) {
 
     striped.configure(&pssm);
     bencher.iter(|| {
-        ScannerBuilder::new(&pssm, &striped)
-            .scan()
+        Scanner::new(&pssm, &striped)
             .max_by(|x, y| x.score.partial_cmp(&y.score).unwrap())
             .unwrap();
     });
@@ -63,7 +62,7 @@ fn bench_scanner_best(bencher: &mut test::Bencher) {
     let pssm = pbm.to_scoring(bg);
 
     striped.configure(&pssm);
-    bencher.iter(|| ScannerBuilder::new(&pssm, &striped).best().unwrap());
+    bencher.iter(|| Scanner::new(&pssm, &striped).best().unwrap());
     bencher.bytes = seq.len() as u64;
 }
 

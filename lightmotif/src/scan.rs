@@ -58,72 +58,47 @@ impl Hit {
 }
 
 #[derive(Debug)]
-pub struct ScannerBuilder<'a, A: Alphabet> {
+pub struct Scanner<'a, A: Alphabet> {
     pssm: &'a ScoringMatrix<A>,
     seq: &'a StripedSequence<A, C>,
-    scores: Option<&'a mut StripedScores<C>>,
+    scores: CowMut<'a, StripedScores<C>>,
     threshold: f32,
     block_size: usize,
+    row: usize,
+    hits: Vec<Hit>,
 }
 
-impl<'a, A: Alphabet> ScannerBuilder<'a, A> {
-    /// Create a new scanner for the given
+impl<'a, A: Alphabet> Scanner<'a, A> {
+    /// Create a new scanner for the given matrix and sequence.
     pub fn new(pssm: &'a ScoringMatrix<A>, seq: &'a StripedSequence<A, C>) -> Self {
         Self {
             pssm,
-            seq: seq.into(),
-            scores: None,
+            seq,
+            scores: CowMut::Owned(StripedScores::empty()),
             threshold: 0.0,
-            block_size: 256,
+            block_size: 512,
+            row: 0,
+            hits: Vec::new(),
         }
     }
 
+    /// Use the given `StripedScores` as a buffer.
     pub fn scores(&mut self, scores: &'a mut StripedScores<C>) -> &mut Self {
-        self.scores = Some(scores);
+        self.scores = CowMut::Borrowed(scores);
         self
     }
 
+    /// Change the block size for the scanner.
     pub fn block_size(&mut self, block_size: usize) -> &mut Self {
         self.block_size = block_size;
         self
     }
 
+    /// Change the threshold for the scanner.
     pub fn threshold(&mut self, threshold: f32) -> &mut Self {
         self.threshold = threshold;
         self
     }
-
-    pub fn scan(&mut self) -> Scanner<'a, A> {
-        Scanner {
-            pssm: self.pssm,
-            seq: self.seq,
-            threshold: self.threshold,
-            block_size: self.block_size,
-            scores: self.scores.take().map(CowMut::Borrowed).unwrap_or_default(),
-            row: 0,
-            hits: Vec::new(),
-        }
-    }
-}
-
-impl<'a, A: Alphabet> ScannerBuilder<'a, A>
-where
-    Pipeline<A, Dispatch>: Score<A, C>,
-{
-    pub fn best(&mut self) -> Option<Hit> {
-        self.scan().best()
-    }
-}
-
-#[derive(Debug)]
-pub struct Scanner<'a, A: Alphabet> {
-    pssm: &'a ScoringMatrix<A>,
-    seq: &'a StripedSequence<A, C>,
-    threshold: f32,
-    block_size: usize,
-    scores: CowMut<'a, StripedScores<C>>,
-    hits: Vec<Hit>,
-    row: usize,
 }
 
 impl<'a, A: Alphabet> Scanner<'a, A>
