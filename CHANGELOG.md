@@ -6,7 +6,62 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.7.0...HEAD
+
+
+## [v0.7.0] - 2024-06-14
+[v0.7.0]: https://github.com/althonos/lightmotif/compare/v0.6.0...v0.7.0
+
+### Added
+
+#### `lightmotif`
+- Implement indexing of `StripedSequence` by sequence index.
+- `matrix` accessor to all matrix types in `lightmotif::pwm` and `lightmotif::seq`.
+- `entropy` and `information_content` methods to `CountMatrix`.
+- `SymbolCount` trait for counting the number of occurrences of a symbol in an iterable.
+- Several `Background` constructors for counting occurences in one or more sequences.
+- `FromIterator<A::Symbol>` constructor for `EncodedSequence<A>`.
+- `MultipleOf<N>` trait to simplify typenums in platform code signatures.
+- Sampling of random sequences using the `rand` dependency under a feature flag.
+- `ScoringMatrix.score_into` method to re-use a `StripedScores` buffer.
+- `ScoringMatrix.score_position` method to score a single sequence position.
+- Indexing by `MatrixCoordinates` in `DenseMatrix`.
+- Support for chanding logarithm base when building a `ScoringMatrix` from a `WeightMatrix`.
+- Scanning algorithm for finding hits in a sequence with an iterator without allocating `StripedScores` for each sequence position.
+
+### `lightmotif-py`
+- Support for optional TFMPvalue interface in Python bindings under GPLv3+ code.
+- Constructor for `ScoringMatrix` class.
+- `ScoringMatrix.reverse_complement` to compute the reverse-complement of a scoring matrix.
+
+### Changed
+
+#### `lightmotif`
+- Make `EncodedSequence.stripe` use a dispatching `Pipeline` internally.
+- Require power-of-two alignment in `DenseMatrix` implementations.
+- Update `generic-array` dependency to `v1.0`.
+- Change order of parameters in `ScoringMatrix.score`.
+- Reorganize scoring trait and implement row-slice scoring for AVX2 and SSE2.
+- Rewrite `Pipeline::threshold` to return matrix coordinates instead of a sequence index.
+- Rewrite `Pipeline::argmax` to return matrix coordinates instead of a sequence index.
+
+#### `lightmotif-py`
+- Streamline the use of pipelined functions in Python bindings.
+
+### Fixed
+
+#### `lightmotif`
+- Handling of unknown residues in `permute` implementation of `Score` on AVX2.
+- `PartialEq` for `DenseMatrix` to ignore alignment padding in each row. 
+
+### Removed
+
+#### `lightmotif`
+- Platform-specific code for thresholding a `StripedScores` matrix.
+- Direct attribute access in `StripedSequence`.
+
+#### `lightmotif-transfac`
+- Remove crate from repository, superseded by the `lightmotif-io` crate.
 
 
 ## [v0.6.0] - 2023-12-13
