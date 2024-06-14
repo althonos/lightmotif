@@ -1,6 +1,6 @@
 [package]
 name = "lightmotif-py"
-version = "0.7.1"
+version = "0.7.2"
 authors = ["Martin Larralde <martin.larralde@embl.de>"]
 edition = "2021"
 license = "MIT OR GPL-3.0-or-later"
@@ -17,11 +17,11 @@ path = "lightmotif/lib.rs"
 
 [dependencies.lightmotif]
 path = "../lightmotif"
-version = "0.7.1"
+version = "0.7.2"
 [dependencies.lightmotif-tfmpvalue]
 optional = true
 path = "../lightmotif-tfmpvalue"
-version = "0.7.1"
+version = "0.7.2"
 [dependencies]
 pyo3 = "0.18.3"
 generic-array = "1.0.0"

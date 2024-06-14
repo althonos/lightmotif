@@ -6,7 +6,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.7.2...HEAD
+
+
+## [v0.7.2] - 2024-06-14
+[v0.7.2]: https://github.com/althonos/lightmotif/compare/v0.7.1...v0.7.2
+
+### Added
+
+#### `lightmotif-py`
+- Add `__len__` implementation for all matrix clases.
+- Allow changing the logarithm base in `WeightMatrix.log_odds` method.
+- Implement `__getitem__` for row access for all matrix classes.
 
 
 ## [v0.7.1] - 2024-06-14

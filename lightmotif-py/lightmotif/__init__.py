@@ -1,4 +1,4 @@
-__version__ = "0.7.1"
+__version__ = "0.7.2"
 
 from . import lib
 from .lib import (
@@ -14,5 +14,5 @@ from .lib import (
 )
 
 __author__ = lib.__author__
-__license__ = "MIT"
+__license__ = "MIT OR GPL-3.0-or-later"
 __doc__ = lib.__doc__
