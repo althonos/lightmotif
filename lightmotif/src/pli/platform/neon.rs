@@ -139,7 +139,7 @@ unsafe fn score_neon<A: Alphabet, C: MultipleOf<U16>>(
             // reset sums for current position
             let mut s = float32x4x4_t(zero_f32, zero_f32, zero_f32, zero_f32);
             // reset position
-            let mut dataptr = seq.data[i].as_ptr().add(offset);
+            let mut dataptr = seq.matrix()[i].as_ptr().add(offset);
             let mut pssmptr = pssm.matrix()[0].as_ptr();
             // advance position in the position weight matrix
             for _ in 0..pssm.len() {
@@ -166,7 +166,7 @@ unsafe fn score_neon<A: Alphabet, C: MultipleOf<U16>>(
                     s.3 = vaddq_f32(s.3, vreinterpretq_f32_u32(vandq_u32(lut, p4)));
                 }
                 // advance to next row in sequence and PSSM matrices
-                dataptr = dataptr.add(seq.data.stride());
+                dataptr = dataptr.add(seq.matrix().stride());
                 pssmptr = pssmptr.add(pssm.matrix().stride());
             }
             // record the score for the current position
