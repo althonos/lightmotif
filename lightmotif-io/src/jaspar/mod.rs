@@ -5,19 +5,19 @@
 //!
 //! The JASPAR files contains a FASTA-like header line for each record,
 //! followed by one line per symbol storing tab-separated counts at each
-//! position. The 2016 version introduces bracketed matrix columns for
-//! each symbol, allowing for non-standard alphabets to be used:
+//! position. The "raw" format simply stores 4 lines corresponding to the
+//! scores for the A, C, G and T letters:
 //! ```text
-//! >MA0001.3	AGL3
-//! A  [     0      0     82     40     56     35     65     25     64      0 ]
-//! C  [    92     79      1      4      0      0      1      4      0      0 ]
-//! G  [     0      0      2      3      1      0      4      3     28     92 ]
-//! T  [     3     16     10     48     38     60     25     63      3      3 ]
+//! >MA1104.2 GATA6
+//! 22320 20858 35360  5912 4535  2560  5044 76686  1507  1096 13149 18911 22172
+//! 16229 14161 13347 11831 62936 1439  1393   815   852 75930  3228 19054 17969
+//! 13432 11894 10394  7066 6459   580   615   819   456   712  1810 18153 11605
+//! 27463 32531 20343 54635 5514 74865 72392  1124 76629  1706 61257 23326 27698
 //! ```
 
 use std::io::BufRead;
 
-use lightmotif::abc::Alphabet;
+use lightmotif::abc::Dna;
 use lightmotif::pwm::CountMatrix;
 
 use crate::error::Error;
@@ -27,13 +27,13 @@ mod parse;
 // ---
 
 #[derive(Debug, Clone)]
-pub struct Record<A: Alphabet> {
+pub struct Record {
     id: String,
     description: Option<String>,
-    matrix: CountMatrix<A>,
+    matrix: CountMatrix<Dna>,
 }
 
-impl<A: Alphabet> Record<A> {
+impl Record {
     pub fn id(&self) -> &str {
         &self.id
     }
@@ -42,27 +42,26 @@ impl<A: Alphabet> Record<A> {
         self.description.as_deref()
     }
 
-    pub fn matrix(&self) -> &CountMatrix<A> {
+    pub fn matrix(&self) -> &CountMatrix<Dna> {
         &self.matrix
     }
 }
 
-impl<A: Alphabet> AsRef<CountMatrix<A>> for Record<A> {
-    fn as_ref(&self) -> &CountMatrix<A> {
+impl AsRef<CountMatrix<Dna>> for Record {
+    fn as_ref(&self) -> &CountMatrix<Dna> {
         &self.matrix
     }
 }
 
 // ---
 
-pub struct Reader<B: BufRead, A: Alphabet> {
+pub struct Reader<B: BufRead> {
     buffer: Vec<u8>,
     bufread: B,
     start: usize,
-    _alphabet: std::marker::PhantomData<A>,
 }
 
-impl<B: BufRead, A: Alphabet> Reader<B, A> {
+impl<B: BufRead> Reader<B> {
     pub fn new(mut reader: B) -> Self {
         let mut buffer = Vec::new();
         let start = reader.read_until(b'>', &mut buffer).unwrap_or(1) - 1;
@@ -71,13 +70,12 @@ impl<B: BufRead, A: Alphabet> Reader<B, A> {
             bufread: reader,
             buffer,
             start,
-            _alphabet: std::marker::PhantomData,
         }
     }
 }
 
-impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
-    type Item = Result<Record<A>, Error>;
+impl<B: BufRead> Iterator for Reader<B> {
+    type Item = Result<Record, Error>;
     fn next(&mut self) -> Option<Self::Item> {
         match self.bufread.read_until(b'>', &mut self.buffer) {
             Ok(n) => {
@@ -98,7 +96,7 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
                 if n == 0 && text.trim().is_empty() {
                     return None;
                 }
-                let (rest, record) = match self::parse::record::<A>(text) {
+                let (rest, record) = match self::parse::record(text) {
                     Err(e) => return Some(Err(Error::from(e))),
                     Ok((rest, record)) => (rest, record),
                 };
@@ -116,49 +114,21 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
     }
 }
 
-pub fn read<B: BufRead, A: Alphabet>(reader: B) -> self::Reader<B, A> {
-    self::Reader::new(reader)
-}
-
 #[cfg(test)]
 mod test {
-
-    use lightmotif::Dna;
 
     #[test]
     fn test_single() {
         let text = concat!(
-            ">MA0001.1 RUNX1\n",
-            "A [10 12  4  1  2  2  0  0  0  8 13 ]\n",
-            "C [ 2  2  7  1  0  8  0  0  1  2  2 ]\n",
-            "G [ 3  1  1  0 23  0 26 26  0  0  4 ]\n",
-            "T [11 11 14 24  1 16  0  0 25 16  7 ]\n",
+            ">MA1104.2 GATA6\n",
+            "22320 20858 35360  5912 4535  2560  5044 76686  1507  1096 13149 18911 22172\n",
+            "16229 14161 13347 11831 62936 1439  1393   815   852 75930  3228 19054 17969\n",
+            "13432 11894 10394  7066 6459   580   615   819   456   712  1810 18153 11605\n",
+            "27463 32531 20343 54635 5514 74865 72392  1124 76629  1706 61257 23326 27698\n",
         );
-        let mut reader = super::Reader::<_, Dna>::new(std::io::Cursor::new(text));
+        let mut reader = super::Reader::new(std::io::Cursor::new(text));
         let record = reader.next().unwrap().unwrap();
-        assert_eq!(&record.id, "MA0001.1");
-        assert!(reader.next().is_none());
-    }
-
-    #[test]
-    fn test_multi() {
-        let text = concat!(
-            ">MA0001.1 RUNX1\n",
-            "A [10 12  4  1  2  2  0  0  0  8 13 ]\n",
-            "C [ 2  2  7  1  0  8  0  0  1  2  2 ]\n",
-            "G [ 3  1  1  0 23  0 26 26  0  0  4 ]\n",
-            "T [11 11 14 24  1 16  0  0 25 16  7 ]\n",
-            ">MA0002.1 RUNX1\n",
-            "A [10 12  4  1  2  2  0  0  0  8 13 ]\n",
-            "C [ 2  2  7  1  0  8  0  0  1  2  2 ]\n",
-            "G [ 3  1  1  0 23  0 26 26  0  0  4 ]\n",
-            "T [11 11 14 24  1 16  0  0 25 16  7 ]\n",
-        );
-        let mut reader = super::Reader::<_, Dna>::new(std::io::Cursor::new(text));
-        let record = reader.next().unwrap().unwrap();
-        assert_eq!(&record.id, "MA0001.1");
-        let record = reader.next().unwrap().unwrap();
-        assert_eq!(&record.id, "MA0002.1");
+        assert_eq!(&record.id, "MA1104.2");
         assert!(reader.next().is_none());
     }
 }

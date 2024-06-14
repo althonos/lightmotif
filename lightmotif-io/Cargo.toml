@@ -16,6 +16,7 @@ keywords = ["bioinformatics", "motif", "parser", "transfac", "meme"]
 [dependencies]
 nom = "7"
 memchr = "2"
+generic-array = "1.0"
 
 [dependencies.lightmotif]
 path = "../lightmotif"
