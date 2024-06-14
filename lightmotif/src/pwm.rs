@@ -291,7 +291,7 @@ impl<A: Alphabet> FrequencyMatrix<A> {
                 if f <= 0.0 {
                     dst[j] = f32::NEG_INFINITY;
                 } else {
-                    dst[j] = (x / f).log2();
+                    dst[j] = x.log2() - f.log2();
                 }
             }
         }
