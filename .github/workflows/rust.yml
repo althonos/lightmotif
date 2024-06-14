@@ -125,8 +125,6 @@ jobs:
       run: cargo publish -p lightmotif --token ${{ secrets.CRATES_IO_TOKEN }}
     - name: Package and publish lightmotif-io
       run: cargo publish -p lightmotif-io --token ${{ secrets.CRATES_IO_TOKEN }}
-    - name: Package and publish lightmotif-transfac
-      run: cargo publish -p lightmotif-transfac --token ${{ secrets.CRATES_IO_TOKEN }}
     - name: Package and publish lightmotif-tfmpvalue
       run: cargo publish -p lightmotif-tfmpvalue --token ${{ secrets.CRATES_IO_TOKEN }}
     - name: Package and publish lightmotif-py
