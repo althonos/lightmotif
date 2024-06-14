@@ -129,6 +129,10 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
     }
 }
 
+pub fn read<B: BufRead, A: Alphabet>(reader: B) -> self::Reader<B, A> {
+    self::Reader::new(reader)
+}
+
 #[cfg(test)]
 mod test {
 

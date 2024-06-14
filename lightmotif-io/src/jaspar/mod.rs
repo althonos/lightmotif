@@ -1,4 +1,4 @@
-//! Parser implementation for matrices in JASPAR (2016) format.
+//! Parser implementation for matrices in JASPAR (raw) format.
 //!
 //! The [JASPAR database](https://jaspar.elixir.no/docs/) stores manually
 //! curated DNA-binding sites as count matrices.
@@ -112,6 +112,10 @@ impl<B: BufRead> Iterator for Reader<B> {
             Err(e) => Some(Err(Error::from(e))),
         }
     }
+}
+
+pub fn read<B: BufRead>(reader: B) -> self::Reader<B> {
+    self::Reader::new(reader)
 }
 
 #[cfg(test)]
