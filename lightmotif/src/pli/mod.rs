@@ -81,13 +81,13 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
 
-        if seq.length < pssm.len() {
+        if seq.len() < pssm.len() {
             scores.resize(0, 0);
             return;
         }
 
         // FIXME?
-        scores.resize(rows.len(), seq.length - pssm.len() + 1);
+        scores.resize(rows.len(), seq.len() - pssm.len() + 1);
 
         let result = scores.matrix_mut();
         let matrix = pssm.matrix();
@@ -96,7 +96,7 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
             for col in 0..C::USIZE {
                 let mut score = 0.0;
                 for (j, pssm_row) in matrix.iter().enumerate() {
-                    let symbol = seq.data[seq_row + j][col];
+                    let symbol = seq.matrix()[seq_row + j][col];
                     score += pssm_row[symbol.as_index()];
                 }
                 result[res_row][col] = score;
@@ -112,7 +112,7 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
     {
         let s = seq.as_ref();
         let m = pssm.as_ref();
-        let rows = s.data.rows() - s.wrap;
+        let rows = s.matrix().rows() - s.wrap();
         Self::score_rows_into(&self, m, s, 0..rows, scores)
     }
 
@@ -178,10 +178,10 @@ pub trait Stripe<A: Alphabet, C: StrictlyPositive> {
         let s = seq.as_ref();
         let length = s.len();
         let rows = (length + (C::USIZE - 1)) / C::USIZE;
-        matrix.data.resize(rows);
         matrix.length = length;
         matrix.wrap = 0;
-        let data = &mut matrix.data;
+        let data = matrix.matrix_mut();
+        data.resize(rows);
         for (i, &x) in s.iter().enumerate() {
             data[i % rows][i / rows] = x;
         }

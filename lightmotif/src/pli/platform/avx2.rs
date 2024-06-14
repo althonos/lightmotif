@@ -137,7 +137,7 @@ unsafe fn score_avx2_permute<A>(
         let mut s3 = _mm256_setzero_ps();
         let mut s4 = _mm256_setzero_ps();
         // reset pointers to row
-        let mut seqptr = seq.data[i].as_ptr();
+        let mut seqptr = seq.matrix()[i].as_ptr();
         let mut pssmptr = pssm.matrix()[0].as_ptr();
         // advance position in the position weight matrix
         for _ in 0..pssm.len() {
@@ -171,7 +171,7 @@ unsafe fn score_avx2_permute<A>(
             s3 = _mm256_add_ps(s3, b3);
             s4 = _mm256_add_ps(s4, b4);
             // advance to next row in PSSM and sequence matrices
-            seqptr = seqptr.add(seq.data.stride());
+            seqptr = seqptr.add(seq.matrix().stride());
             pssmptr = pssmptr.add(pssm.matrix().stride());
         }
         // permute lanes so that scores are in the right order
@@ -230,7 +230,7 @@ unsafe fn score_avx2_gather<A>(
         let mut s3 = _mm256_setzero_ps();
         let mut s4 = _mm256_setzero_ps();
         // reset pointers to row
-        let mut seqptr = seq.data[i].as_ptr();
+        let mut seqptr = seq.matrix()[i].as_ptr();
         let mut pssmptr = pssm.matrix()[0].as_ptr();
         // advance position in the position weight matrix
         for _ in 0..pssm.len() {
@@ -251,7 +251,7 @@ unsafe fn score_avx2_gather<A>(
             s3 = _mm256_add_ps(s3, b3);
             s4 = _mm256_add_ps(s4, b4);
             // advance to next row in PSSM and sequence matrices
-            seqptr = seqptr.add(seq.data.stride());
+            seqptr = seqptr.add(seq.matrix().stride());
             pssmptr = pssmptr.add(pssm.matrix().stride());
         }
         // permute lanes so that scores are in the right order
@@ -400,9 +400,9 @@ unsafe fn stripe_avx2<A>(
     let mut src = s.as_ptr() as *const u8;
     let src_stride =
         (s.len() + (<Avx2 as Backend>::LANES::USIZE - 1)) / <Avx2 as Backend>::LANES::USIZE;
-    let mut out = matrix.data[0].as_mut_ptr();
-    let out_stride = matrix.data.stride();
-    assert_eq!(matrix.data.rows(), src_stride);
+    let mut out = matrix.matrix_mut()[0].as_mut_ptr();
+    let out_stride = matrix.matrix().stride();
+    assert_eq!(matrix.matrix().rows(), src_stride);
 
     // Process sequence block by block
     let mut i = 0;
@@ -569,18 +569,19 @@ unsafe fn stripe_avx2<A>(
     _mm_sfence();
 
     // Take care of remaining columns.
-    while i < matrix.data.rows() {
+    let data = matrix.matrix_mut();
+    while i < data.rows() {
         for j in 0..32 {
             if j * src_stride + i < s.len() {
-                matrix.data[i][j] = s[j * src_stride + i];
+                data[i][j] = s[j * src_stride + i];
             }
         }
         i += 1;
     }
 
     // Fill end of the matrix after the sequence end.
-    for k in s.len()..matrix.data.columns() * matrix.data.rows() {
-        matrix.data[k % src_stride][k / src_stride] = A::default_symbol();
+    for k in s.len()..data.columns() * data.rows() {
+        data[k % src_stride][k / src_stride] = A::default_symbol();
     }
 }
 
@@ -615,19 +616,19 @@ impl Avx2 {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
 
-        if seq.wrap < pssm.len() - 1 {
+        if seq.wrap() < pssm.len() - 1 {
             panic!(
                 "not enough wrapping rows for motif of length {}",
                 pssm.len()
             );
         }
 
-        if seq.length < pssm.len() {
+        if seq.len() < pssm.len() {
             scores.resize(0, 0);
             return;
         }
 
-        scores.resize(rows.len(), seq.length - pssm.len() + 1);
+        scores.resize(rows.len(), seq.len() - pssm.len() + 1);
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             score_avx2_permute(pssm, seq, rows, scores)
@@ -650,19 +651,19 @@ impl Avx2 {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
 
-        if seq.wrap < pssm.len() - 1 {
+        if seq.wrap() < pssm.len() - 1 {
             panic!(
                 "not enough wrapping rows for motif of length {}",
                 pssm.len()
             );
         }
 
-        if seq.length < pssm.len() {
+        if seq.len() < pssm.len() {
             scores.resize(0, 0);
             return;
         }
 
-        scores.resize(rows.len(), seq.length - pssm.len() + 1);
+        scores.resize(rows.len(), seq.len() - pssm.len() + 1);
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             score_avx2_gather(pssm, seq, rows, scores)

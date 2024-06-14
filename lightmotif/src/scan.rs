@@ -111,8 +111,8 @@ where
         let mut best = std::mem::take(&mut self.hits)
             .into_iter()
             .max_by(|x, y| x.score.partial_cmp(&y.score).unwrap());
-        while self.row < self.seq.as_inner().rows() {
-            let end = (self.row + self.block_size).min(self.seq.data.rows() - self.seq.wrap);
+        while self.row < self.seq.matrix().rows() {
+            let end = (self.row + self.block_size).min(self.seq.matrix().rows() - self.seq.wrap());
             pli.score_rows_into(&self.pssm, &self.seq, self.row..end, &mut self.scores);
             let matrix = self.scores.matrix();
             if let Some(c) = pli.argmax(&self.scores) {
@@ -122,7 +122,8 @@ where
                     .map(|hit: &Hit| matrix[c] >= hit.score)
                     .unwrap_or(true)
                 {
-                    let index = c.col * (self.seq.data.rows() - self.seq.wrap) + self.row + c.row;
+                    let index =
+                        c.col * (self.seq.matrix().rows() - self.seq.wrap()) + self.row + c.row;
                     best = Some(Hit::new(index, score));
                 }
             }
@@ -138,13 +139,13 @@ where
 {
     type Item = Hit;
     fn next(&mut self) -> Option<Self::Item> {
-        while self.hits.is_empty() && self.row < self.seq.as_inner().rows() {
+        while self.hits.is_empty() && self.row < self.seq.matrix().rows() {
             let pli = Pipeline::dispatch();
-            let end = (self.row + self.block_size).min(self.seq.data.rows() - self.seq.wrap);
+            let end = (self.row + self.block_size).min(self.seq.matrix().rows() - self.seq.wrap());
             pli.score_rows_into(&self.pssm, &self.seq, self.row..end, &mut self.scores);
             let matrix = self.scores.matrix();
             for c in pli.threshold(&self.scores, self.threshold) {
-                let index = c.col * (self.seq.data.rows() - self.seq.wrap) + self.row + c.row;
+                let index = c.col * (self.seq.matrix().rows() - self.seq.wrap()) + self.row + c.row;
                 self.hits.push(Hit::new(index, matrix[c]));
             }
             self.row += self.block_size;

@@ -50,7 +50,7 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES>>(
             let mut s3 = _mm_setzero_ps();
             let mut s4 = _mm_setzero_ps();
             // reset position
-            let mut dataptr = seq.data[i].as_ptr().add(offset);
+            let mut dataptr = seq.matrix()[i].as_ptr().add(offset);
             let mut pssmptr = pssm.matrix()[0].as_ptr();
             // advance position in the position weight matrix
             for _ in 0..pssm.len() {
@@ -76,7 +76,7 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES>>(
                     s4 = _mm_add_ps(s4, _mm_and_ps(lut, p4));
                 }
                 // advance to next row in sequence and PSSM matrices
-                dataptr = dataptr.add(seq.data.stride());
+                dataptr = dataptr.add(seq.matrix().stride());
                 pssmptr = pssmptr.add(pssm.matrix().stride());
             }
             // record the score for the current position
@@ -198,19 +198,19 @@ impl Sse2 {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
 
-        if seq.wrap < pssm.len() - 1 {
+        if seq.wrap() < pssm.len() - 1 {
             panic!(
                 "not enough wrapping rows for motif of length {}",
                 pssm.len()
             );
         }
 
-        if seq.length < pssm.len() {
+        if seq.len() < pssm.len() {
             scores.resize(0, 0);
             return;
         }
 
-        scores.resize(rows.len(), seq.length - pssm.len() + 1);
+        scores.resize(rows.len(), seq.len() - pssm.len() + 1);
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             score_sse2(pssm, seq, rows, scores);

@@ -501,7 +501,7 @@ pub struct Pseudocounts<A: Alphabet> {
 }
 
 impl<A: Alphabet> Pseudocounts<A> {
-    pub fn counts(&self) -> &[f32] {
+    pub fn counts(&self) -> &GenericArray<f32, A::K> {
         &self.counts
     }
 }

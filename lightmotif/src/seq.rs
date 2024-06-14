@@ -198,9 +198,9 @@ where
 #[derive(Clone, Debug)]
 pub struct StripedSequence<A: Alphabet, C: StrictlyPositive> {
     alphabet: std::marker::PhantomData<A>,
-    pub length: usize,
-    pub wrap: usize,
-    pub data: DenseMatrix<A::Symbol, C>,
+    pub(crate) length: usize,
+    pub(crate) wrap: usize,
+    data: DenseMatrix<A::Symbol, C>,
 }
 
 impl<A: Alphabet, C: StrictlyPositive> StripedSequence<A, C> {
@@ -239,14 +239,26 @@ impl<A: Alphabet, C: StrictlyPositive> StripedSequence<A, C> {
 
     /// Get the length of the sequence.
     #[inline]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.length
+    }
+
+    /// Get the number of wrapping rows in the striped matrix.
+    #[inline]
+    pub const fn wrap(&self) -> usize {
+        self.wrap
     }
 
     /// Get an immutable reference over the underlying matrix storing the sequence.
     #[inline]
-    pub fn as_inner(&self) -> &DenseMatrix<A::Symbol, C> {
+    pub const fn matrix(&self) -> &DenseMatrix<A::Symbol, C> {
         &self.data
+    }
+
+    /// Get a mutable reference over the underlying matrix storing the sequence.
+    #[inline]
+    pub fn matrix_mut(&mut self) -> &mut DenseMatrix<A::Symbol, C> {
+        &mut self.data
     }
 
     /// Extract the underlying matrix where the striped sequence is stored.

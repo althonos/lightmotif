@@ -208,19 +208,19 @@ impl Neon {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
 
-        if seq.wrap < pssm.len() - 1 {
+        if seq.wrap() < pssm.len() - 1 {
             panic!(
                 "not enough wrapping rows for motif of length {}",
                 pssm.len()
             );
         }
 
-        if seq.length < pssm.len() {
+        if seq.len() < pssm.len() {
             scores.resize(0, 0);
             return;
         }
 
-        scores.resize(rows.len(), seq.length);
+        scores.resize(rows.len(), seq.len());
         #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
         unsafe {
             score_neon(pssm, seq, rows, scores);

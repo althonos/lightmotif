@@ -182,11 +182,11 @@ pub struct StripedSequence {
 impl From<lightmotif::seq::StripedSequence<lightmotif::Dna, C>> for StripedSequence {
     fn from(data: lightmotif::seq::StripedSequence<lightmotif::Dna, C>) -> Self {
         // extract the matrix shape and strides
-        let cols = data.as_inner().columns();
-        let rows = data.as_inner().rows();
+        let cols = data.matrix().columns();
+        let rows = data.matrix().rows();
         let shape = [cols as Py_ssize_t, rows as Py_ssize_t];
         // extract the matrix strides
-        let strides = [1, data.as_inner().stride() as Py_ssize_t];
+        let strides = [1, data.matrix().stride() as Py_ssize_t];
         Self {
             data,
             shape,
@@ -220,7 +220,7 @@ impl StripedSequence {
         }
 
         (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
-        let matrix = slf.data.as_inner();
+        let matrix = slf.data.matrix();
         let data = matrix[0].as_ptr();
 
         (*view).buf = data as *mut std::os::raw::c_void;

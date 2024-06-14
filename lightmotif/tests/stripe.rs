@@ -18,29 +18,27 @@ fn test_stripe<C: Unsigned + NonZero, P: Stripe<Dna, C>>(pli: &P, sequence: &str
     let encoded = EncodedSequence::<Dna>::encode(sequence).unwrap();
     let striped = pli.stripe(&encoded);
 
-    if striped.data.rows() > 0 {
-        assert_eq!(striped.data[0][0], Nucleotide::A);
+    let matrix = striped.matrix();
+    if matrix.rows() > 0 {
+        assert_eq!(matrix[0][0], Nucleotide::A);
     }
-    if striped.data.rows() > 1 {
-        assert_eq!(striped.data[1][0], Nucleotide::T);
+    if matrix.rows() > 1 {
+        assert_eq!(matrix[1][0], Nucleotide::T);
     }
-    if striped.data.rows() > 2 {
-        assert_eq!(striped.data[2][0], Nucleotide::G);
+    if matrix.rows() > 2 {
+        assert_eq!(matrix[2][0], Nucleotide::G);
     }
-    if striped.data.rows() > 3 {
-        assert_eq!(striped.data[3][0], Nucleotide::T);
+    if matrix.rows() > 3 {
+        assert_eq!(matrix[3][0], Nucleotide::T);
     }
 
     for (i, &c) in encoded.iter().enumerate() {
-        assert_eq!(
-            striped.data[i % striped.data.rows()][i / striped.data.rows()],
-            c
-        );
+        assert_eq!(matrix[i % matrix.rows()][i / matrix.rows()], c);
     }
 
-    for i in sequence.len()..striped.data.rows() * striped.data.columns() {
+    for i in sequence.len()..matrix.rows() * matrix.columns() {
         assert_eq!(
-            striped.data[i % striped.data.rows()][i / striped.data.rows()],
+            matrix[i % matrix.rows()][i / matrix.rows()],
             Nucleotide::default(),
         )
     }
