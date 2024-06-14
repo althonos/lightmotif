@@ -1,9 +1,9 @@
 [package]
 name = "lightmotif-tfmpvalue"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Martin Larralde <martin.larralde@embl.de>"]
 edition = "2021"
-license = "GPL-3.0"
+license = "GPL-3.0-or-later"
 description = "Rust reimplementation of TFMPvalue for the lightmotif crate."
 repository = "https://github.com/althonos/lightmotif"
 homepage = "https://github.com/althonos/lightmotif"
@@ -13,5 +13,5 @@ keywords = ["bioinformatics", "motif", "pssm", "pvalue"]
 
 [dependencies.lightmotif]
 path = "../lightmotif"
-version = "0.7.0"
+version = "0.7.1"
 

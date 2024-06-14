@@ -6,7 +6,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.7.1...HEAD
+
+
+## [v0.7.1] - 2024-06-14
+[v0.7.1]: https://github.com/althonos/lightmotif/compare/v0.7.0...v0.7.1
+
+### Fixed
+
+#### `lightmotif`
+- Resizing of `StripedScores` output in NEON implementation of `Score`.
 
 
 ## [v0.7.0] - 2024-06-14
