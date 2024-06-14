@@ -292,6 +292,10 @@ impl CountMatrix {
         }
     }
 
+    pub fn __len__(&self) -> usize {
+        self.data.matrix().rows()
+    }
+
     /// Normalize this count matrix to obtain a position weight matrix.
     ///
     /// This method converts the count matrix to a weight matrix. Each row
@@ -353,6 +357,10 @@ impl WeightMatrix {
         } else {
             Ok(false)
         }
+    }
+
+    pub fn __len__(&self) -> usize {
+        self.data.matrix().rows()
     }
 
     /// Log-scale this weight matrix to obtain a position-specific scoring matrix.
@@ -457,6 +465,10 @@ impl ScoringMatrix {
         } else {
             Ok(false)
         }
+    }
+
+    pub fn __len__(&self) -> usize {
+        self.data.matrix().rows()
     }
 
     /// Calculate the PSSM score for all positions of the given sequence.
