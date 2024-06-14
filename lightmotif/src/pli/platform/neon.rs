@@ -220,7 +220,7 @@ impl Neon {
             return;
         }
 
-        scores.resize(rows.len(), seq.len());
+        scores.resize(rows.len(), seq.len() - pssm.len() + 1);
         #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
         unsafe {
             score_neon(pssm, seq, rows, scores);
