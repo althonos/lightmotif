@@ -337,6 +337,8 @@ impl<A: Alphabet, C: StrictlyPositive> SymbolCount<A> for &StripedSequence<A, C>
     }
 }
 
+// -- Tests --------------------------------------------------------------------
+
 #[cfg(test)]
 mod test {
     use typenum::consts::U2;

@@ -216,6 +216,7 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> Index<usize>
     fn index(&self, index: usize) -> &Self::Output {
         let c = self.stride();
         let row = self.offset + c * index;
+        debug_assert!(row + C::USIZE <= self.data.len());
         &self.data[row..row + C::USIZE]
     }
 }
@@ -227,6 +228,7 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> IndexMut<usize>
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         let c = self.stride();
         let row = self.offset + c * index;
+        debug_assert!(row + C::USIZE <= self.data.len());
         &mut self.data[row..row + C::USIZE]
     }
 }
@@ -239,6 +241,7 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> Index<MatrixCoord
     fn index(&self, index: MatrixCoordinates) -> &Self::Output {
         let c = self.stride();
         let i = self.offset + c * index.row + index.col;
+        debug_assert!(i < self.data.len());
         &self.data[i]
     }
 }

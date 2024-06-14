@@ -81,13 +81,13 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
 
-        if seq.len() < pssm.len() {
+        if seq.len() < pssm.len() || rows.len() == 0 {
             scores.resize(0, 0);
             return;
         }
 
         // FIXME?
-        scores.resize(rows.len(), seq.len() - pssm.len() + 1);
+        scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.len()));
 
         let result = scores.matrix_mut();
         let matrix = pssm.matrix();
@@ -470,4 +470,39 @@ where
     A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,
 {
+}
+
+// -- Tests --------------------------------------------------------------------
+
+#[cfg(test)]
+mod test {
+    use std::str::FromStr;
+    use typenum::consts::U4;
+
+    use super::*;
+
+    use crate::abc::Dna;
+    use crate::pwm::CountMatrix;
+
+    #[test]
+    fn test_score_rows_into_empty() {
+        let pli = Pipeline::generic();
+
+        let seq = EncodedSequence::<Dna>::from_str("ATGCA").unwrap();
+        let mut striped = <Pipeline<_, _> as Stripe<Dna, U4>>::stripe(&pli, seq);
+
+        let cm = CountMatrix::<Dna>::from_sequences(
+            ["ATTA", "ATTC"]
+                .iter()
+                .map(|x| EncodedSequence::encode(x).unwrap()),
+        )
+        .unwrap();
+        let pbm = cm.to_freq(0.1);
+        let pwm = pbm.to_weight(None);
+        let pssm = pwm.to_scoring();
+
+        striped.configure(&pssm);
+        let mut scores = StripedScores::empty();
+        pli.score_rows_into(pssm, striped, 1..1, &mut scores);
+    }
 }

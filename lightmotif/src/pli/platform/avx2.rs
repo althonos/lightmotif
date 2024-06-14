@@ -105,6 +105,8 @@ unsafe fn score_avx2_permute<A>(
     <<A as Alphabet>::K as IsLessOrEqual<U5>>::Output: NonZero,
 {
     let data = scores.matrix_mut();
+    debug_assert!(data.rows() > 0);
+
     let mut rowptr = data[0].as_mut_ptr();
     // constant vector for comparing unknown bases
     let n = _mm256_set1_epi32(<A as Alphabet>::K::I32 - 1);
@@ -406,7 +408,7 @@ unsafe fn stripe_avx2<A>(
     let mut matrix = std::mem::take(striped).into_matrix();
     matrix.resize(src_stride);
 
-    // Early exit if sequence is too empty (no allocated matrix).
+    // Early exit if sequence is empty (no allocated matrix).
     if length == 0 {
         return;
     }
@@ -637,12 +639,12 @@ impl Avx2 {
             );
         }
 
-        if seq.len() < pssm.len() {
+        if seq.len() < pssm.len() || rows.len() == 0 {
             scores.resize(0, 0);
             return;
         }
 
-        scores.resize(rows.len(), seq.len() - pssm.len() + 1);
+        scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.len()));
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             score_avx2_permute(pssm, seq, rows, scores)
@@ -672,12 +674,12 @@ impl Avx2 {
             );
         }
 
-        if seq.len() < pssm.len() {
+        if seq.len() < pssm.len() || rows.len() == 0 {
             scores.resize(0, 0);
             return;
         }
 
-        scores.resize(rows.len(), seq.len() - pssm.len() + 1);
+        scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.len()));
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             score_avx2_gather(pssm, seq, rows, scores)

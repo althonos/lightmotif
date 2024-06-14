@@ -4,6 +4,8 @@ use super::pli::dispatch::Dispatch;
 use super::pli::platform::Backend;
 use super::pwm::ScoringMatrix;
 use super::seq::StripedSequence;
+use crate::dense::DenseMatrix;
+use crate::num::Unsigned;
 use crate::pli::Maximum;
 use crate::pli::Pipeline;
 use crate::pli::Score;
@@ -141,7 +143,8 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         while self.hits.is_empty() && self.row < self.seq.matrix().rows() {
             let pli = Pipeline::dispatch();
-            let end = (self.row + self.block_size).min(self.seq.matrix().rows() - self.seq.wrap());
+            let end = (self.row + self.block_size)
+                .min(self.seq.matrix().rows().saturating_sub(self.seq.wrap()));
             pli.score_rows_into(&self.pssm, &self.seq, self.row..end, &mut self.scores);
             let matrix = self.scores.matrix();
             for c in pli.threshold(&self.scores, self.threshold) {

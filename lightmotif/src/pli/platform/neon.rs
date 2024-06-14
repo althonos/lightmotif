@@ -215,12 +215,12 @@ impl Neon {
             );
         }
 
-        if seq.len() < pssm.len() {
+        if seq.len() < pssm.len() || rows.len() == 0 {
             scores.resize(0, 0);
             return;
         }
 
-        scores.resize(rows.len(), seq.len() - pssm.len() + 1);
+        scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.len()));
         #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
         unsafe {
             score_neon(pssm, seq, rows, scores);
