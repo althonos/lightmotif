@@ -370,7 +370,8 @@ impl WeightMatrix {
     ///         rescaling the weight matrix before computing log-odds-ratio. If
     ///         `None` given, uniform background frequencies will be used.
     ///
-    pub fn log_odds(&self, background: Option<PyObject>) -> PyResult<ScoringMatrix> {
+    #[pyo3(signature=(background=None, base=2.0))]
+    pub fn log_odds(&self, background: Option<PyObject>, base: f32) -> PyResult<ScoringMatrix> {
         // extract the background from the method argument
         let bg = Python::with_gil(|py| {
             if let Some(obj) = background {
@@ -390,7 +391,9 @@ impl WeightMatrix {
             false => self.data.rescale(bg),
             true => self.data.clone(),
         };
-        Ok(ScoringMatrix { data: pwm.into() })
+        Ok(ScoringMatrix {
+            data: pwm.to_scoring_with_base(base),
+        })
     }
 }
 
