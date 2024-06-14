@@ -245,7 +245,7 @@ impl StripedSequence {
 // --- CountMatrix -------------------------------------------------------------
 
 /// A matrix storing the count of a motif letters at each position.
-#[pyclass(module = "lightmotif.lib")]
+#[pyclass(module = "lightmotif.lib", sequence)]
 #[derive(Clone, Debug)]
 pub struct CountMatrix {
     data: lightmotif::CountMatrix<lightmotif::Dna>,
@@ -260,16 +260,16 @@ impl CountMatrix {
         for s in lightmotif::Dna::symbols() {
             let key = String::from(s.as_char());
             if let Some(res) = values.get_item(&key) {
-                let column = res.downcast::<PyList>()?;
+                let column = res;
                 if data.is_none() {
-                    data = Some(DenseMatrix::new(column.len()));
+                    data = Some(DenseMatrix::new(column.len()?));
                 }
                 let matrix = data.as_mut().unwrap();
-                if matrix.rows() != column.len() {
+                if matrix.rows() != column.len()? {
                     return Err(PyValueError::new_err("Invalid number of rows"));
                 }
-                for (i, x) in column.iter().enumerate() {
-                    matrix[i][s.as_index()] = x.extract::<u32>()?;
+                for (i, x) in column.iter()?.enumerate() {
+                    matrix[i][s.as_index()] = x?.extract::<u32>()?;
                 }
             }
         }
@@ -294,6 +294,19 @@ impl CountMatrix {
 
     pub fn __len__(&self) -> usize {
         self.data.matrix().rows()
+    }
+
+    pub fn __getitem__<'py>(slf: PyRef<'py, Self>, index: isize) -> PyResult<PyObject> {
+        let mut index_ = index;
+        if index_ < 0 {
+            index_ += slf.data.matrix().rows() as isize;
+        }
+        if index_ < 0 || (index_ as usize) >= slf.data.matrix().rows() {
+            return Err(PyIndexError::new_err(index));
+        }
+
+        let row = &slf.data.matrix()[index_ as usize];
+        Ok(row.to_object(slf.py()))
     }
 
     /// Normalize this count matrix to obtain a position weight matrix.
@@ -361,6 +374,19 @@ impl WeightMatrix {
 
     pub fn __len__(&self) -> usize {
         self.data.matrix().rows()
+    }
+
+    pub fn __getitem__<'py>(slf: PyRef<'py, Self>, index: isize) -> PyResult<PyObject> {
+        let mut index_ = index;
+        if index_ < 0 {
+            index_ += slf.data.matrix().rows() as isize;
+        }
+        if index_ < 0 || (index_ as usize) >= slf.data.matrix().rows() {
+            return Err(PyIndexError::new_err(index));
+        }
+
+        let row = &slf.data.matrix()[index_ as usize];
+        Ok(row.to_object(slf.py()))
     }
 
     /// Log-scale this weight matrix to obtain a position-specific scoring matrix.
@@ -472,6 +498,19 @@ impl ScoringMatrix {
 
     pub fn __len__(&self) -> usize {
         self.data.matrix().rows()
+    }
+
+    pub fn __getitem__<'py>(slf: PyRef<'py, Self>, index: isize) -> PyResult<PyObject> {
+        let mut index_ = index;
+        if index_ < 0 {
+            index_ += slf.data.matrix().rows() as isize;
+        }
+        if index_ < 0 || (index_ as usize) >= slf.data.matrix().rows() {
+            return Err(PyIndexError::new_err(index));
+        }
+
+        let row = &slf.data.matrix()[index_ as usize];
+        Ok(row.to_object(slf.py()))
     }
 
     /// Calculate the PSSM score for all positions of the given sequence.
