@@ -348,6 +348,18 @@ mod test {
     use crate::abc::Nucleotide::*;
 
     #[test]
+    fn test_empty() {
+        let seq = EncodedSequence::<Dna>::from_str("").unwrap();
+
+        let pli = Pipeline::generic();
+        let striped = <Pipeline<_, _> as Stripe<Dna, U2>>::stripe(&pli, &seq);
+        assert_eq!(striped.matrix().rows(), 0);
+
+        let striped = seq.to_striped();
+        assert_eq!(striped.matrix().rows(), 0);
+    }
+
+    #[test]
     fn test_stripe() {
         let pli = Pipeline::generic();
 

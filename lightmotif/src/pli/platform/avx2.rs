@@ -406,6 +406,11 @@ unsafe fn stripe_avx2<A>(
     let mut matrix = std::mem::take(striped).into_matrix();
     matrix.resize(src_stride);
 
+    // Early exit if sequence is too empty (no allocated matrix).
+    if length == 0 {
+        return;
+    }
+
     /// Get a pointer to the matrix
     let mut out = matrix[0].as_mut_ptr();
     let out_stride = matrix.stride();
