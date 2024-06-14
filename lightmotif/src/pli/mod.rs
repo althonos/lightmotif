@@ -174,20 +174,26 @@ pub trait Stripe<A: Alphabet, C: StrictlyPositive> {
     }
 
     /// Stripe a sequence into the given striped matrix.
-    fn stripe_into<S: AsRef<[A::Symbol]>>(&self, seq: S, matrix: &mut StripedSequence<A, C>) {
+    fn stripe_into<S: AsRef<[A::Symbol]>>(&self, seq: S, striped: &mut StripedSequence<A, C>) {
+        // compute length of striped matrix
         let s = seq.as_ref();
         let length = s.len();
         let rows = (length + (C::USIZE - 1)) / C::USIZE;
-        matrix.length = length;
-        matrix.wrap = 0;
-        let data = matrix.matrix_mut();
+
+        // get the data out of the given buffer
+        let mut data = std::mem::take(striped).into_matrix();
         data.resize(rows);
+
+        // stripe the sequence
         for (i, &x) in s.iter().enumerate() {
             data[i % rows][i / rows] = x;
         }
         for i in s.len()..data.rows() * data.columns() {
             data[i % rows][i / rows] = A::default_symbol();
         }
+
+        // replace the original matrix with a new one
+        *striped = StripedSequence::new(data, length).unwrap();
     }
 }
 

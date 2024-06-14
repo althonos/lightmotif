@@ -198,8 +198,8 @@ where
 #[derive(Clone, Debug)]
 pub struct StripedSequence<A: Alphabet, C: StrictlyPositive> {
     alphabet: std::marker::PhantomData<A>,
-    pub(crate) length: usize,
-    pub(crate) wrap: usize,
+    length: usize,
+    wrap: usize,
     data: DenseMatrix<A::Symbol, C>,
 }
 
@@ -255,15 +255,9 @@ impl<A: Alphabet, C: StrictlyPositive> StripedSequence<A, C> {
         &self.data
     }
 
-    /// Get a mutable reference over the underlying matrix storing the sequence.
-    #[inline]
-    pub fn matrix_mut(&mut self) -> &mut DenseMatrix<A::Symbol, C> {
-        &mut self.data
-    }
-
     /// Extract the underlying matrix where the striped sequence is stored.
     #[inline]
-    pub fn into_inner(self) -> DenseMatrix<A::Symbol, C> {
+    pub fn into_matrix(self) -> DenseMatrix<A::Symbol, C> {
         self.data
     }
 
@@ -296,11 +290,23 @@ impl<A: Alphabet, C: StrictlyPositive> AsRef<StripedSequence<A, C>> for StripedS
     }
 }
 
-// impl<A: Alphabet, C: StrictlyPositive> AsRef<DenseMatrix<A::Symbol, C>> for StripedSequence<A, C> {
-//     fn as_ref(&self) -> &DenseMatrix<A::Symbol, C> {
-//         &self.data
-//     }
-// }
+impl<A: Alphabet, C: StrictlyPositive> AsRef<DenseMatrix<A::Symbol, C>> for StripedSequence<A, C> {
+    fn as_ref(&self) -> &DenseMatrix<A::Symbol, C> {
+        &self.data
+    }
+}
+
+impl<A: Alphabet, C: StrictlyPositive> Default for StripedSequence<A, C> {
+    fn default() -> Self {
+        Self::new(DenseMatrix::new(0), 0).unwrap()
+    }
+}
+
+impl<A: Alphabet, C: StrictlyPositive> From<StripedSequence<A, C>> for DenseMatrix<A::Symbol, C> {
+    fn from(striped: StripedSequence<A, C>) -> Self {
+        striped.into_matrix()
+    }
+}
 
 impl<A: Alphabet, C: StrictlyPositive> From<EncodedSequence<A>> for StripedSequence<A, C>
 where

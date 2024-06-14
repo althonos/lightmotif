@@ -363,7 +363,7 @@ unsafe fn argmax_avx2(
 #[target_feature(enable = "avx2")]
 unsafe fn stripe_avx2<A>(
     seq: &[A::Symbol],
-    matrix: &mut StripedSequence<A, <Avx2 as Backend>::LANES>,
+    striped: &mut StripedSequence<A, <Avx2 as Backend>::LANES>,
 ) where
     A: Alphabet,
 {
@@ -397,12 +397,19 @@ unsafe fn stripe_avx2<A>(
 
     // Compute sequence and matrix dimensions
     let s = seq;
+    let length = s.len();
     let mut src = s.as_ptr() as *const u8;
     let src_stride =
-        (s.len() + (<Avx2 as Backend>::LANES::USIZE - 1)) / <Avx2 as Backend>::LANES::USIZE;
-    let mut out = matrix.matrix_mut()[0].as_mut_ptr();
-    let out_stride = matrix.matrix().stride();
-    assert_eq!(matrix.matrix().rows(), src_stride);
+        (length + (<Avx2 as Backend>::LANES::USIZE - 1)) / <Avx2 as Backend>::LANES::USIZE;
+
+    // Get the matrix from the given striped sequence and resize it
+    let mut matrix = std::mem::take(striped).into_matrix();
+    matrix.resize(src_stride);
+
+    /// Get a pointer to the matrix
+    let mut out = matrix[0].as_mut_ptr();
+    let out_stride = matrix.stride();
+    assert_eq!(matrix.rows(), src_stride);
 
     // Process sequence block by block
     let mut i = 0;
@@ -569,20 +576,22 @@ unsafe fn stripe_avx2<A>(
     _mm_sfence();
 
     // Take care of remaining columns.
-    let data = matrix.matrix_mut();
-    while i < data.rows() {
+    while i < matrix.rows() {
         for j in 0..32 {
             if j * src_stride + i < s.len() {
-                data[i][j] = s[j * src_stride + i];
+                matrix[i][j] = s[j * src_stride + i];
             }
         }
         i += 1;
     }
 
     // Fill end of the matrix after the sequence end.
-    for k in s.len()..data.columns() * data.rows() {
-        data[k % src_stride][k / src_stride] = A::default_symbol();
+    for k in s.len()..matrix.columns() * matrix.rows() {
+        matrix[k % src_stride][k / src_stride] = A::default_symbol();
     }
+
+    // Replace original striped sequence.
+    *striped = StripedSequence::new(matrix, seq.len()).unwrap();
 }
 
 /// Intel 256-bit vector implementation, for 32 elements column width.
