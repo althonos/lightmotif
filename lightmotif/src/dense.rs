@@ -14,7 +14,9 @@ use crate::num::Unsigned;
 
 // --- DefaultAlignment --------------------------------------------------------
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(target_arch = "x86_64")]
+type _DefaultAlignment = typenum::consts::U64;
+#[cfg(target_arch = "x86")]
 type _DefaultAlignment = typenum::consts::U32;
 #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
 type _DefaultAlignment = typenum::consts::U16;

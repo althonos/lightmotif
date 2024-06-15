@@ -150,23 +150,12 @@ unsafe fn score_avx2_permute<A>(
             let x3 = _mm256_shuffle_epi8(x, m3);
             let x4 = _mm256_shuffle_epi8(x, m4);
             // load row for current weight matrix position
-            let t = _mm256_broadcast_ps(&*(pssmptr as *const __m128));
-            let u = _mm256_broadcast_ss(&*(pssmptr.add(<A as Alphabet>::K::USIZE - 1)));
-            // check which bases from the sequence are unknown
-            let unk1 = _mm256_castsi256_ps(_mm256_cmpeq_epi32(x1, n));
-            let unk2 = _mm256_castsi256_ps(_mm256_cmpeq_epi32(x2, n));
-            let unk3 = _mm256_castsi256_ps(_mm256_cmpeq_epi32(x3, n));
-            let unk4 = _mm256_castsi256_ps(_mm256_cmpeq_epi32(x4, n));
-            // index A/T/G/C lookup table with the bases
-            let p1 = _mm256_permutevar_ps(t, x1);
-            let p2 = _mm256_permutevar_ps(t, x2);
-            let p3 = _mm256_permutevar_ps(t, x3);
-            let p4 = _mm256_permutevar_ps(t, x4);
-            // blend together known and unknown scores
-            let b1 = _mm256_blendv_ps(p1, u, unk1);
-            let b2 = _mm256_blendv_ps(p2, u, unk2);
-            let b3 = _mm256_blendv_ps(p3, u, unk3);
-            let b4 = _mm256_blendv_ps(p4, u, unk4);
+            let t = _mm256_load_ps(pssmptr);
+            // index A/T/G/C/N lookup table with the bases
+            let b1 = _mm256_permutevar8x32_ps(t, x1);
+            let b2 = _mm256_permutevar8x32_ps(t, x2);
+            let b3 = _mm256_permutevar8x32_ps(t, x3);
+            let b4 = _mm256_permutevar8x32_ps(t, x4);
             // add log odds to the running sum
             s1 = _mm256_add_ps(s1, b1);
             s2 = _mm256_add_ps(s2, b2);
