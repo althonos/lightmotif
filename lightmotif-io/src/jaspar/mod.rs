@@ -26,6 +26,10 @@ mod parse;
 
 // ---
 
+/// A JASPAR (raw) record.
+///
+/// The JASPAR (raw) format only supports count matrices in the DNA
+/// alphabet.
 #[derive(Debug, Clone)]
 pub struct Record {
     id: String,
@@ -34,14 +38,17 @@ pub struct Record {
 }
 
 impl Record {
+    /// Get the identifier of the record.
     pub fn id(&self) -> &str {
         &self.id
     }
 
+    /// Get the description of the record, if any.
     pub fn description(&self) -> Option<&str> {
         self.description.as_deref()
     }
 
+    /// Get the count matrix of the record.
     pub fn matrix(&self) -> &CountMatrix<Dna> {
         &self.matrix
     }

@@ -26,6 +26,7 @@ mod parse;
 
 // ---
 
+/// A JASPAR (2016) record.
 #[derive(Debug, Clone)]
 pub struct Record<A: Alphabet> {
     id: String,
