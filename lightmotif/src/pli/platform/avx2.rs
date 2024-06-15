@@ -8,6 +8,7 @@ use std::ops::Range;
 
 use typenum::consts::U32;
 use typenum::consts::U5;
+use typenum::consts::U8;
 use typenum::IsLessOrEqual;
 use typenum::NonZero;
 use typenum::Unsigned;
@@ -101,8 +102,8 @@ unsafe fn score_avx2_permute<A>(
     scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
 ) where
     A: Alphabet,
-    <A as Alphabet>::K: IsLessOrEqual<U5>,
-    <<A as Alphabet>::K as IsLessOrEqual<U5>>::Output: NonZero,
+    <A as Alphabet>::K: IsLessOrEqual<U8>,
+    <<A as Alphabet>::K as IsLessOrEqual<U8>>::Output: NonZero,
 {
     let data = scores.matrix_mut();
     debug_assert!(data.rows() > 0);
@@ -613,8 +614,8 @@ impl Avx2 {
         scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
     ) where
         A: Alphabet,
-        <A as Alphabet>::K: IsLessOrEqual<U5>,
-        <<A as Alphabet>::K as IsLessOrEqual<U5>>::Output: NonZero,
+        <A as Alphabet>::K: IsLessOrEqual<U8>,
+        <<A as Alphabet>::K as IsLessOrEqual<U8>>::Output: NonZero,
         S: AsRef<StripedSequence<A, <Avx2 as Backend>::LANES>>,
         M: AsRef<ScoringMatrix<A>>,
     {
