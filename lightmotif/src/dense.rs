@@ -15,11 +15,16 @@ use crate::num::Unsigned;
 // --- DefaultAlignment --------------------------------------------------------
 
 #[cfg(target_arch = "x86_64")]
-type _DefaultAlignment = typenum::consts::U64;
-#[cfg(target_arch = "x86")]
 type _DefaultAlignment = typenum::consts::U32;
-#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+#[cfg(any(target_arch = "x86", target_arch = "arm", target_arch = "aarch64"))]
 type _DefaultAlignment = typenum::consts::U16;
+#[cfg(not(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "arm",
+    target_arch = "aarch64"
+)))]
+type _DefaultAlignment = typenum::consts::U1;
 
 /// The default alignment used in dense matrices.
 pub type DefaultAlignment = _DefaultAlignment;
@@ -70,28 +75,24 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> DenseMatrix<T, C,
     /// Create a new *uninitialized* matrix with the given number of rows.
     pub unsafe fn uninitialized(rows: usize) -> Self {
         // Always over-allocate columns to avoid alignment issues.
-        let c = C::USIZE + (A::USIZE - C::USIZE % A::USIZE) * (C::USIZE % A::USIZE > 0) as usize;
+        let mut m = Self::new(0);
+        let c = m.stride();
 
         // NOTE: this is unsafe but given that we require `T` to be
         //       copy, this should be fine, as `Copy` prevents the
         //       type to be `Drop` as well.
         // reserve the vector without initializing the data
-        let mut data = Vec::with_capacity((rows + 1) * c);
-        data.set_len((rows + 1) * c);
+        m.data.reserve((rows + 1) * c);
+        m.data.set_len((rows + 1) * c);
 
         // compute offset to aligned memory
-        let mut offset = 0;
-        while data[offset..].as_ptr() as usize % c > 0 {
-            offset += 1
+        m.offset = 0;
+        while m.data[m.offset..].as_ptr() as usize % c > 0 {
+            m.offset += 1
         }
 
-        Self {
-            data,
-            offset,
-            rows,
-            _columns: std::marker::PhantomData,
-            _alignment: std::marker::PhantomData,
-        }
+        m.rows = rows;
+        m
     }
 
     /// Create a new dense matrix from an iterable of rows.
