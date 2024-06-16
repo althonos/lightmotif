@@ -93,6 +93,12 @@ impl<A: Alphabet> CountMatrix<A> {
         // }
     }
 
+    /// The length of the motif encoded in this count matrix.
+    #[inline]
+    pub const fn len(&self) -> usize {
+        self.data.rows()
+    }
+
     /// Create a new count matrix from the given sequences.
     ///
     /// # Errors
@@ -233,6 +239,12 @@ impl<A: Alphabet> FrequencyMatrix<A> {
         }
     }
 
+    /// The length of the motif encoded in this frequency matrix.
+    #[inline]
+    pub const fn len(&self) -> usize {
+        self.data.rows()
+    }
+
     /// Create a new frequency matrix.
     ///
     /// The matrix must contain frequency data, i.e. rows should all sum to 1
@@ -331,7 +343,7 @@ impl<A: Alphabet> WeightMatrix<A> {
 
     /// The length of the motif encoded in this weight matrix.
     #[inline]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.data.rows()
     }
 
@@ -445,7 +457,7 @@ impl<A: Alphabet> ScoringMatrix<A> {
 
     /// The length of the motif encoded in this scoring matrix.
     #[inline]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.data.rows()
     }
 
