@@ -87,7 +87,7 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> DenseMatrix<T, C,
 
         // compute offset to aligned memory
         m.offset = 0;
-        while m.data[m.offset..].as_ptr() as usize % c > 0 {
+        while m.data[m.offset..].as_ptr() as usize & (A::USIZE - 1) > 0 {
             m.offset += 1
         }
 
@@ -168,7 +168,7 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> DenseMatrix<T, C,
             self.data.resize_with((rows + 1) * c, T::default);
             // Compute offset to aligned memory
             self.offset = 0;
-            while self.data[self.offset..].as_ptr() as usize % c > 0 {
+            while self.data[self.offset..].as_ptr() as usize & (A::USIZE - 1) > 0 {
                 self.offset += 1
             }
             // Copy data in case alignment offset changed
@@ -232,7 +232,9 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> Index<usize>
         let c = self.stride();
         let row = self.offset + c * index;
         debug_assert!(row + C::USIZE <= self.data.len());
-        &self.data[row..row + C::USIZE]
+        let row = &self.data[row..row + C::USIZE];
+        debug_assert_eq!(row.as_ptr() as usize & (A::USIZE - 1), 0);
+        row
     }
 }
 
@@ -244,7 +246,9 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> IndexMut<usize>
         let c = self.stride();
         let row = self.offset + c * index;
         debug_assert!(row + C::USIZE <= self.data.len());
-        &mut self.data[row..row + C::USIZE]
+        let row = &mut self.data[row..row + C::USIZE];
+        debug_assert_eq!(row.as_ptr() as usize & (A::USIZE - 1), 0);
+        row
     }
 }
 
