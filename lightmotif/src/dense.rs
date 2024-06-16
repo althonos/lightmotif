@@ -42,7 +42,7 @@ impl MatrixCoordinates {
 // --- DenseMatrix -------------------------------------------------------------
 
 /// A memory-aligned dense matrix with a constant number of columns.
-#[derive(Clone, Eq)]
+#[derive(Eq)]
 pub struct DenseMatrix<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo = DefaultAlignment>
 {
     data: Vec<T>,
@@ -199,6 +199,18 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> DenseMatrix<T, C,
     #[inline]
     pub fn fill(&mut self, value: T) {
         self.data.fill(value);
+    }
+}
+
+impl<T: Default + Copy + Debug, C: Unsigned, A: Unsigned + PowerOfTwo> Clone
+    for DenseMatrix<T, C, A>
+{
+    fn clone(&self) -> Self {
+        let mut clone = unsafe { Self::uninitialized(self.rows) };
+        let l = self.rows() * self.stride();
+        clone.data[clone.offset..clone.offset + l]
+            .copy_from_slice(&self.data[self.offset..self.offset + l]);
+        clone
     }
 }
 
