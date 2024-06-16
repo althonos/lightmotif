@@ -153,7 +153,8 @@ unsafe fn score_avx2_permute<A>(
             let x4 = _mm256_shuffle_epi8(x, m4);
             // load row for current weight matrix position
             // debug_assert_eq!(pssmptr as usize & 0x1f, 0);
-            let t = _mm256_loadu_ps(pssmptr);
+            debug_assert_eq!(pssmptr as usize & 0x1f, 0);
+            let t = _mm256_load_ps(pssmptr);
             // index A/T/G/C/N lookup table with the bases
             let b1 = _mm256_permutevar8x32_ps(t, x1);
             let b2 = _mm256_permutevar8x32_ps(t, x2);
