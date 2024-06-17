@@ -1,3 +1,6 @@
+use std::fmt::Display;
+use std::fmt::Formatter;
+
 use nom::error::Error as NomError;
 
 #[derive(Debug)]
@@ -31,6 +34,26 @@ impl From<nom::Err<NomError<&'_ str>>> for Error {
             nom::Err::Incomplete(_) => unreachable!(),
             nom::Err::Error(e) => Error::from(e),
             nom::Err::Failure(e) => Error::from(e),
+        }
+    }
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::InvalidData => f.write_str("invalid data"),
+            Error::Io(err) => err.fmt(f),
+            Error::Nom(err) => err.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn cause(&self) -> Option<&dyn std::error::Error> {
+        match self {
+            Error::InvalidData => None,
+            Error::Io(e) => Some(e),
+            Error::Nom(e) => Some(e),
         }
     }
 }

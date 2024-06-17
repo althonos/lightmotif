@@ -1,3 +1,5 @@
+//! Parser implementation for the TRANSFAC format.
+
 use std::io::BufRead;
 
 use lightmotif::abc::Alphabet;
@@ -12,6 +14,7 @@ mod reader;
 
 pub use self::reader::Reader;
 
+/// A TRANSFAC record.
 #[derive(Debug, Clone)]
 pub struct Record<A: Alphabet> {
     id: Option<String>,
@@ -50,7 +53,12 @@ impl<A: Alphabet> Record<A> {
         self.data.as_ref()
     }
 
-    /// The raw data found in the matrix.
+    /// The references associated with the record.
+    pub fn references(&self) -> &[Reference] {
+        &self.references
+    }
+
+    /// Get the record matrix as an integer count data.
     pub fn to_counts(&self) -> Option<CountMatrix<A>> {
         if let Some(data) = &self.data {
             let mut counts = DenseMatrix::<u32, A::K>::new(data.rows());
@@ -69,6 +77,7 @@ impl<A: Alphabet> Record<A> {
         }
     }
 
+    /// Get the record matrix as a frequency matrix.
     pub fn to_freq<P>(&self, pseudo: P) -> Option<FrequencyMatrix<A>>
     where
         P: Into<Pseudocounts<A>>,
@@ -116,10 +125,12 @@ pub struct ReferenceNumber {
 }
 
 impl ReferenceNumber {
+    /// Create a new reference number with the given number.
     pub fn new(local: u32) -> Self {
-        Self { local, xref: None }
+        Self::with_xref(local, None)
     }
 
+    /// Create a new reference number with the given number and cross-reference.
     pub fn with_xref<X>(local: u32, xref: X) -> Self
     where
         X: Into<Option<String>>,
@@ -128,6 +139,16 @@ impl ReferenceNumber {
             local,
             xref: xref.into(),
         }
+    }
+
+    /// The local number of the reference number.
+    pub fn local(&self) -> u32 {
+        self.local
+    }
+
+    /// The cross-reference, if any.
+    pub fn xref(&self) -> Option<&str> {
+        self.xref.as_ref().map(String::as_str)
     }
 }
 
@@ -138,6 +159,38 @@ pub struct Reference {
     title: Option<String>,
     link: Option<String>,
     pmid: Option<String>,
+}
+
+impl Reference {
+    /// Create a new reference with the given reference number.
+    pub fn new(number: ReferenceNumber) -> Self {
+        Self {
+            number,
+            title: None,
+            link: None,
+            pmid: None,
+        }
+    }
+
+    /// The number of the reference.
+    pub fn number(&self) -> &ReferenceNumber {
+        &self.number
+    }
+
+    /// The title of the reference, if any.
+    pub fn title(&self) -> Option<&str> {
+        self.title.as_ref().map(String::as_str)
+    }
+
+    /// A link to the reference, if any.
+    pub fn link(&self) -> Option<&str> {
+        self.link.as_ref().map(String::as_str)
+    }
+
+    /// The PubMed ID of the reference, if any.
+    pub fn pmid(&self) -> Option<&str> {
+        self.pmid.as_ref().map(String::as_str)
+    }
 }
 
 pub fn read<B: BufRead, A: Alphabet>(reader: B) -> self::reader::Reader<B, A> {

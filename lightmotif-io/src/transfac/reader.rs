@@ -6,6 +6,8 @@ use lightmotif::Alphabet;
 use super::Record;
 use crate::error::Error;
 
+/// A reader for TRANSFAC-formatted files.
+#[derive(Debug)]
 pub struct Reader<B: BufRead, A: Alphabet> {
     buffer: String,
     bufread: B,
