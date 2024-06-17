@@ -25,26 +25,32 @@ pub struct Record<A: Alphabet> {
 }
 
 impl<A: Alphabet> Record<A> {
+    /// The identifier of the record, if any.
     pub fn id(&self) -> Option<&str> {
         self.id.as_deref()
     }
 
+    /// The accession of the record, if any.
     pub fn accession(&self) -> Option<&str> {
         self.accession.as_deref()
     }
 
+    /// The name of the record, if any.
     pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
     }
 
+    /// The description of the record, if any.
     pub fn description(&self) -> Option<&str> {
         self.description.as_deref()
     }
 
+    /// The raw data found in the matrix.
     pub fn data(&self) -> Option<&DenseMatrix<f32, A::K>> {
         self.data.as_ref()
     }
 
+    /// The raw data found in the matrix.
     pub fn to_counts(&self) -> Option<CountMatrix<A>> {
         if let Some(data) = &self.data {
             let mut counts = DenseMatrix::<u32, A::K>::new(data.rows());

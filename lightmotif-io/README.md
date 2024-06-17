@@ -24,7 +24,7 @@ PSSM file formats, including:
 - [x] [TRANSFAC](https://en.wikipedia.org/wiki/TRANSFAC)-formatted records,
   with associated metadata. 
 - [x] [JASPAR](https://jaspar.elixir.no/docs/) count matrices
-  (in JASPAR 2016 bracketed format) with their record header.
+  (in JASPAR 2016 bracketed format or raw format) with their record header.
 - [x] [UniPROBE](http://the_brain.bwh.harvard.edu/uniprobe/index.php) 
   frequency matrices with their record header.
 - [ ] [MEME minimal](https://meme-suite.org/meme/doc/meme-format.html) records

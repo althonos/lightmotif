@@ -62,6 +62,7 @@ impl AsRef<CountMatrix<Dna>> for Record {
 
 // ---
 
+/// An iterative reader for the JASPAR format.
 pub struct Reader<B: BufRead> {
     buffer: Vec<u8>,
     bufread: B,
@@ -69,6 +70,7 @@ pub struct Reader<B: BufRead> {
 }
 
 impl<B: BufRead> Reader<B> {
+    /// Create a new `Reader` from a buffered reader.
     pub fn new(mut reader: B) -> Self {
         let mut buffer = Vec::new();
         let start = reader.read_until(b'>', &mut buffer).unwrap_or(1) - 1;
@@ -121,6 +123,7 @@ impl<B: BufRead> Iterator for Reader<B> {
     }
 }
 
+/// Read the records from a file in JASPAR format.
 pub fn read<B: BufRead>(reader: B) -> self::Reader<B> {
     self::Reader::new(reader)
 }

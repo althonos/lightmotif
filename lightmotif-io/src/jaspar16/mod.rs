@@ -35,14 +35,17 @@ pub struct Record<A: Alphabet> {
 }
 
 impl<A: Alphabet> Record<A> {
+    /// Get the identifier of the record.
     pub fn id(&self) -> &str {
         &self.id
     }
 
+    /// Get the description of the record, if any.
     pub fn description(&self) -> Option<&str> {
         self.description.as_deref()
     }
 
+    /// Get the count matrix of the record.
     pub fn matrix(&self) -> &CountMatrix<A> {
         &self.matrix
     }
@@ -56,6 +59,7 @@ impl<A: Alphabet> AsRef<CountMatrix<A>> for Record<A> {
 
 // ---
 
+/// An iterative reader for the JASPAR (2016) format.
 pub struct Reader<B: BufRead, A: Alphabet> {
     buffer: Vec<u8>,
     bufread: B,
@@ -117,6 +121,7 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
     }
 }
 
+/// Read the records from a file in JASPAR (2016) format.
 pub fn read<B: BufRead, A: Alphabet>(reader: B) -> self::Reader<B, A> {
     self::Reader::new(reader)
 }
