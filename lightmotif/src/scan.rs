@@ -4,8 +4,6 @@ use super::pli::dispatch::Dispatch;
 use super::pli::platform::Backend;
 use super::pwm::ScoringMatrix;
 use super::seq::StripedSequence;
-use crate::dense::DenseMatrix;
-use crate::num::Unsigned;
 use crate::pli::Maximum;
 use crate::pli::Pipeline;
 use crate::pli::Score;

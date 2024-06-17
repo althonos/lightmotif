@@ -212,7 +212,7 @@ pub fn parse_record<A: Alphabet>(mut input: &str) -> IResult<&str, Record<A>> {
             }
             "BA" => {
                 let (rest, line) = preceded(tag("BA"), parse_line)(input)?;
-                ba = Some(line.trim().to_string());
+                ba = Some(line.trim().to_string()); // FIXME: check uniqueness?
                 input = rest;
             }
             "BS" => {
@@ -232,7 +232,7 @@ pub fn parse_record<A: Alphabet>(mut input: &str) -> IResult<&str, Record<A>> {
             }
             "CO" => {
                 let (rest, line) = preceded(tag("CO"), parse_line)(input)?;
-                copyright = Some(line.trim().to_string());
+                copyright = Some(line.trim().to_string()); // FIXME: check uniqueness?
                 input = rest;
             }
             "DE" => {

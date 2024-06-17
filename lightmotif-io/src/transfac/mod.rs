@@ -1,10 +1,44 @@
 //! Parser implementation for the TRANSFAC format.
+//!
+//! The TRANSFAC matrix format is similar to the EMBL sequence format,
+//! using a 2-letter header before each row that is used for metadata.
+//! The matrix usually contains counts, but they may be in floating-point
+//! format if they were rescaled.
+//!
+//! ```text
+//! AC  M00005
+//! XX
+//! DT  19.10.1992 (created); ewi.
+//! CO  Copyright (C), Biobase GmbH.
+//! XX
+//! P0      A      C      G      T
+//! 01      3      0      0      2      W
+//! 02      1      1      3      0      G
+//! 03      3      1      1      0      A
+//! 04      2      1      2      0      R
+//! 05      1      2      0      2      Y
+//! 06      0      5      0      0      C
+//! 07      5      0      0      0      A
+//! XX
+//! ```
+//!
+//! The parser implemented in this module is not complete, and only supports
+//! the following metadata:
+//!
+//! - `ID`: identifier
+//! - `AC`: accession
+//! - `NA`: name
+//! - `DE`: description
+//! - `DT`: date (creation or update)
+//! - `RE`: references (similar to EMBL in format)
+//! - `BS`: binding sites
+//! - `P0`: matrix.
+//!
 
 use std::io::BufRead;
 
 use lightmotif::abc::Alphabet;
 use lightmotif::abc::Pseudocounts;
-
 use lightmotif::dense::DenseMatrix;
 use lightmotif::pwm::CountMatrix;
 use lightmotif::pwm::FrequencyMatrix;
