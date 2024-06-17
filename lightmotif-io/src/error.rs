@@ -1,13 +1,14 @@
 use std::fmt::Display;
 use std::fmt::Formatter;
+use std::sync::Arc;
 
 use nom::error::Error as NomError;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Error {
     InvalidData,
-    Io(std::io::Error),
-    Nom(NomError<String>),
+    Io(Arc<std::io::Error>),
+    Nom(Arc<NomError<String>>),
 }
 
 impl From<lightmotif::err::InvalidData> for Error {
@@ -18,13 +19,13 @@ impl From<lightmotif::err::InvalidData> for Error {
 
 impl From<std::io::Error> for Error {
     fn from(error: std::io::Error) -> Self {
-        Error::Io(error)
+        Error::Io(Arc::new(error))
     }
 }
 
 impl From<NomError<&'_ str>> for Error {
     fn from(error: NomError<&'_ str>) -> Self {
-        Error::Nom(NomError::new(error.input.to_string(), error.code))
+        Error::Nom(Arc::new(NomError::new(error.input.to_string(), error.code)))
     }
 }
 

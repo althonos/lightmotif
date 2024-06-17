@@ -96,7 +96,7 @@ impl<B: BufRead> Iterator for Reader<B> {
                 let text = match std::str::from_utf8(bytes) {
                     Ok(text) => text,
                     Err(_) => {
-                        return Some(Err(Error::Io(std::io::Error::new(
+                        return Some(Err(Error::from(std::io::Error::new(
                             std::io::ErrorKind::InvalidData,
                             "decoding error",
                         ))));
