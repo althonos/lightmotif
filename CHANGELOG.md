@@ -6,7 +6,31 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.7.3...HEAD
+
+
+## [v0.7.3] - 2024-06-17
+[v0.7.3]: https://github.com/althonos/lightmotif/compare/v0.7.2...v0.7.3
+
+### Added
+
+#### `lightmotif-io`
+- `lightmotif_io::jaspar` to read matrices in raw JASPAR format.
+- Implementation of `Clone` and `Error` for the `lightmotif_io::error::Error` type.
+
+### Changed
+
+#### `lightmotif`
+- Use logarithmic subtraction in `FrequencyMatrix::to_scoring`.
+- Use `_mm256_permutevara8x32_ps` instead of `_mm256_permutevar_ps` in AVX2 implementation to avoid special handling of unknown matric character `N`.
+
+### Fixed
+
+#### `lightmotif`
+- Striping of empty sequences panicking on AVX2 implementation.
+- Scoring of empty range of rows panicking.
+- Invalid alignment of data in AVX2 code.
+- `Clone` implementation of `DenseMatrix` not preserving memory alignment.
 
 
 ## [v0.7.2] - 2024-06-14

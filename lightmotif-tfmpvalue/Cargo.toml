@@ -1,6 +1,6 @@
 [package]
 name = "lightmotif-tfmpvalue"
-version = "0.7.2"
+version = "0.7.3"
 authors = ["Martin Larralde <martin.larralde@embl.de>"]
 edition = "2021"
 license = "GPL-3.0-or-later"
@@ -13,5 +13,5 @@ keywords = ["bioinformatics", "motif", "pssm", "pvalue"]
 
 [dependencies.lightmotif]
 path = "../lightmotif"
-version = "0.7.2"
+version = "0.7.3"
 
