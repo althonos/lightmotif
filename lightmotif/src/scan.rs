@@ -66,6 +66,7 @@ pub struct Scanner<'a, A: Alphabet> {
     block_size: usize,
     row: usize,
     hits: Vec<Hit>,
+    pipeline: Pipeline<A, Dispatch>,
 }
 
 impl<'a, A: Alphabet> Scanner<'a, A> {
@@ -79,6 +80,7 @@ impl<'a, A: Alphabet> Scanner<'a, A> {
             block_size: 512,
             row: 0,
             hits: Vec::new(),
+            pipeline: Pipeline::dispatch(),
         }
     }
 
@@ -140,12 +142,12 @@ where
     type Item = Hit;
     fn next(&mut self) -> Option<Self::Item> {
         while self.hits.is_empty() && self.row < self.seq.matrix().rows() {
-            let pli = Pipeline::dispatch();
             let end = (self.row + self.block_size)
                 .min(self.seq.matrix().rows().saturating_sub(self.seq.wrap()));
-            pli.score_rows_into(&self.pssm, &self.seq, self.row..end, &mut self.scores);
+            self.pipeline
+                .score_rows_into(&self.pssm, &self.seq, self.row..end, &mut self.scores);
             let matrix = self.scores.matrix();
-            for c in pli.threshold(&self.scores, self.threshold) {
+            for c in self.pipeline.threshold(&self.scores, self.threshold) {
                 let index = c.col * (self.seq.matrix().rows() - self.seq.wrap()) + self.row + c.row;
                 self.hits.push(Hit::new(index, matrix[c]));
             }
