@@ -203,9 +203,7 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> DenseMatrix<T, C,
     }
 }
 
-impl<T: Default + Copy + Debug, C: Unsigned, A: Unsigned + PowerOfTwo> Clone
-    for DenseMatrix<T, C, A>
-{
+impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> Clone for DenseMatrix<T, C, A> {
     fn clone(&self) -> Self {
         let mut clone = unsafe { Self::uninitialized(self.rows) };
         let l = self.rows() * self.stride();
