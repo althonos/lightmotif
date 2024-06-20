@@ -44,40 +44,63 @@ fn test_stripe<C: Unsigned + NonZero, P: Stripe<Dna, C>>(pli: &P, sequence: &str
     }
 }
 
-#[test]
-fn test_stripe_generic() {
-    let pli = Pipeline::generic();
-    test_stripe::<U32, _>(&pli, S1);
-    test_stripe::<U32, _>(&pli, S2);
-    test_stripe::<U16, _>(&pli, S1);
-    test_stripe::<U16, _>(&pli, S2);
+mod generic {
+    use super::*;
+
+    #[test]
+    fn test_s1_c32() {
+        let pli = Pipeline::generic();
+        super::test_stripe::<U32, _>(&pli, S1);
+    }
+
+    #[test]
+    fn test_s2_c32() {
+        let pli = Pipeline::generic();
+        super::test_stripe::<U32, _>(&pli, S2);
+    }
+
+    #[test]
+    fn test_s1_c16() {
+        let pli = Pipeline::generic();
+        super::test_stripe::<U16, _>(&pli, S1);
+    }
+
+    #[test]
+    fn test_s2_c16() {
+        let pli = Pipeline::generic();
+        super::test_stripe::<U16, _>(&pli, S2);
+    }
 }
 
-#[test]
-fn test_stripe_dispatch() {
-    let pli = Pipeline::dispatch();
-    test_stripe(&pli, S1);
-    test_stripe(&pli, S2);
-}
+mod dispatch {
+    use super::*;
 
-// #[cfg(target_feature = "sse2")]
-// #[test]
-// fn test_stripe_sse2() {
-//     let pli = Pipeline::sse2().unwrap();
-//     test_stripe(&pli);
-// }
+    #[test]
+    fn test_s1_c32() {
+        let pli = Pipeline::dispatch();
+        super::test_stripe(&pli, S1);
+    }
+
+    #[test]
+    fn test_s2_c32() {
+        let pli = Pipeline::dispatch();
+        super::test_stripe(&pli, S2);
+    }
+}
 
 #[cfg(target_feature = "avx2")]
-#[test]
-fn test_stripe_avx2() {
-    let pli = Pipeline::avx2().unwrap();
-    test_stripe(&pli, S1);
-    test_stripe(&pli, S2);
-}
+mod avx2 {
+    use super::*;
 
-// #[cfg(target_feature = "neon")]
-// #[test]
-// fn test_stripe_neon() {
-//     let pli = Pipeline::neon().unwrap();
-//     test_stripe(&pli);
-// }
+    #[test]
+    fn test_s1_c32() {
+        let pli = Pipeline::avx2().unwrap();
+        super::test_stripe(&pli, S1);
+    }
+
+    #[test]
+    fn test_s2_c32() {
+        let pli = Pipeline::avx2().unwrap();
+        super::test_stripe(&pli, S2);
+    }
+}
