@@ -87,7 +87,7 @@ impl Score<f32, Dna, <Dispatch as Backend>::LANES> for Pipeline<Dna, Dispatch> {
     {
         match self.backend {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            Dispatch::Avx2 => Avx2::score_rows_into_permute(pssm, seq.as_ref(), rows, scores),
+            Dispatch::Avx2 => Avx2::score_f32_rows_into_permute(pssm, seq.as_ref(), rows, scores),
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Sse2 => Sse2::score_rows_into(pssm, seq.as_ref(), rows, scores),
             #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
@@ -116,12 +116,41 @@ impl Score<f32, Protein, <Dispatch as Backend>::LANES> for Pipeline<Protein, Dis
     {
         match self.backend {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            Dispatch::Avx2 => Avx2::score_rows_into_gather(pssm, seq.as_ref(), rows, scores),
+            Dispatch::Avx2 => Avx2::score_f32_rows_into_gather(pssm, seq.as_ref(), rows, scores),
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Sse2 => Sse2::score_rows_into(pssm, seq.as_ref(), rows, scores),
             #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
             Dispatch::Neon => Neon::score_rows_into(pssm, seq.as_ref(), rows, scores),
             _ => <Generic as Score<f32, Protein, <Dispatch as Backend>::LANES>>::score_rows_into(
+                &Generic,
+                pssm,
+                seq.as_ref(),
+                rows,
+                scores,
+            ),
+        }
+    }
+}
+
+impl Score<u8, Dna, <Dispatch as Backend>::LANES> for Pipeline<Dna, Dispatch> {
+    fn score_rows_into<S, M>(
+        &self,
+        pssm: M,
+        seq: S,
+        rows: Range<usize>,
+        scores: &mut StripedScores<u8, <Dispatch as Backend>::LANES>,
+    ) where
+        S: AsRef<StripedSequence<Dna, <Dispatch as Backend>::LANES>>,
+        M: AsRef<DenseMatrix<u8, <Dna as Alphabet>::K>>,
+    {
+        match self.backend {
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            Dispatch::Avx2 => Avx2::score_u8_rows_into_shuffle(pssm, seq.as_ref(), rows, scores),
+            // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            // Dispatch::Sse2 => Sse2::score_rows_into(pssm, seq.as_ref(), rows, scores),
+            // #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+            // Dispatch::Neon => Neon::score_rows_into(pssm, seq.as_ref(), rows, scores),
+            _ => <Generic as Score<u8, Dna, <Dispatch as Backend>::LANES>>::score_rows_into(
                 &Generic,
                 pssm,
                 seq.as_ref(),
@@ -159,6 +188,21 @@ impl<A: Alphabet> Maximum<f32, <Dispatch as Backend>::LANES> for Pipeline<A, Dis
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Sse2 => Sse2::argmax(scores),
             _ => <Generic as Maximum<f32, <Dispatch as Backend>::LANES>>::argmax(&Generic, scores),
+        }
+    }
+}
+
+impl<A: Alphabet> Maximum<u8, <Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {
+    fn argmax(
+        &self,
+        scores: &StripedScores<u8, <Dispatch as Backend>::LANES>,
+    ) -> Option<MatrixCoordinates> {
+        match self.backend {
+            // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            // Dispatch::Avx2 => Avx2::argmax(scores),
+            // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            // Dispatch::Sse2 => Sse2::argmax(scores),
+            _ => <Generic as Maximum<u8, <Dispatch as Backend>::LANES>>::argmax(&Generic, scores),
         }
     }
 }

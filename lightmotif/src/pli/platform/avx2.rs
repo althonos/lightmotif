@@ -14,6 +14,7 @@ use crate::err::InvalidSymbol;
 use crate::num::IsLessOrEqual;
 use crate::num::NonZero;
 use crate::num::Unsigned;
+use crate::num::U16;
 use crate::num::U32;
 use crate::num::U5;
 use crate::num::U8;
@@ -96,7 +97,7 @@ where
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 #[allow(overflowing_literals)]
-unsafe fn score_avx2_permute<A>(
+unsafe fn score_f32_avx2_permute<A>(
     pssm: &DenseMatrix<f32, A::K>,
     seq: &StripedSequence<A, <Avx2 as Backend>::LANES>,
     rows: Range<usize>,
@@ -189,7 +190,7 @@ unsafe fn score_avx2_permute<A>(
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 #[allow(overflowing_literals)]
-unsafe fn score_avx2_gather<A>(
+unsafe fn score_f32_avx2_gather<A>(
     pssm: &DenseMatrix<f32, A::K>,
     seq: &StripedSequence<A, <Avx2 as Backend>::LANES>,
     rows: Range<usize>,
@@ -269,6 +270,47 @@ unsafe fn score_avx2_gather<A>(
     // Required before returning to code that may set atomic flags that invite concurrent reads,
     // as LLVM lowers `AtomicBool::store(flag, true, Release)` to ordinary stores on x86-64
     // instead of SFENCE, even though SFENCE is required in the presence of nontemporal stores.
+    _mm_sfence();
+}
+
+#[target_feature(enable = "avx2")]
+pub unsafe fn score_u8_avx2_shuffle<A>(
+    pssm: &DenseMatrix<u8, A::K>,
+    seq: &StripedSequence<A, <Avx2 as Backend>::LANES>,
+    rows: Range<usize>,
+    scores: &mut StripedScores<u8, <Avx2 as Backend>::LANES>,
+) where
+    A: Alphabet,
+{
+    let data = scores.matrix_mut();
+    let mut rowptr = data[0].as_mut_ptr() as *mut i8;
+    // process every position of the sequence data
+    for i in rows {
+        // reset sums for current position
+        let mut s = _mm256_setzero_si256();
+        // reset pointers to row
+        let mut seqptr = seq.matrix()[i].as_ptr();
+        let mut pssmptr = pssm[0].as_ptr();
+        // advance position in the position weight matrix
+        for _ in 0..pssm.rows() {
+            // load sequence row and broadcast to f32
+            let x = _mm256_load_si256(seqptr as *const __m256i);
+            // load row for current weight matrix position
+            // NB: we need to broadcast it to the two lanes of the __m256i vector
+            //     because in AVX2 shuffle operates on the two halves independently.
+            let t = _mm256_broadcastsi128_si256(_mm_load_si128(&*(pssmptr as *const __m128i)));
+            // load scores for given sequence
+            let x = _mm256_shuffle_epi8(t, x);
+            // add scores to the running sum
+            s = _mm256_adds_epu8(s, x);
+            // advance to next row in PSSM and sequence matrices
+            seqptr = seqptr.add(seq.matrix().stride());
+            pssmptr = pssmptr.add(pssm.stride());
+        }
+        // record the score for the current position
+        _mm256_stream_si256(rowptr as *mut __m256i, s);
+        rowptr = rowptr.add(data.stride());
+    }
     _mm_sfence();
 }
 
@@ -614,7 +656,7 @@ impl Avx2 {
     }
 
     #[allow(unused)]
-    pub fn score_rows_into_permute<A, S, M>(
+    pub fn score_f32_rows_into_permute<A, S, M>(
         pssm: M,
         seq: S,
         rows: Range<usize>,
@@ -644,14 +686,14 @@ impl Avx2 {
         scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.rows()));
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
-            score_avx2_permute(pssm, seq, rows, scores)
+            score_f32_avx2_permute(pssm, seq, rows, scores)
         };
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
         panic!("attempting to run AVX2 code on a non-x86 host")
     }
 
     #[allow(unused)]
-    pub fn score_rows_into_gather<A, S, M>(
+    pub fn score_f32_rows_into_gather<A, S, M>(
         pssm: M,
         seq: S,
         rows: Range<usize>,
@@ -679,7 +721,44 @@ impl Avx2 {
         scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.rows()));
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
-            score_avx2_gather(pssm, seq, rows, scores)
+            score_f32_avx2_gather(pssm, seq, rows, scores)
+        };
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        panic!("attempting to run AVX2 code on a non-x86 host")
+    }
+
+    #[allow(unused)]
+    pub fn score_u8_rows_into_shuffle<A, S, M>(
+        pssm: M,
+        seq: S,
+        rows: Range<usize>,
+        scores: &mut StripedScores<u8, <Avx2 as Backend>::LANES>,
+    ) where
+        A: Alphabet,
+        <A as Alphabet>::K: IsLessOrEqual<U16>,
+        <<A as Alphabet>::K as IsLessOrEqual<U16>>::Output: NonZero,
+        S: AsRef<StripedSequence<A, <Avx2 as Backend>::LANES>>,
+        M: AsRef<DenseMatrix<u8, A::K>>,
+    {
+        let seq = seq.as_ref();
+        let pssm = pssm.as_ref();
+
+        if seq.wrap() < pssm.rows() - 1 {
+            panic!(
+                "not enough wrapping rows for motif of length {}",
+                pssm.rows()
+            );
+        }
+
+        if seq.len() < pssm.rows() || rows.len() == 0 {
+            scores.resize(0, 0);
+            return;
+        }
+
+        scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.rows()));
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        unsafe {
+            score_u8_avx2_shuffle(pssm, seq, rows, scores)
         };
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
         panic!("attempting to run AVX2 code on a non-x86 host")

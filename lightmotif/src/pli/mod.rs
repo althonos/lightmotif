@@ -309,6 +309,7 @@ impl<A: Alphabet> Pipeline<A, Dispatch> {
 
 impl<A: Alphabet> Pipeline<A, Sse2> {
     /// Attempt to create a new SSE2-accelerated pipeline.
+    #[inline]
     pub fn sse2() -> Result<Self, UnsupportedBackend> {
         #[cfg(target_arch = "x86")]
         if std::is_x86_feature_detected!("sse2") {
@@ -328,6 +329,7 @@ where
     A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,
 {
+    #[inline]
     fn score_rows_into<S, M>(
         &self,
         pssm: M,
@@ -342,17 +344,39 @@ where
     }
 }
 
+impl<A, C> Score<u8, A, C> for Pipeline<A, Sse2>
+where
+    A: Alphabet,
+    C: StrictlyPositive + MultipleOf<U16>,
+{
+}
+
 impl<A, C> Maximum<f32, C> for Pipeline<A, Sse2>
 where
     A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,
 {
+    #[inline]
     fn argmax(&self, scores: &StripedScores<f32, C>) -> Option<MatrixCoordinates> {
         Sse2::argmax(scores)
     }
 }
 
-impl<A: Alphabet, C: StrictlyPositive> Threshold<f32, C> for Pipeline<A, Sse2>
+impl<A, C> Maximum<u8, C> for Pipeline<A, Sse2>
+where
+    A: Alphabet,
+    C: StrictlyPositive + MultipleOf<U16>,
+{
+}
+
+impl<A, C> Threshold<f32, C> for Pipeline<A, Sse2>
+where
+    A: Alphabet,
+    C: StrictlyPositive + MultipleOf<U16>,
+{
+}
+
+impl<A, C> Threshold<u8, C> for Pipeline<A, Sse2>
 where
     A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,
@@ -373,6 +397,7 @@ impl<A: Alphabet> Pipeline<A, Avx2> {
 }
 
 impl<A: Alphabet> Encode<A> for Pipeline<A, Avx2> {
+    #[inline]
     fn encode_into<S: AsRef<[u8]>>(
         &self,
         seq: S,
@@ -383,6 +408,7 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Avx2> {
 }
 
 impl Score<f32, Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
+    #[inline]
     fn score_rows_into<S, M>(
         &self,
         pssm: M,
@@ -393,11 +419,12 @@ impl Score<f32, Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
         S: AsRef<StripedSequence<Dna, <Avx2 as Backend>::LANES>>,
         M: AsRef<DenseMatrix<f32, <Dna as Alphabet>::K>>,
     {
-        Avx2::score_rows_into_permute(pssm, seq, rows, scores)
+        Avx2::score_f32_rows_into_permute(pssm, seq, rows, scores)
     }
 }
 
 impl Score<f32, Protein, <Avx2 as Backend>::LANES> for Pipeline<Protein, Avx2> {
+    #[inline]
     fn score_rows_into<S, M>(
         &self,
         pssm: M,
@@ -408,12 +435,29 @@ impl Score<f32, Protein, <Avx2 as Backend>::LANES> for Pipeline<Protein, Avx2> {
         S: AsRef<StripedSequence<Protein, <Avx2 as Backend>::LANES>>,
         M: AsRef<DenseMatrix<f32, <Protein as Alphabet>::K>>,
     {
-        Avx2::score_rows_into_gather(pssm, seq, rows, scores)
+        Avx2::score_f32_rows_into_gather(pssm, seq, rows, scores)
+    }
+}
+
+impl Score<u8, Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
+    #[inline]
+    fn score_rows_into<S, M>(
+        &self,
+        pssm: M,
+        seq: S,
+        rows: Range<usize>,
+        scores: &mut StripedScores<u8, <Avx2 as Backend>::LANES>,
+    ) where
+        S: AsRef<StripedSequence<Dna, <Avx2 as Backend>::LANES>>,
+        M: AsRef<DenseMatrix<u8, <Dna as Alphabet>::K>>,
+    {
+        Avx2::score_u8_rows_into_shuffle(pssm, seq, rows, scores)
     }
 }
 
 impl<A: Alphabet> Stripe<A, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
     /// Stripe a sequence into the given striped matrix.
+    #[inline]
     fn stripe_into<S: AsRef<[A::Symbol]>>(
         &self,
         seq: S,
@@ -431,13 +475,17 @@ impl<A: Alphabet> Maximum<f32, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
         Avx2::argmax(scores)
     }
 }
+impl<A: Alphabet> Maximum<u8, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {}
 
 impl<A: Alphabet> Threshold<f32, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {}
+
+impl<A: Alphabet> Threshold<u8, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {}
 
 // --- NEON pipeline -----------------------------------------------------------
 
 impl<A: Alphabet> Pipeline<A, Neon> {
     /// Attempt to create a new AVX2-accelerated pipeline.
+    #[inline]
     pub fn neon() -> Result<Self, UnsupportedBackend> {
         #[cfg(target_arch = "arm")]
         if std::arch::is_arm_feature_detected!("neon") {
@@ -452,6 +500,7 @@ impl<A: Alphabet> Pipeline<A, Neon> {
 }
 
 impl<A: Alphabet> Encode<A> for Pipeline<A, Neon> {
+    #[inline]
     fn encode_into<S: AsRef<[u8]>>(
         &self,
         seq: S,
