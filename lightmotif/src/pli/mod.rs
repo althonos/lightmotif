@@ -141,14 +141,14 @@ pub trait Maximum<T: MatrixElement + PartialOrd, C: StrictlyPositive> {
 
         let mut best_row = 0;
         let mut best_col = 0;
-        let mut best_score = None;
+        let mut best_score = scores[0];
 
         for (i, row) in scores.matrix().iter().enumerate() {
             for j in 0..C::USIZE {
-                if best_score.as_ref().map(|s| &row[j] >= s).unwrap_or(true) {
+                if row[j] >= best_score {
                     best_row = i;
                     best_col = j;
-                    best_score = Some(row[j]);
+                    best_score = row[j];
                 }
             }
         }
