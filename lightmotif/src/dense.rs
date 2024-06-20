@@ -29,6 +29,13 @@ type _DefaultAlignment = typenum::consts::U1;
 /// The default alignment used in dense matrices.
 pub type DefaultAlignment = _DefaultAlignment;
 
+// --- MatrixElement -----------------------------------------------------------
+
+/// A marker trait for types allowed as `DenseMatrix` elements.
+pub trait MatrixElement: Default + Copy {}
+
+impl<T> MatrixElement for T where T: Default + Copy {}
+
 // --- DenseMatrix -------------------------------------------------------------
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -48,8 +55,7 @@ impl MatrixCoordinates {
 
 /// A memory-aligned dense matrix with a constant number of columns.
 #[derive(Eq)]
-pub struct DenseMatrix<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo = DefaultAlignment>
-{
+pub struct DenseMatrix<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo = DefaultAlignment> {
     data: Vec<T>,
     offset: usize,
     rows: usize,
@@ -57,7 +63,7 @@ pub struct DenseMatrix<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo 
     _alignment: std::marker::PhantomData<A>,
 }
 
-impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> DenseMatrix<T, C, A> {
+impl<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> DenseMatrix<T, C, A> {
     /// Create a new matrix with the given number of rows.
     pub fn new(rows: usize) -> Self {
         let data = Vec::new();
@@ -203,7 +209,7 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> DenseMatrix<T, C,
     }
 }
 
-impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> Clone for DenseMatrix<T, C, A> {
+impl<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> Clone for DenseMatrix<T, C, A> {
     fn clone(&self) -> Self {
         let mut clone = unsafe { Self::uninitialized(self.rows) };
         let l = self.rows() * self.stride();
@@ -213,7 +219,7 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> Clone for DenseMa
     }
 }
 
-impl<T: Default + Copy + Debug, C: Unsigned, A: Unsigned + PowerOfTwo> Debug
+impl<T: MatrixElement + Debug, C: Unsigned, A: Unsigned + PowerOfTwo> Debug
     for DenseMatrix<T, C, A>
 {
     fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
@@ -221,7 +227,7 @@ impl<T: Default + Copy + Debug, C: Unsigned, A: Unsigned + PowerOfTwo> Debug
     }
 }
 
-impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> Index<usize>
+impl<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> Index<usize>
     for DenseMatrix<T, C, A>
 {
     type Output = [T];
@@ -236,7 +242,7 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> Index<usize>
     }
 }
 
-impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> IndexMut<usize>
+impl<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> IndexMut<usize>
     for DenseMatrix<T, C, A>
 {
     #[inline]
@@ -250,7 +256,7 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> IndexMut<usize>
     }
 }
 
-impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> Index<MatrixCoordinates>
+impl<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> Index<MatrixCoordinates>
     for DenseMatrix<T, C, A>
 {
     type Output = T;
@@ -263,7 +269,7 @@ impl<T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> Index<MatrixCoord
     }
 }
 
-impl<'a, T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> IntoIterator
+impl<'a, T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> IntoIterator
     for &'a DenseMatrix<T, C, A>
 {
     type Item = &'a [T];
@@ -274,7 +280,7 @@ impl<'a, T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> IntoIterator
     }
 }
 
-impl<'a, T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> IntoIterator
+impl<'a, T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> IntoIterator
     for &'a mut DenseMatrix<T, C, A>
 {
     type Item = &'a mut [T];
@@ -285,7 +291,7 @@ impl<'a, T: Default + Copy, C: Unsigned, A: Unsigned + PowerOfTwo> IntoIterator
     }
 }
 
-impl<'a, T: Default + Copy + PartialEq, C: Unsigned, A: Unsigned + PowerOfTwo> PartialEq
+impl<'a, T: MatrixElement + PartialEq, C: Unsigned, A: Unsigned + PowerOfTwo> PartialEq
     for DenseMatrix<T, C, A>
 {
     fn eq(&self, other: &Self) -> bool {
@@ -313,7 +319,7 @@ impl<'a, T: Default + Copy + PartialEq, C: Unsigned, A: Unsigned + PowerOfTwo> P
 
 pub struct Iter<'a, T, C, A>
 where
-    T: 'a + Default + Copy,
+    T: 'a + MatrixElement,
     C: Unsigned,
     A: Unsigned + PowerOfTwo,
 {
@@ -324,7 +330,7 @@ where
 
 impl<'a, T, C, A> Iter<'a, T, C, A>
 where
-    T: 'a + Default + Copy,
+    T: 'a + MatrixElement,
     C: Unsigned,
     A: Unsigned + PowerOfTwo,
 {
@@ -350,7 +356,7 @@ where
 
 pub struct IterMut<'a, T, C, A>
 where
-    T: 'a + Default + Copy,
+    T: 'a + MatrixElement,
     C: Unsigned,
     A: Unsigned + PowerOfTwo,
 {
@@ -361,7 +367,7 @@ where
 
 impl<'a, T, C, A> IterMut<'a, T, C, A>
 where
-    T: 'a + Default + Copy,
+    T: 'a + MatrixElement,
     C: Unsigned,
     A: Unsigned + PowerOfTwo,
 {
@@ -389,7 +395,7 @@ macro_rules! iterator {
     ($t:ident, $T:ident, $($item:tt)*) => {
         impl<'a, $T, C, A> Iterator for $t<'a, $T, C, A>
         where
-            $T: Default + Copy,
+            $T: MatrixElement,
             C: Unsigned,
             A: Unsigned + PowerOfTwo,
         {
@@ -401,7 +407,7 @@ macro_rules! iterator {
 
         impl<'a, $T, C, A> ExactSizeIterator for $t<'a, $T, C, A>
         where
-            $T: Default + Copy,
+            $T: MatrixElement,
             C: Unsigned,
             A: Unsigned + PowerOfTwo,
         {
@@ -413,14 +419,14 @@ macro_rules! iterator {
 
         impl<'a, $T, C, A> FusedIterator for $t<'a, $T, C, A>
         where
-            $T: Default + Copy,
+            $T: MatrixElement,
             C: Unsigned,
             A: Unsigned + PowerOfTwo,
         {}
 
         impl<'a, $T, C, A> DoubleEndedIterator for $t<'a, $T, C, A>
         where
-            $T: Default + Copy,
+            $T: MatrixElement,
             C: Unsigned,
             A: Unsigned + PowerOfTwo,
         {
