@@ -19,17 +19,19 @@ use crate::pli::Threshold;
 
 /// Simple vector storing scores for a score sequence.
 #[derive(Clone, Debug)]
-pub struct Scores {
+pub struct Scores<T> {
     /// The raw vector storing the scores.
-    data: Vec<f32>,
+    data: Vec<T>,
 }
 
-impl Scores {
+impl<T> Scores<T> {
     /// Create a new collection from an array of scores.
-    pub fn new(data: Vec<f32>) -> Self {
+    pub fn new(data: Vec<T>) -> Self {
         Self { data }
     }
+}
 
+impl<T: PartialOrd> Scores<T> {
     /// Find the position with the highest score.
     pub fn argmax(&self) -> Option<usize> {
         self.data
@@ -39,40 +41,42 @@ impl Scores {
             .map(|(i, _)| i)
     }
 
-    /// Find the highest score.
-    pub fn max(&self) -> Option<f32> {
-        self.data
-            .iter()
-            .max_by(|x, y| x.partial_cmp(y).unwrap())
-            .cloned()
-    }
-
     /// Return the positions with score equal to or greater than the threshold.
-    pub fn threshold(&self, threshold: f32) -> Vec<usize> {
+    pub fn threshold(&self, threshold: &T) -> Vec<usize> {
         self.data
             .iter()
             .enumerate()
-            .filter(|(_, &x)| x >= threshold)
+            .filter(|(_, x)| x >= &threshold)
             .map(|(i, _)| i)
             .collect()
     }
 }
 
-impl Deref for Scores {
-    type Target = Vec<f32>;
+impl<T: PartialOrd + Clone> Scores<T> {
+    /// Find the highest score.
+    pub fn max(&self) -> Option<T> {
+        self.data
+            .iter()
+            .max_by(|x, y| x.partial_cmp(y).unwrap())
+            .cloned()
+    }
+}
+
+impl<T> Deref for Scores<T> {
+    type Target = Vec<T>;
     fn deref(&self) -> &Self::Target {
         &self.data
     }
 }
 
-impl From<Vec<f32>> for Scores {
-    fn from(data: Vec<f32>) -> Self {
+impl<T> From<Vec<T>> for Scores<T> {
+    fn from(data: Vec<T>) -> Self {
         Self::new(data)
     }
 }
 
-impl From<Scores> for Vec<f32> {
-    fn from(scores: Scores) -> Self {
+impl<T> From<Scores<T>> for Vec<T> {
+    fn from(scores: Scores<T>) -> Self {
         scores.data
     }
 }
@@ -139,7 +143,7 @@ impl<C: StrictlyPositive> StripedScores<C> {
 
     /// Convert the striped scores into an array.
     #[inline]
-    pub fn unstripe(&self) -> Scores {
+    pub fn unstripe(&self) -> Scores<f32> {
         self.iter().cloned().collect::<Vec<f32>>().into()
     }
 }
