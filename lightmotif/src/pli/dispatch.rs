@@ -91,7 +91,7 @@ impl Score<f32, Dna, <Dispatch as Backend>::LANES> for Pipeline<Dna, Dispatch> {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Sse2 => Sse2::score_rows_into(pssm, seq.as_ref(), rows, scores),
             #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-            Dispatch::Neon => Neon::score_rows_into(pssm, seq.as_ref(), rows, scores),
+            Dispatch::Neon => Neon::score_f32_rows_into(pssm, seq.as_ref(), rows, scores),
             _ => <Generic as Score<f32, Dna, <Dispatch as Backend>::LANES>>::score_rows_into(
                 &Generic,
                 pssm,
@@ -120,7 +120,7 @@ impl Score<f32, Protein, <Dispatch as Backend>::LANES> for Pipeline<Protein, Dis
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Sse2 => Sse2::score_rows_into(pssm, seq.as_ref(), rows, scores),
             #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-            Dispatch::Neon => Neon::score_rows_into(pssm, seq.as_ref(), rows, scores),
+            Dispatch::Neon => Neon::score_f32_rows_into(pssm, seq.as_ref(), rows, scores),
             _ => <Generic as Score<f32, Protein, <Dispatch as Backend>::LANES>>::score_rows_into(
                 &Generic,
                 pssm,

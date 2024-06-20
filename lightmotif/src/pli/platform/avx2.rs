@@ -273,6 +273,7 @@ unsafe fn score_f32_avx2_gather<A>(
     _mm_sfence();
 }
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 pub unsafe fn score_u8_avx2_shuffle<A>(
     pssm: &DenseMatrix<u8, A::K>,

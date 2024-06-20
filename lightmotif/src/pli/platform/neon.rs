@@ -12,6 +12,7 @@ use std::ops::Rem;
 use super::Backend;
 use crate::abc::Alphabet;
 use crate::abc::Symbol;
+use crate::dense::DenseMatrix;
 use crate::err::InvalidSymbol;
 use crate::num::consts::U16;
 use crate::num::MultipleOf;
@@ -20,9 +21,8 @@ use crate::num::Unsigned;
 use crate::num::Zero;
 use crate::pli::Encode;
 use crate::pli::Pipeline;
-use crate::scores::StripedScores;
-
 use crate::pwm::ScoringMatrix;
+use crate::scores::StripedScores;
 use crate::seq::StripedSequence;
 
 /// A marker type for the SSE2 implementation of the pipeline.
@@ -123,12 +123,14 @@ where
 
 #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
 #[target_feature(enable = "neon")]
-unsafe fn score_neon<A: Alphabet, C: MultipleOf<U16>>(
-    pssm: &ScoringMatrix<A>,
+unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16>>(
+    pssm: &DenseMatrix<f32, A::K>,
     seq: &StripedSequence<A, C>,
     rows: Range<usize>,
-    scores: &mut StripedScores<C>,
+    scores: &mut StripedScores<f32, C>,
 ) {
+    use crate::dense::DenseMatrix;
+
     let zero_u8 = vdupq_n_u8(0);
     let zero_f32 = vdupq_n_f32(0.0);
     // process columns of the striped matrix, any multiple of 16 is supported
@@ -140,9 +142,9 @@ unsafe fn score_neon<A: Alphabet, C: MultipleOf<U16>>(
             let mut s = float32x4x4_t(zero_f32, zero_f32, zero_f32, zero_f32);
             // reset position
             let mut dataptr = seq.matrix()[i].as_ptr().add(offset);
-            let mut pssmptr = pssm.matrix()[0].as_ptr();
+            let mut pssmptr = pssm[0].as_ptr();
             // advance position in the position weight matrix
-            for _ in 0..pssm.len() {
+            for _ in 0..pssm.rows() {
                 // load sequence row and broadcast to f32
                 let x = vld1q_u8(dataptr as *const u8);
                 let z = vzipq_u8(x, zero_u8);
@@ -167,7 +169,7 @@ unsafe fn score_neon<A: Alphabet, C: MultipleOf<U16>>(
                 }
                 // advance to next row in sequence and PSSM matrices
                 dataptr = dataptr.add(seq.matrix().stride());
-                pssmptr = pssmptr.add(pssm.matrix().stride());
+                pssmptr = pssmptr.add(pssm.stride());
             }
             // record the score for the current position
             let row = &mut data[i];
@@ -194,7 +196,7 @@ impl Neon {
     }
 
     #[allow(unused)]
-    pub fn score_rows_into<A, C, S, M>(
+    pub fn score_f32_rows_into<A, C, S, M>(
         pssm: M,
         seq: S,
         rows: Range<usize>,
@@ -203,27 +205,27 @@ impl Neon {
         A: Alphabet,
         C: MultipleOf<U16>,
         S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<ScoringMatrix<A>>,
+        M: AsRef<DenseMatrix<f32, A::K>>,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
 
-        if seq.wrap() < pssm.len() - 1 {
+        if seq.wrap() < pssm.rows() - 1 {
             panic!(
                 "not enough wrapping rows for motif of length {}",
-                pssm.len()
+                pssm.rows()
             );
         }
 
-        if seq.len() < pssm.len() || rows.len() == 0 {
+        if seq.len() < pssm.rows() || rows.len() == 0 {
             scores.resize(0, 0);
             return;
         }
 
-        scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.len()));
+        scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.rows()));
         #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
         unsafe {
-            score_neon(pssm, seq, rows, scores);
+            score_f32_neon(pssm, seq, rows, scores);
         }
         #[cfg(not(any(target_arch = "arm", target_arch = "aarch64")))]
         panic!("attempting to run NEON code on a non-Arm host")
