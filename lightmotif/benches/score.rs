@@ -20,65 +20,135 @@ mod dna {
 
     const SEQUENCE: &str = include_str!("ecoli.txt");
 
-    fn bench<C: StrictlyPositive, P: Score<f32, Dna, C>>(bencher: &mut test::Bencher, pli: &P) {
-        let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
-        let mut striped = Pipeline::generic().stripe(encoded);
+    mod f32 {
+        use super::*;
 
-        let cm = CountMatrix::<Dna>::from_sequences([
-            EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
-            EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
-        ])
-        .unwrap();
-        let pbm = cm.to_freq(0.1);
-        let pssm = pbm.to_scoring(None);
+        fn bench<C: StrictlyPositive, P: Score<f32, Dna, C>>(bencher: &mut test::Bencher, pli: &P) {
+            let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
+            let mut striped = Pipeline::generic().stripe(encoded);
 
-        striped.configure(&pssm);
-        let mut scores = StripedScores::empty();
-        scores.resize(striped.matrix().rows(), striped.len());
-        bencher.bytes = SEQUENCE.len() as u64;
-        bencher.iter(|| {
-            test::black_box(pli.score_into(&pssm, &striped, &mut scores));
-        });
+            let cm = CountMatrix::<Dna>::from_sequences([
+                EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
+                EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
+            ])
+            .unwrap();
+            let pbm = cm.to_freq(0.1);
+            let pssm = pbm.to_scoring(None);
+
+            striped.configure(&pssm);
+            let mut scores = StripedScores::empty();
+            scores.resize(striped.matrix().rows(), striped.len());
+            bencher.bytes = SEQUENCE.len() as u64;
+            bencher.iter(|| {
+                test::black_box(pli.score_into(&pssm, &striped, &mut scores));
+            });
+        }
+
+        #[bench]
+        fn bench_generic(bencher: &mut test::Bencher) {
+            let pli = Pipeline::generic();
+            bench::<U32, _>(bencher, &pli);
+        }
+
+        #[bench]
+        fn bench_dispatch(bencher: &mut test::Bencher) {
+            let pli = Pipeline::dispatch();
+            bench(bencher, &pli);
+        }
+
+        #[cfg(target_feature = "sse2")]
+        #[bench]
+        fn bench_sse2(bencher: &mut test::Bencher) {
+            let pli = Pipeline::sse2().unwrap();
+            bench::<U16, _>(bencher, &pli);
+        }
+
+        #[cfg(target_feature = "sse2")]
+        #[bench]
+        fn bench_sse2_32(bencher: &mut test::Bencher) {
+            let pli = Pipeline::sse2().unwrap();
+            bench::<U32, _>(bencher, &pli);
+        }
+
+        #[cfg(target_feature = "avx2")]
+        #[bench]
+        fn bench_avx2(bencher: &mut test::Bencher) {
+            let pli = Pipeline::avx2().unwrap();
+            bench(bencher, &pli);
+        }
+
+        #[cfg(target_feature = "neon")]
+        #[bench]
+        fn bench_neon(bencher: &mut test::Bencher) {
+            let pli = Pipeline::neon().unwrap();
+            bench::<U16, _>(bencher, &pli);
+        }
     }
 
-    #[bench]
-    fn bench_generic(bencher: &mut test::Bencher) {
-        let pli = Pipeline::generic();
-        bench::<U32, _>(bencher, &pli);
-    }
+    mod u8 {
+        use super::*;
 
-    #[bench]
-    fn bench_dispatch(bencher: &mut test::Bencher) {
-        let pli = Pipeline::dispatch();
-        bench(bencher, &pli);
-    }
+        fn bench<C: StrictlyPositive, P: Score<u8, Dna, C>>(bencher: &mut test::Bencher, pli: &P) {
+            let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
+            let mut striped = Pipeline::generic().stripe(encoded);
 
-    #[cfg(target_feature = "sse2")]
-    #[bench]
-    fn bench_sse2(bencher: &mut test::Bencher) {
-        let pli = Pipeline::sse2().unwrap();
-        bench::<U16, _>(bencher, &pli);
-    }
+            let cm = CountMatrix::<Dna>::from_sequences([
+                EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
+                EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
+            ])
+            .unwrap();
+            let pbm = cm.to_freq(0.1);
+            let pssm = pbm.to_scoring(None);
+            let dm = pssm.to_discrete();
 
-    #[cfg(target_feature = "sse2")]
-    #[bench]
-    fn bench_sse2_32(bencher: &mut test::Bencher) {
-        let pli = Pipeline::sse2().unwrap();
-        bench::<U32, _>(bencher, &pli);
-    }
+            striped.configure(&pssm);
+            let mut scores = StripedScores::empty();
+            scores.resize(striped.matrix().rows(), striped.len());
+            bencher.bytes = SEQUENCE.len() as u64;
+            bencher.iter(|| {
+                test::black_box(pli.score_into(&dm, &striped, &mut scores));
+            });
+        }
 
-    #[cfg(target_feature = "avx2")]
-    #[bench]
-    fn bench_avx2(bencher: &mut test::Bencher) {
-        let pli = Pipeline::avx2().unwrap();
-        bench(bencher, &pli);
-    }
+        #[bench]
+        fn bench_generic(bencher: &mut test::Bencher) {
+            let pli = Pipeline::generic();
+            bench::<U32, _>(bencher, &pli);
+        }
 
-    #[cfg(target_feature = "neon")]
-    #[bench]
-    fn bench_neon(bencher: &mut test::Bencher) {
-        let pli = Pipeline::neon().unwrap();
-        bench::<U16, _>(bencher, &pli);
+        #[bench]
+        fn bench_dispatch(bencher: &mut test::Bencher) {
+            let pli = Pipeline::dispatch();
+            bench(bencher, &pli);
+        }
+
+        #[cfg(target_feature = "sse2")]
+        #[bench]
+        fn bench_sse2(bencher: &mut test::Bencher) {
+            let pli = Pipeline::sse2().unwrap();
+            bench::<U16, _>(bencher, &pli);
+        }
+
+        #[cfg(target_feature = "sse2")]
+        #[bench]
+        fn bench_sse2_32(bencher: &mut test::Bencher) {
+            let pli = Pipeline::sse2().unwrap();
+            bench::<U32, _>(bencher, &pli);
+        }
+
+        #[cfg(target_feature = "avx2")]
+        #[bench]
+        fn bench_avx2(bencher: &mut test::Bencher) {
+            let pli = Pipeline::avx2().unwrap();
+            bench(bencher, &pli);
+        }
+
+        #[cfg(target_feature = "neon")]
+        #[bench]
+        fn bench_neon(bencher: &mut test::Bencher) {
+            let pli = Pipeline::neon().unwrap();
+            bench::<U16, _>(bencher, &pli);
+        }
     }
 }
 
