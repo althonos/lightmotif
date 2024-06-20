@@ -66,7 +66,7 @@ fn bench_scanner_best(bencher: &mut test::Bencher) {
     bencher.bytes = seq.len() as u64;
 }
 
-fn bench_lightmotif<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(
+fn bench_lightmotif<C: StrictlyPositive, P: Score<Dna, C> + Maximum<f32, C>>(
     bencher: &mut test::Bencher,
     pli: &P,
 ) {

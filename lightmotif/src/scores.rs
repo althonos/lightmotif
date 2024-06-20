@@ -149,15 +149,15 @@ impl<T: MatrixElement, C: StrictlyPositive> StripedScores<T, C> {
     }
 }
 
-impl<C: StrictlyPositive> StripedScores<f32, C>
+impl<T: MatrixElement + PartialOrd, C: StrictlyPositive> StripedScores<T, C>
 where
-    Pipeline<Dna, Dispatch>: Maximum<C>,
+    Pipeline<Dna, Dispatch>: Maximum<T, C>,
 {
     /// Find the highest score.
     ///
     /// # Note
     /// Uses platform-accelerated implementation when available.
-    pub fn max(&self) -> Option<f32> {
+    pub fn max(&self) -> Option<T> {
         Pipeline::dispatch().max(self)
     }
 
@@ -170,9 +170,9 @@ where
     }
 }
 
-impl<C: StrictlyPositive> StripedScores<f32, C>
+impl<T: MatrixElement + PartialOrd, C: StrictlyPositive> StripedScores<T, C>
 where
-    Pipeline<Dna, Dispatch>: Threshold<C>,
+    Pipeline<Dna, Dispatch>: Threshold<T, C>,
 {
     /// Return the positions with score equal to or greater than the threshold.
     ///
@@ -182,7 +182,7 @@ where
     ///
     /// # Note
     /// Uses platform-accelerated implementation when available.
-    pub fn threshold(&self, threshold: f32) -> Vec<usize> {
+    pub fn threshold(&self, threshold: T) -> Vec<usize> {
         Pipeline::dispatch()
             .threshold(self, threshold)
             .into_iter()

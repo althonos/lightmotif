@@ -8,6 +8,7 @@ use crate::abc::Protein;
 use crate::abc::Symbol;
 use crate::dense::DenseMatrix;
 use crate::dense::MatrixCoordinates;
+use crate::dense::MatrixElement;
 use crate::err::InvalidSymbol;
 use crate::err::UnsupportedBackend;
 use crate::num::MultipleOf;
@@ -131,23 +132,23 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
 }
 
 /// Used for finding the highest scoring site in a striped score matrix.
-pub trait Maximum<C: StrictlyPositive> {
+pub trait Maximum<T: MatrixElement + PartialOrd, C: StrictlyPositive> {
     /// Find the matrix coordinates with the highest score.
-    fn argmax(&self, scores: &StripedScores<f32, C>) -> Option<MatrixCoordinates> {
+    fn argmax(&self, scores: &StripedScores<T, C>) -> Option<MatrixCoordinates> {
         if scores.is_empty() {
             return None;
         }
 
         let mut best_row = 0;
         let mut best_col = 0;
-        let mut best_score = f32::NEG_INFINITY;
+        let mut best_score = None;
 
         for (i, row) in scores.matrix().iter().enumerate() {
             for j in 0..C::USIZE {
-                if row[j] >= best_score {
+                if best_score.as_ref().map(|s| &row[j] >= s).unwrap_or(true) {
                     best_row = i;
                     best_col = j;
-                    best_score = row[j];
+                    best_score = Some(row[j]);
                 }
             }
         }
@@ -156,7 +157,7 @@ pub trait Maximum<C: StrictlyPositive> {
     }
 
     /// Find the highest score.
-    fn max(&self, scores: &StripedScores<f32, C>) -> Option<f32> {
+    fn max(&self, scores: &StripedScores<T, C>) -> Option<T> {
         self.argmax(scores).map(|c| scores.matrix()[c])
     }
 }
@@ -198,17 +199,17 @@ pub trait Stripe<A: Alphabet, C: StrictlyPositive> {
 }
 
 /// Used for finding positions above a score threshold in a striped score matrix.
-pub trait Threshold<C: StrictlyPositive> {
+pub trait Threshold<T: MatrixElement + PartialOrd, C: StrictlyPositive> {
     /// Return the coordinates of positions with score equal to or greater than the threshold.
     ///
     /// # Note
     /// The indices are not be sorted, and the actual order depends on the
     /// implementation.
-    fn threshold(&self, scores: &StripedScores<f32, C>, threshold: f32) -> Vec<MatrixCoordinates> {
+    fn threshold(&self, scores: &StripedScores<T, C>, threshold: T) -> Vec<MatrixCoordinates> {
         let mut positions = Vec::new();
         for (i, row) in scores.matrix().iter().enumerate() {
             for col in 0..C::USIZE {
-                assert!(!row[col].is_nan());
+                // assert!(!row[col].is_nan());
                 if row[col] >= threshold {
                     positions.push(MatrixCoordinates::new(i, col));
                 }
@@ -243,11 +244,17 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Generic> {}
 
 impl<A: Alphabet, C: StrictlyPositive> Score<A, C> for Pipeline<A, Generic> {}
 
-impl<A: Alphabet, C: StrictlyPositive> Maximum<C> for Pipeline<A, Generic> {}
+impl<T: MatrixElement + PartialOrd, A: Alphabet, C: StrictlyPositive> Maximum<T, C>
+    for Pipeline<A, Generic>
+{
+}
 
 impl<A: Alphabet, C: StrictlyPositive> Stripe<A, C> for Pipeline<A, Generic> {}
 
-impl<A: Alphabet, C: StrictlyPositive> Threshold<C> for Pipeline<A, Generic> {}
+impl<T: MatrixElement + PartialOrd, A: Alphabet, C: StrictlyPositive> Threshold<T, C>
+    for Pipeline<A, Generic>
+{
+}
 
 // --- Dynamic dispatch --------------------------------------------------------
 
@@ -332,7 +339,7 @@ where
     }
 }
 
-impl<A, C> Maximum<C> for Pipeline<A, Sse2>
+impl<A, C> Maximum<f32, C> for Pipeline<A, Sse2>
 where
     A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,
@@ -342,7 +349,7 @@ where
     }
 }
 
-impl<A: Alphabet, C: StrictlyPositive> Threshold<C> for Pipeline<A, Sse2>
+impl<A: Alphabet, C: StrictlyPositive> Threshold<f32, C> for Pipeline<A, Sse2>
 where
     A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,
@@ -413,7 +420,7 @@ impl<A: Alphabet> Stripe<A, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
     }
 }
 
-impl<A: Alphabet> Maximum<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
+impl<A: Alphabet> Maximum<f32, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
     fn argmax(
         &self,
         scores: &StripedScores<f32, <Avx2 as Backend>::LANES>,
@@ -422,7 +429,7 @@ impl<A: Alphabet> Maximum<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
     }
 }
 
-impl<A: Alphabet> Threshold<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {}
+impl<A: Alphabet> Threshold<f32, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {}
 
 // --- NEON pipeline -----------------------------------------------------------
 
@@ -458,14 +465,14 @@ where
 {
 }
 
-impl<A, C> Maximum<C> for Pipeline<A, Neon>
+impl<A, C> Maximum<f32, C> for Pipeline<A, Neon>
 where
     A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,
 {
 }
 
-impl<A, C> Threshold<C> for Pipeline<A, Neon>
+impl<A, C> Threshold<f32, C> for Pipeline<A, Neon>
 where
     A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,

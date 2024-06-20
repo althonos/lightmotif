@@ -89,7 +89,7 @@ fn test_score<C: StrictlyPositive, P: Score<Dna, C>>(pli: &P) {
     }
 }
 
-fn test_argmax<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(pli: &P) {
+fn test_argmax<C: StrictlyPositive, P: Score<Dna, C> + Maximum<f32, C>>(pli: &P) {
     let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
     let mut striped = Pipeline::generic().stripe(encoded);
 
@@ -106,7 +106,7 @@ fn test_argmax<C: StrictlyPositive, P: Score<Dna, C> + Maximum<C>>(pli: &P) {
     assert_eq!(pli.argmax(&result).map(|c| result.offset(c)), Some(18));
 }
 
-fn test_threshold<C: StrictlyPositive, P: Score<Dna, C> + Threshold<C>>(pli: &P) {
+fn test_threshold<C: StrictlyPositive, P: Score<Dna, C> + Threshold<f32, C>>(pli: &P) {
     let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
     let mut striped = Pipeline::generic().stripe(encoded);
 

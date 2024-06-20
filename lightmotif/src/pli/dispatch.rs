@@ -17,6 +17,7 @@ use crate::abc::Alphabet;
 use crate::abc::Dna;
 use crate::abc::Protein;
 use crate::dense::MatrixCoordinates;
+use crate::dense::MatrixElement;
 use crate::err::InvalidSymbol;
 #[allow(unused)]
 use crate::num::U1;
@@ -146,7 +147,7 @@ impl<A: Alphabet> Stripe<A, <Dispatch as Backend>::LANES> for Pipeline<A, Dispat
     }
 }
 
-impl<A: Alphabet> Maximum<<Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {
+impl<A: Alphabet> Maximum<f32, <Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {
     fn argmax(
         &self,
         scores: &StripedScores<f32, <Dispatch as Backend>::LANES>,
@@ -156,9 +157,9 @@ impl<A: Alphabet> Maximum<<Dispatch as Backend>::LANES> for Pipeline<A, Dispatch
             Dispatch::Avx2 => Avx2::argmax(scores),
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Sse2 => Sse2::argmax(scores),
-            _ => <Generic as Maximum<<Dispatch as Backend>::LANES>>::argmax(&Generic, scores),
+            _ => <Generic as Maximum<f32, <Dispatch as Backend>::LANES>>::argmax(&Generic, scores),
         }
     }
 }
 
-impl<A: Alphabet> Threshold<<Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {}
+impl<A: Alphabet> Threshold<f32, <Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {}
