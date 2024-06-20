@@ -198,7 +198,6 @@ impl<A: Alphabet> Maximum<u8, <Dispatch as Backend>::LANES> for Pipeline<A, Disp
         scores: &StripedScores<u8, <Dispatch as Backend>::LANES>,
     ) -> Option<MatrixCoordinates> {
         match self.backend {
-            // FIXME !!!!
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Avx2 => Avx2::argmax_u8(scores),
             // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
