@@ -232,25 +232,25 @@ mod dispatch {
     #[test]
     fn test_score() {
         let pli = Pipeline::dispatch();
-        super::test_score::<U32, _>(&pli);
+        super::test_score(&pli);
     }
 
     #[test]
     fn test_score_rows() {
         let pli = Pipeline::dispatch();
-        super::test_score_rows::<U32, _>(&pli);
+        super::test_score_rows(&pli);
     }
 
     #[test]
     fn test_argmax() {
         let pli = Pipeline::dispatch();
-        super::test_argmax::<U32, _>(&pli);
+        super::test_argmax(&pli);
     }
 
     #[test]
     fn test_threshold() {
         let pli = Pipeline::dispatch();
-        super::test_threshold::<U32, _>(&pli);
+        super::test_threshold(&pli);
     }
 }
 

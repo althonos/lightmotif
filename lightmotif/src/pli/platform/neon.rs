@@ -136,6 +136,7 @@ unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16>>(
     // process columns of the striped matrix, any multiple of 16 is supported
     let data = scores.matrix_mut();
     for offset in (0..C::Quotient::USIZE).map(|i| i * <Neon as Backend>::LANES::USIZE) {
+        let mut rowptr = data[0].as_mut_ptr().add(offset);
         // process every position of the sequence data
         for i in rows.clone() {
             // reset sums for current position
@@ -145,9 +146,10 @@ unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16>>(
             let mut pssmptr = pssm[0].as_ptr();
             // advance position in the position weight matrix
             for _ in 0..pssm.rows() {
-                // load sequence row and broadcast to f32
+                // load sequence row
                 let x = vld1q_u8(dataptr as *const u8);
                 let z = vzipq_u8(x, zero_u8);
+                // transform u8 into u32
                 let lo = vzipq_u8(z.0, zero_u8);
                 let hi = vzipq_u8(z.1, zero_u8);
                 let x1 = vreinterpretq_u32_u8(lo.0);
@@ -172,8 +174,8 @@ unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16>>(
                 pssmptr = pssmptr.add(pssm.stride());
             }
             // record the score for the current position
-            let row = &mut data[i];
-            vst1q_f32_x4(row[offset..].as_mut_ptr(), s);
+            vst1q_f32_x4(rowptr, s);
+            rowptr = rowptr.add(data.stride());
         }
     }
 }

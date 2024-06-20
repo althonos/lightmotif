@@ -67,7 +67,7 @@ fn bench_scanner_best(bencher: &mut test::Bencher) {
 
     striped.configure(&pssm);
     let mut best = 0;
-    bencher.iter(|| best = Scanner::new(&pssm, &striped).best().unwrap().position);
+    bencher.iter(|| best = Scanner::new(&pssm, &striped).max().unwrap().position);
     bencher.bytes = seq.len() as u64;
 
     println!("best: {:?}", best);

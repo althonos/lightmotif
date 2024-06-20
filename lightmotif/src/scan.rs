@@ -1,16 +1,37 @@
 //! Scanner implementation using a fixed block size for the scores.
+use std::cmp::Ordering;
+
 use super::abc::Alphabet;
 use super::pli::dispatch::Dispatch;
+use super::pli::platform::Avx2;
 use super::pli::platform::Backend;
+use super::pli::platform::Neon;
 use super::pwm::ScoringMatrix;
 use super::seq::StripedSequence;
+use crate::dense::DenseMatrix;
+use crate::num::StrictlyPositive;
+use crate::num::U32;
 use crate::pli::Maximum;
 use crate::pli::Pipeline;
 use crate::pli::Score;
 use crate::pli::Threshold;
+use crate::pwm::DiscreteMatrix;
 use crate::scores::StripedScores;
 
-type C = <Dispatch as Backend>::LANES;
+#[cfg(target_arch = "x86_64")]
+type _DefaultColumns = typenum::consts::U32;
+#[cfg(any(target_arch = "x86", target_arch = "arm", target_arch = "aarch64"))]
+type _DefaultColumns = typenum::consts::U16;
+#[cfg(not(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "arm",
+    target_arch = "aarch64"
+)))]
+type _DefaultColumns = typenum::consts::U1;
+
+/// The default column number used in scanners.
+pub type DefaultColumns = _DefaultColumns;
 
 #[derive(Debug)]
 enum CowMut<'a, T> {
@@ -44,7 +65,7 @@ impl<T: Default> Default for CowMut<'_, T> {
 }
 
 /// A hit describing a scored position somewhere in the sequence.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Hit {
     pub position: usize,
     pub score: f32,
@@ -53,15 +74,35 @@ pub struct Hit {
 impl Hit {
     /// Create a new hit.
     pub fn new(position: usize, score: f32) -> Self {
+        assert!(!score.is_nan());
         Self { position, score }
     }
 }
 
+impl Eq for Hit {}
+
+impl PartialOrd for Hit {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match self.score.partial_cmp(&other.score)? {
+            Ordering::Equal => self.position.partial_cmp(&other.position),
+            other => Some(other),
+        }
+    }
+}
+
+impl Ord for Hit {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
 #[derive(Debug)]
-pub struct Scanner<'a, A: Alphabet> {
+pub struct Scanner<'a, A: Alphabet, C: StrictlyPositive = DefaultColumns> {
     pssm: &'a ScoringMatrix<A>,
+    dm: DiscreteMatrix<A>,
     seq: &'a StripedSequence<A, C>,
     scores: CowMut<'a, StripedScores<f32, C>>,
+    dscores: StripedScores<u8, C>,
     threshold: f32,
     block_size: usize,
     row: usize,
@@ -69,15 +110,17 @@ pub struct Scanner<'a, A: Alphabet> {
     pipeline: Pipeline<A, Dispatch>,
 }
 
-impl<'a, A: Alphabet> Scanner<'a, A> {
+impl<'a, A: Alphabet, C: StrictlyPositive> Scanner<'a, A, C> {
     /// Create a new scanner for the given matrix and sequence.
     pub fn new(pssm: &'a ScoringMatrix<A>, seq: &'a StripedSequence<A, C>) -> Self {
         Self {
             pssm,
             seq,
+            dm: pssm.to_discrete(),
             scores: CowMut::Owned(StripedScores::empty()),
+            dscores: StripedScores::empty(),
             threshold: 0.0,
-            block_size: 512,
+            block_size: 256,
             row: 0,
             hits: Vec::new(),
             pipeline: Pipeline::dispatch(),
@@ -103,56 +146,60 @@ impl<'a, A: Alphabet> Scanner<'a, A> {
     }
 }
 
-impl<'a, A: Alphabet> Scanner<'a, A>
+impl<'a, A, C> Iterator for Scanner<'a, A, C>
 where
-    Pipeline<A, Dispatch>: Score<f32, A, C> + Maximum<f32, C>,
+    A: Alphabet,
+    C: StrictlyPositive,
+    Pipeline<A, Dispatch>: Score<u8, A, C> + Threshold<u8, C> + Maximum<u8, C>,
 {
-    /// Consume the scanner to find the best hit.
-    pub fn best(&mut self) -> Option<Hit> {
-        let pli = Pipeline::dispatch();
-        let mut best = std::mem::take(&mut self.hits)
-            .into_iter()
-            .max_by(|x, y| x.score.partial_cmp(&y.score).unwrap());
-        while self.row < self.seq.matrix().rows() {
-            let end = (self.row + self.block_size).min(self.seq.matrix().rows() - self.seq.wrap());
-            pli.score_rows_into(&self.pssm, &self.seq, self.row..end, &mut self.scores);
-            let matrix = self.scores.matrix();
-            if let Some(c) = pli.argmax(&self.scores) {
-                let score = matrix[c];
-                if best
-                    .as_ref()
-                    .map(|hit: &Hit| matrix[c] >= hit.score)
-                    .unwrap_or(true)
-                {
-                    let index =
-                        c.col * (self.seq.matrix().rows() - self.seq.wrap()) + self.row + c.row;
-                    best = Some(Hit::new(index, score));
+    type Item = Hit;
+    fn next(&mut self) -> Option<Self::Item> {
+        let t = self.dm.scale(self.threshold);
+        while self.hits.is_empty() && self.row < self.seq.matrix().rows() {
+            // compute the row slice to score in the striped sequence matrix
+            let end = (self.row + self.block_size)
+                .min(self.seq.matrix().rows().saturating_sub(self.seq.wrap()));
+            // score the row slice
+            self.pipeline
+                .score_rows_into(&self.dm, &self.seq, self.row..end, &mut self.dscores);
+            // scan through the positions above discrete threshold and recompute
+            // scores in floating-point to see if they pass the real threshold.
+            for c in self.pipeline.threshold(&self.dscores, t) {
+                let index = c.col * (self.seq.matrix().rows() - self.seq.wrap()) + self.row + c.row;
+                let score = self.pssm.score_position(&self.seq, index);
+                if score >= self.threshold {
+                    self.hits.push(Hit::new(index, score));
                 }
             }
             self.row += self.block_size;
         }
-        best
+        self.hits.pop()
     }
-}
 
-impl<'a, A: Alphabet> Iterator for Scanner<'a, A>
-where
-    Pipeline<A, Dispatch>: Score<f32, A, C> + Threshold<f32, C>,
-{
-    type Item = Hit;
-    fn next(&mut self) -> Option<Self::Item> {
-        while self.hits.is_empty() && self.row < self.seq.matrix().rows() {
-            let end = (self.row + self.block_size)
-                .min(self.seq.matrix().rows().saturating_sub(self.seq.wrap()));
+    fn max(mut self) -> Option<Self::Item> {
+        let mut best = std::mem::take(&mut self.hits)
+            .into_iter()
+            .max_by(|x, y| x.score.partial_cmp(&y.score).unwrap())
+            .unwrap_or(Hit::new(0, f32::MIN));
+        let mut best_discrete = self.dm.scale(best.score);
+        while self.row < self.seq.matrix().rows() {
+            let end = (self.row + self.block_size).min(self.seq.matrix().rows() - self.seq.wrap());
             self.pipeline
-                .score_rows_into(&self.pssm, &self.seq, self.row..end, &mut self.scores);
-            let matrix = self.scores.matrix();
-            for c in self.pipeline.threshold(&self.scores, self.threshold) {
-                let index = c.col * (self.seq.matrix().rows() - self.seq.wrap()) + self.row + c.row;
-                self.hits.push(Hit::new(index, matrix[c]));
+                .score_rows_into(&self.dm, &self.seq, self.row..end, &mut self.dscores);
+            if let Some(c) = self.pipeline.argmax(&self.dscores) {
+                let dscore = self.dscores.matrix()[c];
+                if dscore >= best_discrete {
+                    let index =
+                        c.col * (self.seq.matrix().rows() - self.seq.wrap()) + self.row + c.row;
+                    let score = self.pssm.score_position(&self.seq, index);
+                    if (score > best.score) | (score == best.score && index > best.position) {
+                        best = Hit::new(index, score);
+                        best_discrete = dscore;
+                    }
+                }
             }
             self.row += self.block_size;
         }
-        self.hits.pop()
+        Some(best)
     }
 }

@@ -6,6 +6,7 @@ extern crate test;
 use lightmotif::num::U32;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Stripe;
+use lightmotif::scan::DefaultColumns;
 use lightmotif::seq::EncodedSequence;
 
 mod dna {
@@ -15,7 +16,7 @@ mod dna {
 
     const SEQUENCE: &str = include_str!("ecoli.txt");
 
-    fn bench<P: Stripe<Dna, U32>>(bencher: &mut test::Bencher, pli: &P) {
+    fn bench<P: Stripe<Dna, DefaultColumns>>(bencher: &mut test::Bencher, pli: &P) {
         let seq = EncodedSequence::encode(SEQUENCE).unwrap();
         let mut dst = seq.to_striped();
 

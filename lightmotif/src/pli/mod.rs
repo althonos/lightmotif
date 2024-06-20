@@ -525,6 +525,13 @@ where
 {
 }
 
+impl<A, C> Score<u8, A, C> for Pipeline<A, Neon>
+where
+    A: Alphabet,
+    C: StrictlyPositive + MultipleOf<U16>,
+{
+}
+
 impl<A, C> Maximum<f32, C> for Pipeline<A, Neon>
 where
     A: Alphabet,
@@ -532,7 +539,21 @@ where
 {
 }
 
+impl<A, C> Maximum<u8, C> for Pipeline<A, Neon>
+where
+    A: Alphabet,
+    C: StrictlyPositive + MultipleOf<U16>,
+{
+}
+
 impl<A, C> Threshold<f32, C> for Pipeline<A, Neon>
+where
+    A: Alphabet,
+    C: StrictlyPositive + MultipleOf<U16>,
+{
+}
+
+impl<A, C> Threshold<u8, C> for Pipeline<A, Neon>
 where
     A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,
