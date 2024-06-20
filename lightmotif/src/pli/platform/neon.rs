@@ -198,7 +198,7 @@ impl Neon {
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<C>,
+        scores: &mut StripedScores<f32, C>,
     ) where
         A: Alphabet,
         C: MultipleOf<U16>,

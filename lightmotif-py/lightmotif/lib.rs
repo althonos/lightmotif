@@ -570,7 +570,7 @@ impl From<lightmotif::ScoringMatrix<lightmotif::Dna>> for ScoringMatrix {
 #[pyclass(module = "lightmotif.lib", sequence)]
 #[derive(Clone, Debug)]
 pub struct StripedScores {
-    scores: lightmotif::scores::StripedScores<C>,
+    scores: lightmotif::scores::StripedScores<f32, C>,
     shape: [Py_ssize_t; 2],
     strides: [Py_ssize_t; 2],
 }
@@ -668,8 +668,8 @@ impl StripedScores {
     }
 }
 
-impl From<lightmotif::scores::StripedScores<C>> for StripedScores {
-    fn from(scores: lightmotif::scores::StripedScores<C>) -> Self {
+impl From<lightmotif::scores::StripedScores<f32, C>> for StripedScores {
+    fn from(scores: lightmotif::scores::StripedScores<f32, C>) -> Self {
         // assert_eq!(scores.range().start, 0);
         // extract the matrix shape
         let cols = scores.matrix().columns();

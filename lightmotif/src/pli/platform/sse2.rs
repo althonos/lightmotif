@@ -34,7 +34,7 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES>>(
     pssm: &ScoringMatrix<A>,
     seq: &StripedSequence<A, C>,
     rows: Range<usize>,
-    scores: &mut StripedScores<C>,
+    scores: &mut StripedScores<f32, C>,
 ) {
     // mask vectors for broadcasting uint8x16_t to uint32x4_t to floatx4_t
     let zero = _mm_setzero_si128();
@@ -97,7 +97,7 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES>>(
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
 unsafe fn argmax_sse2<C: MultipleOf<<Sse2 as Backend>::LANES>>(
-    scores: &StripedScores<C>,
+    scores: &StripedScores<f32, C>,
 ) -> Option<MatrixCoordinates> {
     if scores.max_index() > u32::MAX as usize {
         panic!(
@@ -188,7 +188,7 @@ impl Sse2 {
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<C>,
+        scores: &mut StripedScores<f32, C>,
     ) where
         A: Alphabet,
         C: MultipleOf<<Sse2 as Backend>::LANES>,
@@ -221,7 +221,7 @@ impl Sse2 {
 
     #[allow(unused)]
     pub fn argmax<C: MultipleOf<<Sse2 as Backend>::LANES>>(
-        scores: &StripedScores<C>,
+        scores: &StripedScores<f32, C>,
     ) -> Option<MatrixCoordinates> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {

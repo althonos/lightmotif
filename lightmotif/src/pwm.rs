@@ -479,7 +479,7 @@ impl<A: Alphabet> ScoringMatrix<A> {
     ///
     /// # Note
     /// Uses platform-accelerated implementation when available.
-    pub fn score<S, C>(&self, seq: S) -> StripedScores<C>
+    pub fn score<S, C>(&self, seq: S) -> StripedScores<f32, C>
     where
         C: StrictlyPositive,
         S: AsRef<StripedSequence<A, C>>,

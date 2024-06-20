@@ -99,7 +99,7 @@ unsafe fn score_avx2_permute<A>(
     pssm: &ScoringMatrix<A>,
     seq: &StripedSequence<A, <Avx2 as Backend>::LANES>,
     rows: Range<usize>,
-    scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
+    scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
 ) where
     A: Alphabet,
     <A as Alphabet>::K: IsLessOrEqual<U8>,
@@ -190,7 +190,7 @@ unsafe fn score_avx2_gather<A>(
     pssm: &ScoringMatrix<A>,
     seq: &StripedSequence<A, <Avx2 as Backend>::LANES>,
     rows: Range<usize>,
-    scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
+    scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
 ) where
     A: Alphabet,
 {
@@ -272,7 +272,7 @@ unsafe fn score_avx2_gather<A>(
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 unsafe fn argmax_avx2(
-    scores: &StripedScores<<Avx2 as Backend>::LANES>,
+    scores: &StripedScores<f32, <Avx2 as Backend>::LANES>,
 ) -> Option<MatrixCoordinates> {
     if scores.max_index() > u32::MAX as usize {
         panic!(
@@ -615,7 +615,7 @@ impl Avx2 {
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
+        scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
     ) where
         A: Alphabet,
         <A as Alphabet>::K: IsLessOrEqual<U8>,
@@ -652,7 +652,7 @@ impl Avx2 {
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
+        scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
     ) where
         A: Alphabet,
         S: AsRef<StripedSequence<A, <Avx2 as Backend>::LANES>>,
@@ -683,7 +683,9 @@ impl Avx2 {
     }
 
     #[allow(unused)]
-    pub fn argmax(scores: &StripedScores<<Avx2 as Backend>::LANES>) -> Option<MatrixCoordinates> {
+    pub fn argmax(
+        scores: &StripedScores<f32, <Avx2 as Backend>::LANES>,
+    ) -> Option<MatrixCoordinates> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             argmax_avx2(scores)

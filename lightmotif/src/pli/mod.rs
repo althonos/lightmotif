@@ -73,7 +73,7 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<C>,
+        scores: &mut StripedScores<f32, C>,
     ) where
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A>>,
@@ -105,7 +105,7 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
     }
 
     /// Compute the PSSM scores into the given striped score matrix.
-    fn score_into<S, M>(&self, pssm: M, seq: S, scores: &mut StripedScores<C>)
+    fn score_into<S, M>(&self, pssm: M, seq: S, scores: &mut StripedScores<f32, C>)
     where
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A>>,
@@ -117,7 +117,7 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
     }
 
     /// Compute the PSSM scores for every sequence positions.
-    fn score<S, M>(&self, pssm: M, seq: S) -> StripedScores<C>
+    fn score<S, M>(&self, pssm: M, seq: S) -> StripedScores<f32, C>
     where
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A>>,
@@ -133,7 +133,7 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
 /// Used for finding the highest scoring site in a striped score matrix.
 pub trait Maximum<C: StrictlyPositive> {
     /// Find the matrix coordinates with the highest score.
-    fn argmax(&self, scores: &StripedScores<C>) -> Option<MatrixCoordinates> {
+    fn argmax(&self, scores: &StripedScores<f32, C>) -> Option<MatrixCoordinates> {
         if scores.is_empty() {
             return None;
         }
@@ -156,7 +156,7 @@ pub trait Maximum<C: StrictlyPositive> {
     }
 
     /// Find the highest score.
-    fn max(&self, scores: &StripedScores<C>) -> Option<f32> {
+    fn max(&self, scores: &StripedScores<f32, C>) -> Option<f32> {
         self.argmax(scores).map(|c| scores.matrix()[c])
     }
 }
@@ -204,7 +204,7 @@ pub trait Threshold<C: StrictlyPositive> {
     /// # Note
     /// The indices are not be sorted, and the actual order depends on the
     /// implementation.
-    fn threshold(&self, scores: &StripedScores<C>, threshold: f32) -> Vec<MatrixCoordinates> {
+    fn threshold(&self, scores: &StripedScores<f32, C>, threshold: f32) -> Vec<MatrixCoordinates> {
         let mut positions = Vec::new();
         for (i, row) in scores.matrix().iter().enumerate() {
             for col in 0..C::USIZE {
@@ -323,7 +323,7 @@ where
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<C>,
+        scores: &mut StripedScores<f32, C>,
     ) where
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<ScoringMatrix<A>>,
@@ -337,7 +337,7 @@ where
     A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,
 {
-    fn argmax(&self, scores: &StripedScores<C>) -> Option<MatrixCoordinates> {
+    fn argmax(&self, scores: &StripedScores<f32, C>) -> Option<MatrixCoordinates> {
         Sse2::argmax(scores)
     }
 }
@@ -378,7 +378,7 @@ impl Score<Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
+        scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
     ) where
         S: AsRef<StripedSequence<Dna, <Avx2 as Backend>::LANES>>,
         M: AsRef<ScoringMatrix<Dna>>,
@@ -393,7 +393,7 @@ impl Score<Protein, <Avx2 as Backend>::LANES> for Pipeline<Protein, Avx2> {
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<<Avx2 as Backend>::LANES>,
+        scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
     ) where
         S: AsRef<StripedSequence<Protein, <Avx2 as Backend>::LANES>>,
         M: AsRef<ScoringMatrix<Protein>>,
@@ -416,7 +416,7 @@ impl<A: Alphabet> Stripe<A, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
 impl<A: Alphabet> Maximum<<Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
     fn argmax(
         &self,
-        scores: &StripedScores<<Avx2 as Backend>::LANES>,
+        scores: &StripedScores<f32, <Avx2 as Backend>::LANES>,
     ) -> Option<MatrixCoordinates> {
         Avx2::argmax(scores)
     }

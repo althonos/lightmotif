@@ -61,7 +61,7 @@ impl Hit {
 pub struct Scanner<'a, A: Alphabet> {
     pssm: &'a ScoringMatrix<A>,
     seq: &'a StripedSequence<A, C>,
-    scores: CowMut<'a, StripedScores<C>>,
+    scores: CowMut<'a, StripedScores<f32, C>>,
     threshold: f32,
     block_size: usize,
     row: usize,
@@ -85,7 +85,7 @@ impl<'a, A: Alphabet> Scanner<'a, A> {
     }
 
     /// Use the given `StripedScores` as a buffer.
-    pub fn scores(&mut self, scores: &'a mut StripedScores<C>) -> &mut Self {
+    pub fn scores(&mut self, scores: &'a mut StripedScores<f32, C>) -> &mut Self {
         self.scores = CowMut::Borrowed(scores);
         self
     }

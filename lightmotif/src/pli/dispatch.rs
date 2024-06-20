@@ -78,7 +78,7 @@ impl Score<Dna, <Dispatch as Backend>::LANES> for Pipeline<Dna, Dispatch> {
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<<Dispatch as Backend>::LANES>,
+        scores: &mut StripedScores<f32, <Dispatch as Backend>::LANES>,
     ) where
         S: AsRef<StripedSequence<Dna, <Dispatch as Backend>::LANES>>,
         M: AsRef<ScoringMatrix<Dna>>,
@@ -107,7 +107,7 @@ impl Score<Protein, <Dispatch as Backend>::LANES> for Pipeline<Protein, Dispatch
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<<Dispatch as Backend>::LANES>,
+        scores: &mut StripedScores<f32, <Dispatch as Backend>::LANES>,
     ) where
         S: AsRef<StripedSequence<Protein, <Dispatch as Backend>::LANES>>,
         M: AsRef<ScoringMatrix<Protein>>,
@@ -149,7 +149,7 @@ impl<A: Alphabet> Stripe<A, <Dispatch as Backend>::LANES> for Pipeline<A, Dispat
 impl<A: Alphabet> Maximum<<Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {
     fn argmax(
         &self,
-        scores: &StripedScores<<Dispatch as Backend>::LANES>,
+        scores: &StripedScores<f32, <Dispatch as Backend>::LANES>,
     ) -> Option<MatrixCoordinates> {
         match self.backend {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
