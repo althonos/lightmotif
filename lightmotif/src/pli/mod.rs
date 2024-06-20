@@ -4,6 +4,8 @@ use std::ops::Add;
 use std::ops::AddAssign;
 use std::ops::Range;
 
+use typenum::IsLessOrEqual;
+
 use crate::abc::Alphabet;
 use crate::abc::Dna;
 use crate::abc::Protein;
@@ -16,7 +18,6 @@ use crate::err::UnsupportedBackend;
 use crate::num::MultipleOf;
 use crate::num::StrictlyPositive;
 use crate::num::U16;
-use crate::pwm::ScoringMatrix;
 use crate::scores::StripedScores;
 use crate::seq::EncodedSequence;
 use crate::seq::StripedSequence;
@@ -523,13 +524,38 @@ where
     A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,
 {
+    #[inline]
+    fn score_rows_into<S, M>(
+        &self,
+        pssm: M,
+        seq: S,
+        rows: Range<usize>,
+        scores: &mut StripedScores<f32, C>,
+    ) where
+        S: AsRef<StripedSequence<A, C>>,
+        M: AsRef<DenseMatrix<f32, <A as Alphabet>::K>>,
+    {
+        Neon::score_f32_rows_into(pssm, seq, rows, scores);
+    }
 }
 
-impl<A, C> Score<u8, A, C> for Pipeline<A, Neon>
+impl<C> Score<u8, Dna, C> for Pipeline<Dna, Neon>
 where
-    A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,
 {
+    #[inline]
+    fn score_rows_into<S, M>(
+        &self,
+        pssm: M,
+        seq: S,
+        rows: Range<usize>,
+        scores: &mut StripedScores<u8, C>,
+    ) where
+        S: AsRef<StripedSequence<Dna, C>>,
+        M: AsRef<DenseMatrix<u8, <Dna as Alphabet>::K>>,
+    {
+        Neon::score_u8_rows_into(pssm, seq, rows, scores);
+    }
 }
 
 impl<A, C> Maximum<f32, C> for Pipeline<A, Neon>

@@ -301,9 +301,9 @@ pub unsafe fn score_u8_avx2_shuffle<A>(
             //     because in AVX2 shuffle operates on the two halves independently.
             let t = _mm256_broadcastsi128_si256(_mm_load_si128(&*(pssmptr as *const __m128i)));
             // load scores for given sequence
-            let x = _mm256_shuffle_epi8(t, x);
+            let y = _mm256_shuffle_epi8(t, x);
             // add scores to the running sum
-            s = _mm256_adds_epu8(s, x);
+            s = _mm256_adds_epu8(s, y);
             // advance to next row in PSSM and sequence matrices
             seqptr = seqptr.add(seq.matrix().stride());
             pssmptr = pssmptr.add(pssm.stride());
