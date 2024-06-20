@@ -17,7 +17,7 @@ use lightmotif::seq::EncodedSequence;
 
 const SEQUENCE: &str = include_str!("ecoli.txt");
 
-fn bench<C: StrictlyPositive, P: Score<Dna, C> + Threshold<f32, C>>(
+fn bench<C: StrictlyPositive, P: Score<f32, Dna, C> + Threshold<f32, C>>(
     bencher: &mut test::Bencher,
     pli: &P,
 ) {

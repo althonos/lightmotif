@@ -483,7 +483,7 @@ impl<A: Alphabet> ScoringMatrix<A> {
     where
         C: StrictlyPositive,
         S: AsRef<StripedSequence<A, C>>,
-        Pipeline<A, Dispatch>: Score<A, C>,
+        Pipeline<A, Dispatch>: Score<f32, A, C>,
     {
         let pli = Pipeline::dispatch();
         pli.score(self, seq)

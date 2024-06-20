@@ -105,7 +105,7 @@ impl<'a, A: Alphabet> Scanner<'a, A> {
 
 impl<'a, A: Alphabet> Scanner<'a, A>
 where
-    Pipeline<A, Dispatch>: Score<A, C> + Maximum<f32, C>,
+    Pipeline<A, Dispatch>: Score<f32, A, C> + Maximum<f32, C>,
 {
     /// Consume the scanner to find the best hit.
     pub fn best(&mut self) -> Option<Hit> {
@@ -137,7 +137,7 @@ where
 
 impl<'a, A: Alphabet> Iterator for Scanner<'a, A>
 where
-    Pipeline<A, Dispatch>: Score<A, C> + Threshold<f32, C>,
+    Pipeline<A, Dispatch>: Score<f32, A, C> + Threshold<f32, C>,
 {
     type Item = Hit;
     fn next(&mut self) -> Option<Self::Item> {

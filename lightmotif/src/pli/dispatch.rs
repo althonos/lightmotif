@@ -16,6 +16,7 @@ use super::Threshold;
 use crate::abc::Alphabet;
 use crate::abc::Dna;
 use crate::abc::Protein;
+use crate::dense::DenseMatrix;
 use crate::dense::MatrixCoordinates;
 use crate::dense::MatrixElement;
 use crate::err::InvalidSymbol;
@@ -73,7 +74,7 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Dispatch> {
     }
 }
 
-impl Score<Dna, <Dispatch as Backend>::LANES> for Pipeline<Dna, Dispatch> {
+impl Score<f32, Dna, <Dispatch as Backend>::LANES> for Pipeline<Dna, Dispatch> {
     fn score_rows_into<S, M>(
         &self,
         pssm: M,
@@ -82,7 +83,7 @@ impl Score<Dna, <Dispatch as Backend>::LANES> for Pipeline<Dna, Dispatch> {
         scores: &mut StripedScores<f32, <Dispatch as Backend>::LANES>,
     ) where
         S: AsRef<StripedSequence<Dna, <Dispatch as Backend>::LANES>>,
-        M: AsRef<ScoringMatrix<Dna>>,
+        M: AsRef<DenseMatrix<f32, <Dna as Alphabet>::K>>,
     {
         match self.backend {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -91,7 +92,7 @@ impl Score<Dna, <Dispatch as Backend>::LANES> for Pipeline<Dna, Dispatch> {
             Dispatch::Sse2 => Sse2::score_rows_into(pssm, seq.as_ref(), rows, scores),
             #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
             Dispatch::Neon => Neon::score_rows_into(pssm, seq.as_ref(), rows, scores),
-            _ => <Generic as Score<Dna, <Dispatch as Backend>::LANES>>::score_rows_into(
+            _ => <Generic as Score<f32, Dna, <Dispatch as Backend>::LANES>>::score_rows_into(
                 &Generic,
                 pssm,
                 seq.as_ref(),
@@ -102,7 +103,7 @@ impl Score<Dna, <Dispatch as Backend>::LANES> for Pipeline<Dna, Dispatch> {
     }
 }
 
-impl Score<Protein, <Dispatch as Backend>::LANES> for Pipeline<Protein, Dispatch> {
+impl Score<f32, Protein, <Dispatch as Backend>::LANES> for Pipeline<Protein, Dispatch> {
     fn score_rows_into<S, M>(
         &self,
         pssm: M,
@@ -111,7 +112,7 @@ impl Score<Protein, <Dispatch as Backend>::LANES> for Pipeline<Protein, Dispatch
         scores: &mut StripedScores<f32, <Dispatch as Backend>::LANES>,
     ) where
         S: AsRef<StripedSequence<Protein, <Dispatch as Backend>::LANES>>,
-        M: AsRef<ScoringMatrix<Protein>>,
+        M: AsRef<DenseMatrix<f32, <Protein as Alphabet>::K>>,
     {
         match self.backend {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -120,7 +121,7 @@ impl Score<Protein, <Dispatch as Backend>::LANES> for Pipeline<Protein, Dispatch
             Dispatch::Sse2 => Sse2::score_rows_into(pssm, seq.as_ref(), rows, scores),
             #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
             Dispatch::Neon => Neon::score_rows_into(pssm, seq.as_ref(), rows, scores),
-            _ => <Generic as Score<Protein, <Dispatch as Backend>::LANES>>::score_rows_into(
+            _ => <Generic as Score<f32, Protein, <Dispatch as Backend>::LANES>>::score_rows_into(
                 &Generic,
                 pssm,
                 seq.as_ref(),

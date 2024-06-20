@@ -20,7 +20,7 @@ mod dna {
 
     const SEQUENCE: &str = include_str!("ecoli.txt");
 
-    fn bench<C: StrictlyPositive, P: Score<Dna, C>>(bencher: &mut test::Bencher, pli: &P) {
+    fn bench<C: StrictlyPositive, P: Score<f32, Dna, C>>(bencher: &mut test::Bencher, pli: &P) {
         let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
         let mut striped = Pipeline::generic().stripe(encoded);
 
@@ -89,7 +89,7 @@ mod protein {
 
     const SEQUENCE: &str = include_str!("abyB1.txt");
 
-    fn bench<C: StrictlyPositive, P: Score<Protein, C>>(bencher: &mut test::Bencher, pli: &P) {
+    fn bench<C: StrictlyPositive, P: Score<f32, Protein, C>>(bencher: &mut test::Bencher, pli: &P) {
         let encoded = EncodedSequence::<Protein>::encode(SEQUENCE).unwrap();
         let mut striped = Pipeline::generic().stripe(encoded);
 

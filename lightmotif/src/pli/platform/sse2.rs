@@ -11,6 +11,7 @@ use std::ops::Rem;
 
 use super::Backend;
 use crate::abc::Alphabet;
+use crate::dense::DenseMatrix;
 use crate::dense::MatrixCoordinates;
 use crate::num::consts::U16;
 use crate::num::MultipleOf;
@@ -31,7 +32,7 @@ impl Backend for Sse2 {
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
 unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES>>(
-    pssm: &ScoringMatrix<A>,
+    pssm: &DenseMatrix<f32, A::K>,
     seq: &StripedSequence<A, C>,
     rows: Range<usize>,
     scores: &mut StripedScores<f32, C>,
@@ -51,9 +52,9 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES>>(
             let mut s4 = _mm_setzero_ps();
             // reset position
             let mut dataptr = seq.matrix()[i].as_ptr().add(offset);
-            let mut pssmptr = pssm.matrix()[0].as_ptr();
+            let mut pssmptr = pssm[0].as_ptr();
             // advance position in the position weight matrix
-            for _ in 0..pssm.len() {
+            for _ in 0..pssm.rows() {
                 // load sequence row and broadcast to f32
                 let x = _mm_load_si128(dataptr as *const __m128i);
                 let hi = _mm_unpackhi_epi8(x, zero);
@@ -77,7 +78,7 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES>>(
                 }
                 // advance to next row in sequence and PSSM matrices
                 dataptr = dataptr.add(seq.matrix().stride());
-                pssmptr = pssmptr.add(pssm.matrix().stride());
+                pssmptr = pssmptr.add(pssm.stride());
             }
             // record the score for the current position
             _mm_stream_ps(rowptr.add(0x00), s1);
@@ -193,24 +194,24 @@ impl Sse2 {
         A: Alphabet,
         C: MultipleOf<<Sse2 as Backend>::LANES>,
         S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<ScoringMatrix<A>>,
+        M: AsRef<DenseMatrix<f32, A::K>>,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
 
-        if seq.wrap() < pssm.len() - 1 {
+        if seq.wrap() < pssm.rows() - 1 {
             panic!(
                 "not enough wrapping rows for motif of length {}",
-                pssm.len()
+                pssm.rows()
             );
         }
 
-        if seq.len() < pssm.len() || rows.len() == 0 {
+        if seq.len() < pssm.rows() || rows.len() == 0 {
             scores.resize(0, 0);
             return;
         }
 
-        scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.len()));
+        scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.rows()));
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             score_sse2(pssm, seq, rows, scores);

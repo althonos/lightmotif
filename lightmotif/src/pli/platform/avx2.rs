@@ -6,23 +6,24 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 use std::ops::Range;
 
-use typenum::consts::U32;
-use typenum::consts::U5;
-use typenum::consts::U8;
-use typenum::IsLessOrEqual;
-use typenum::NonZero;
-use typenum::Unsigned;
-
-use super::Backend;
 use crate::abc::Alphabet;
 use crate::abc::Symbol;
+use crate::dense::DenseMatrix;
 use crate::dense::MatrixCoordinates;
 use crate::err::InvalidSymbol;
+use crate::num::IsLessOrEqual;
+use crate::num::NonZero;
+use crate::num::Unsigned;
+use crate::num::U32;
+use crate::num::U5;
+use crate::num::U8;
 use crate::pli::Encode;
 use crate::pli::Pipeline;
 use crate::pwm::ScoringMatrix;
 use crate::scores::StripedScores;
 use crate::seq::StripedSequence;
+
+use super::Backend;
 
 /// A marker type for the AVX2 implementation of the pipeline.
 #[derive(Clone, Debug, Default)]
@@ -96,7 +97,7 @@ where
 #[target_feature(enable = "avx2")]
 #[allow(overflowing_literals)]
 unsafe fn score_avx2_permute<A>(
-    pssm: &ScoringMatrix<A>,
+    pssm: &DenseMatrix<f32, A::K>,
     seq: &StripedSequence<A, <Avx2 as Backend>::LANES>,
     rows: Range<usize>,
     scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
@@ -105,6 +106,8 @@ unsafe fn score_avx2_permute<A>(
     <A as Alphabet>::K: IsLessOrEqual<U8>,
     <<A as Alphabet>::K as IsLessOrEqual<U8>>::Output: NonZero,
 {
+    use crate::dense::DenseMatrix;
+
     let data = scores.matrix_mut();
     debug_assert!(data.rows() > 0);
 
@@ -141,9 +144,9 @@ unsafe fn score_avx2_permute<A>(
         let mut s4 = _mm256_setzero_ps();
         // reset pointers to row
         let mut seqptr = seq.matrix()[i].as_ptr();
-        let mut pssmptr = pssm.matrix()[0].as_ptr();
+        let mut pssmptr = pssm[0].as_ptr();
         // advance position in the position weight matrix
-        for _ in 0..pssm.len() {
+        for _ in 0..pssm.rows() {
             // load sequence row and broadcast to f32
             debug_assert_eq!(seqptr as usize & 0x1f, 0);
             let x = _mm256_load_si256(seqptr as *const __m256i);
@@ -167,7 +170,7 @@ unsafe fn score_avx2_permute<A>(
             s4 = _mm256_add_ps(s4, b4);
             // advance to next row in PSSM and sequence matrices
             seqptr = seqptr.add(seq.matrix().stride());
-            pssmptr = pssmptr.add(pssm.matrix().stride());
+            pssmptr = pssmptr.add(pssm.stride());
         }
         // permute lanes so that scores are in the right order
         let r1 = _mm256_permute2f128_ps(s1, s2, 0x20);
@@ -187,7 +190,7 @@ unsafe fn score_avx2_permute<A>(
 #[target_feature(enable = "avx2")]
 #[allow(overflowing_literals)]
 unsafe fn score_avx2_gather<A>(
-    pssm: &ScoringMatrix<A>,
+    pssm: &DenseMatrix<f32, A::K>,
     seq: &StripedSequence<A, <Avx2 as Backend>::LANES>,
     rows: Range<usize>,
     scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
@@ -226,9 +229,9 @@ unsafe fn score_avx2_gather<A>(
         let mut s4 = _mm256_setzero_ps();
         // reset pointers to row
         let mut seqptr = seq.matrix()[i].as_ptr();
-        let mut pssmptr = pssm.matrix()[0].as_ptr();
+        let mut pssmptr = pssm[0].as_ptr();
         // advance position in the position weight matrix
-        for _ in 0..pssm.len() {
+        for _ in 0..pssm.rows() {
             // load sequence row and broadcast to f32
             debug_assert_eq!(seqptr as usize & 0x1f, 0);
             let x = _mm256_load_si256(seqptr as *const __m256i);
@@ -248,7 +251,7 @@ unsafe fn score_avx2_gather<A>(
             s4 = _mm256_add_ps(s4, b4);
             // advance to next row in PSSM and sequence matrices
             seqptr = seqptr.add(seq.matrix().stride());
-            pssmptr = pssmptr.add(pssm.matrix().stride());
+            pssmptr = pssmptr.add(pssm.stride());
         }
         // permute lanes so that scores are in the right order
         let r1 = _mm256_permute2f128_ps(s1, s2, 0x20);
@@ -621,24 +624,24 @@ impl Avx2 {
         <A as Alphabet>::K: IsLessOrEqual<U8>,
         <<A as Alphabet>::K as IsLessOrEqual<U8>>::Output: NonZero,
         S: AsRef<StripedSequence<A, <Avx2 as Backend>::LANES>>,
-        M: AsRef<ScoringMatrix<A>>,
+        M: AsRef<DenseMatrix<f32, A::K>>,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
 
-        if seq.wrap() < pssm.len() - 1 {
+        if seq.wrap() < pssm.rows() - 1 {
             panic!(
                 "not enough wrapping rows for motif of length {}",
-                pssm.len()
+                pssm.rows()
             );
         }
 
-        if seq.len() < pssm.len() || rows.len() == 0 {
+        if seq.len() < pssm.rows() || rows.len() == 0 {
             scores.resize(0, 0);
             return;
         }
 
-        scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.len()));
+        scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.rows()));
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             score_avx2_permute(pssm, seq, rows, scores)
@@ -656,24 +659,24 @@ impl Avx2 {
     ) where
         A: Alphabet,
         S: AsRef<StripedSequence<A, <Avx2 as Backend>::LANES>>,
-        M: AsRef<ScoringMatrix<A>>,
+        M: AsRef<DenseMatrix<f32, A::K>>,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
 
-        if seq.wrap() < pssm.len() - 1 {
+        if seq.wrap() < pssm.rows() - 1 {
             panic!(
                 "not enough wrapping rows for motif of length {}",
-                pssm.len()
+                pssm.rows()
             );
         }
 
-        if seq.len() < pssm.len() || rows.len() == 0 {
+        if seq.len() < pssm.rows() || rows.len() == 0 {
             scores.resize(0, 0);
             return;
         }
 
-        scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.len()));
+        scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.rows()));
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             score_avx2_gather(pssm, seq, rows, scores)

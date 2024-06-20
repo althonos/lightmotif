@@ -209,6 +209,14 @@ impl<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> DenseMatrix<T, C, 
     }
 }
 
+impl<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> AsRef<DenseMatrix<T, C, A>>
+    for DenseMatrix<T, C, A>
+{
+    fn as_ref(&self) -> &DenseMatrix<T, C, A> {
+        self
+    }
+}
+
 impl<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> Clone for DenseMatrix<T, C, A> {
     fn clone(&self) -> Self {
         let mut clone = unsafe { Self::uninitialized(self.rows) };

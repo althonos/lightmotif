@@ -1,15 +1,16 @@
-use typenum::consts::U1;
+use std::ops::AddAssign;
 
-use super::Backend;
 use crate::abc::Alphabet;
 use crate::dense::MatrixElement;
 use crate::num::StrictlyPositive;
-
+use crate::num::U1;
 use crate::pli::Encode;
 use crate::pli::Maximum;
 use crate::pli::Score;
 use crate::pli::Stripe;
 use crate::pli::Threshold;
+
+use super::Backend;
 
 /// A marker type for the generic implementation of the pipeline.
 #[derive(Clone, Debug, Default)]
@@ -21,7 +22,7 @@ impl Backend for Generic {
 
 impl<A: Alphabet> Encode<A> for Generic {}
 
-impl<A: Alphabet, C: StrictlyPositive> Score<A, C> for Generic {}
+impl<T: MatrixElement + AddAssign, A: Alphabet, C: StrictlyPositive> Score<T, A, C> for Generic {}
 
 impl<T: MatrixElement + PartialOrd, C: StrictlyPositive> Maximum<T, C> for Generic {}
 

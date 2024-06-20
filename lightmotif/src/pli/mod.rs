@@ -1,5 +1,7 @@
 //! Concrete implementations of the sequence scoring pipeline.
 
+use std::ops::Add;
+use std::ops::AddAssign;
 use std::ops::Range;
 
 use crate::abc::Alphabet;
@@ -67,35 +69,35 @@ pub trait Encode<A: Alphabet> {
 }
 
 /// Used computing sequence scores with a PSSM.
-pub trait Score<A: Alphabet, C: StrictlyPositive> {
+pub trait Score<T: MatrixElement + AddAssign, A: Alphabet, C: StrictlyPositive> {
     /// Compute the PSSM scores into the given striped score matrix.
     fn score_rows_into<S, M>(
         &self,
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<f32, C>,
+        scores: &mut StripedScores<T, C>,
     ) where
         S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<ScoringMatrix<A>>,
+        M: AsRef<DenseMatrix<T, A::K>>,
     {
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
 
-        if seq.len() < pssm.len() || rows.len() == 0 {
+        if seq.len() < pssm.rows() || rows.len() == 0 {
             scores.resize(0, 0);
             return;
         }
 
         // FIXME?
-        scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.len()));
+        scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.rows()));
 
         let result = scores.matrix_mut();
-        let matrix = pssm.matrix();
+        let matrix = pssm;
 
         for (res_row, seq_row) in rows.enumerate() {
             for col in 0..C::USIZE {
-                let mut score = 0.0;
+                let mut score = T::default();
                 for (j, pssm_row) in matrix.iter().enumerate() {
                     let symbol = seq.matrix()[seq_row + j][col];
                     score += pssm_row[symbol.as_index()];
@@ -106,25 +108,23 @@ pub trait Score<A: Alphabet, C: StrictlyPositive> {
     }
 
     /// Compute the PSSM scores into the given striped score matrix.
-    fn score_into<S, M>(&self, pssm: M, seq: S, scores: &mut StripedScores<f32, C>)
+    fn score_into<S, M>(&self, pssm: M, seq: S, scores: &mut StripedScores<T, C>)
     where
         S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<ScoringMatrix<A>>,
+        M: AsRef<DenseMatrix<T, A::K>>,
     {
         let s = seq.as_ref();
-        let m = pssm.as_ref();
         let rows = s.matrix().rows() - s.wrap();
-        Self::score_rows_into(&self, m, s, 0..rows, scores)
+        Self::score_rows_into(&self, pssm, s, 0..rows, scores)
     }
 
     /// Compute the PSSM scores for every sequence positions.
-    fn score<S, M>(&self, pssm: M, seq: S) -> StripedScores<f32, C>
+    fn score<S, M>(&self, pssm: M, seq: S) -> StripedScores<T, C>
     where
         S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<ScoringMatrix<A>>,
+        M: AsRef<DenseMatrix<T, A::K>>,
     {
         let seq = seq.as_ref();
-        let pssm = pssm.as_ref();
         let mut scores = StripedScores::empty();
         self.score_into(pssm, seq, &mut scores);
         scores
@@ -242,7 +242,10 @@ impl<A: Alphabet> Pipeline<A, Generic> {
 
 impl<A: Alphabet> Encode<A> for Pipeline<A, Generic> {}
 
-impl<A: Alphabet, C: StrictlyPositive> Score<A, C> for Pipeline<A, Generic> {}
+impl<T: MatrixElement + AddAssign, A: Alphabet, C: StrictlyPositive> Score<T, A, C>
+    for Pipeline<A, Generic>
+{
+}
 
 impl<T: MatrixElement + PartialOrd, A: Alphabet, C: StrictlyPositive> Maximum<T, C>
     for Pipeline<A, Generic>
@@ -320,7 +323,7 @@ impl<A: Alphabet> Pipeline<A, Sse2> {
 
 impl<A: Alphabet> Encode<A> for Pipeline<A, Sse2> {}
 
-impl<A, C> Score<A, C> for Pipeline<A, Sse2>
+impl<A, C> Score<f32, A, C> for Pipeline<A, Sse2>
 where
     A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,
@@ -333,7 +336,7 @@ where
         scores: &mut StripedScores<f32, C>,
     ) where
         S: AsRef<StripedSequence<A, C>>,
-        M: AsRef<ScoringMatrix<A>>,
+        M: AsRef<DenseMatrix<f32, A::K>>,
     {
         Sse2::score_rows_into(pssm, seq, rows, scores)
     }
@@ -379,7 +382,7 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Avx2> {
     }
 }
 
-impl Score<Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
+impl Score<f32, Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
     fn score_rows_into<S, M>(
         &self,
         pssm: M,
@@ -388,13 +391,13 @@ impl Score<Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
         scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
     ) where
         S: AsRef<StripedSequence<Dna, <Avx2 as Backend>::LANES>>,
-        M: AsRef<ScoringMatrix<Dna>>,
+        M: AsRef<DenseMatrix<f32, <Dna as Alphabet>::K>>,
     {
         Avx2::score_rows_into_permute(pssm, seq, rows, scores)
     }
 }
 
-impl Score<Protein, <Avx2 as Backend>::LANES> for Pipeline<Protein, Avx2> {
+impl Score<f32, Protein, <Avx2 as Backend>::LANES> for Pipeline<Protein, Avx2> {
     fn score_rows_into<S, M>(
         &self,
         pssm: M,
@@ -403,7 +406,7 @@ impl Score<Protein, <Avx2 as Backend>::LANES> for Pipeline<Protein, Avx2> {
         scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
     ) where
         S: AsRef<StripedSequence<Protein, <Avx2 as Backend>::LANES>>,
-        M: AsRef<ScoringMatrix<Protein>>,
+        M: AsRef<DenseMatrix<f32, <Protein as Alphabet>::K>>,
     {
         Avx2::score_rows_into_gather(pssm, seq, rows, scores)
     }
@@ -458,7 +461,7 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Neon> {
     }
 }
 
-impl<A, C> Score<A, C> for Pipeline<A, Neon>
+impl<A, C> Score<f32, A, C> for Pipeline<A, Neon>
 where
     A: Alphabet,
     C: StrictlyPositive + MultipleOf<U16>,
