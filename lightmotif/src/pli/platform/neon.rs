@@ -131,10 +131,6 @@ unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16>>(
     rows: Range<usize>,
     scores: &mut StripedScores<f32, C>,
 ) {
-    use crate::dense::DenseMatrix;
-
-    let zero_u8 = vdupq_n_u8(0);
-    let zero_f32 = vdupq_n_f32(0.0);
     // process columns of the striped matrix, any multiple of 16 is supported
     let data = scores.matrix_mut();
     for offset in (0..C::Quotient::USIZE).map(|i| i * <Neon as Backend>::LANES::USIZE) {
@@ -142,7 +138,12 @@ unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16>>(
         // process every position of the sequence data
         for i in rows.clone() {
             // reset sums for current position
-            let mut s = float32x4x4_t(zero_f32, zero_f32, zero_f32, zero_f32);
+            let mut s = float32x4x4_t(
+                vdupq_n_f32(0.0),
+                vdupq_n_f32(0.0),
+                vdupq_n_f32(0.0),
+                vdupq_n_f32(0.0),
+            );
             // reset position
             let mut dataptr = seq.matrix()[i].as_ptr().add(offset);
             let mut pssmptr = pssm[0].as_ptr();
@@ -150,10 +151,10 @@ unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16>>(
             for _ in 0..pssm.rows() {
                 // load sequence row
                 let x = vld1q_u8(dataptr as *const u8);
-                let z = vzipq_u8(x, zero_u8);
+                let z = vzipq_u8(x, vdupq_n_u8(0));
                 // transform u8 into u32
-                let lo = vzipq_u8(z.0, zero_u8);
-                let hi = vzipq_u8(z.1, zero_u8);
+                let lo = vzipq_u8(z.0, vdupq_n_u8(0));
+                let hi = vzipq_u8(z.1, vdupq_n_u8(0));
                 let x1 = vreinterpretq_u32_u8(lo.0);
                 let x2 = vreinterpretq_u32_u8(lo.1);
                 let x3 = vreinterpretq_u32_u8(hi.0);
@@ -190,10 +191,6 @@ unsafe fn score_u8_neon<A: Alphabet, C: MultipleOf<U16>>(
     rows: Range<usize>,
     scores: &mut StripedScores<u8, C>,
 ) {
-    use crate::dense::DenseMatrix;
-
-    let zero_u8 = vdupq_n_u8(0);
-    let zero_f32 = vdupq_n_f32(0.0);
     // process columns of the striped matrix, any multiple of 16 is supported
     let data = scores.matrix_mut();
     for offset in (0..C::Quotient::USIZE).map(|i| i * <Neon as Backend>::LANES::USIZE) {
