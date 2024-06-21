@@ -358,11 +358,12 @@ mod neon {
         super::test_score_rows::<U16, _>(&pli);
     }
 
-    // #[test]
-    // fn score_discrete() {
-    //     let pli = Pipeline::neon().unwrap();
-    //     super::test_score_discrete(&pli);
-    // }
+    #[test]
+    fn score_discrete() {
+        let pli = Pipeline::neon().unwrap();
+        super::test_score_discrete::<U32, _>(&pli);
+        super::test_score_discrete::<U16, _>(&pli);
+    }
 
     #[test]
     fn argmax() {
