@@ -227,7 +227,7 @@ mod test {
     }
 
     #[test]
-    fn test_collect() {
+    fn collect() {
         let pssm = self::pssm();
         let mut striped = self::seq();
         striped.configure(&pssm);
@@ -245,7 +245,7 @@ mod test {
     }
 
     #[test]
-    fn test_max() {
+    fn max() {
         let pssm = self::pssm();
         let mut striped = self::seq();
         striped.configure(&pssm);

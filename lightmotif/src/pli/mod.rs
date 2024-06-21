@@ -605,7 +605,7 @@ mod test {
     use crate::pwm::CountMatrix;
 
     #[test]
-    fn test_score_rows_into_empty() {
+    fn score_rows_into_empty() {
         let pli = Pipeline::generic();
 
         let seq = EncodedSequence::<Dna>::from_str("ATGCA").unwrap();

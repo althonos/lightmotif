@@ -556,7 +556,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_background_new() {
+    fn background_new() {
         assert!(Background::<Dna>::new([0.3, 0.2, 0.2, 0.3, 0.0]).is_ok());
         assert!(Background::<Dna>::new([0.1, 0.1, 0.1, 0.1, 0.0]).is_err());
     }

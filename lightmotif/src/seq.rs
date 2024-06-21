@@ -350,7 +350,7 @@ mod test {
     use crate::abc::Nucleotide::*;
 
     #[test]
-    fn test_empty() {
+    fn empty() {
         let seq = EncodedSequence::<Dna>::from_str("").unwrap();
 
         let pli = Pipeline::generic();
@@ -362,7 +362,7 @@ mod test {
     }
 
     #[test]
-    fn test_stripe() {
+    fn stripe() {
         let pli = Pipeline::generic();
 
         let seq = EncodedSequence::<Dna>::from_str("ATGCA").unwrap();
@@ -379,7 +379,7 @@ mod test {
     }
 
     #[test]
-    fn test_configure_wrap() {
+    fn configure_wrap() {
         let pli = Pipeline::generic();
 
         let seq = EncodedSequence::<Dna>::from_str("ATGCA").unwrap();
@@ -396,7 +396,7 @@ mod test {
     }
 
     #[test]
-    fn test_index() {
+    fn index() {
         let pli = Pipeline::generic();
 
         let seq = EncodedSequence::<Dna>::from_str("ATGCA").unwrap();

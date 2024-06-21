@@ -459,7 +459,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_stride() {
+    fn stride() {
         let d1 = DenseMatrix::<u8, U32, U32>::new(0);
         assert_eq!(d1.stride(), 32);
 
@@ -483,7 +483,7 @@ mod test {
     }
 
     #[test]
-    fn test_resize() {
+    fn resize() {
         let mut dense = DenseMatrix::<u64, U32>::new(4);
 
         for i in 0..4 {
@@ -511,7 +511,7 @@ mod test {
     }
 
     #[test]
-    fn test_iter_mut() {
+    fn iter_mut() {
         let mut dense = DenseMatrix::<u64, U32>::new(4);
         for i in 0..4 {
             dense[i][0] = (i + 1) as u64;
@@ -531,7 +531,7 @@ mod test {
     }
 
     #[test]
-    fn test_index_matrix_coordinates() {
+    fn index_matrix_coordinates() {
         let mut dense = DenseMatrix::<u64, U32>::new(4);
         for i in 0..4 {
             dense[i][0] = (i + 1) as u64;

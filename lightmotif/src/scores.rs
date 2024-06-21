@@ -278,7 +278,7 @@ mod tests {
     use crate::num::U4;
 
     #[test]
-    fn test_iter() {
+    fn iter() {
         let data = DenseMatrix::<f32, U4>::new(6);
         let scores = StripedScores::new(data, 22).unwrap();
         assert_eq!(scores.unstripe().len(), 22);
