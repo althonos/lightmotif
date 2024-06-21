@@ -3,6 +3,8 @@
 use std::ops::AddAssign;
 use std::ops::Range;
 
+use generic_array::ArrayLength;
+
 use crate::abc::Alphabet;
 use crate::abc::Dna;
 use crate::abc::Protein;
@@ -361,7 +363,7 @@ where
 impl<A, C> Maximum<f32, C> for Pipeline<A, Sse2>
 where
     A: Alphabet,
-    C: StrictlyPositive + MultipleOf<U16>,
+    C: StrictlyPositive + MultipleOf<U16> + ArrayLength,
 {
     #[inline]
     fn argmax(&self, scores: &StripedScores<f32, C>) -> Option<MatrixCoordinates> {
