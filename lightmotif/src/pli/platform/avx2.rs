@@ -357,10 +357,10 @@ unsafe fn argmax_f32_avx2(
                 let r3 = _mm256_load_ps(dataptr.add(0x10));
                 let r4 = _mm256_load_ps(dataptr.add(0x18));
                 // compare scores to local maximums
-                let c1 = _mm256_cmp_ps(s1, r1, _CMP_LT_OS);
-                let c2 = _mm256_cmp_ps(s2, r2, _CMP_LT_OS);
-                let c3 = _mm256_cmp_ps(s3, r3, _CMP_LT_OS);
-                let c4 = _mm256_cmp_ps(s4, r4, _CMP_LT_OS);
+                let c1 = _mm256_cmp_ps(s1, r1, _CMP_LE_OS);
+                let c2 = _mm256_cmp_ps(s2, r2, _CMP_LE_OS);
+                let c3 = _mm256_cmp_ps(s3, r3, _CMP_LE_OS);
+                let c4 = _mm256_cmp_ps(s4, r4, _CMP_LE_OS);
                 // replace indices of new local maximums
                 p1 = _mm256_blendv_ps(p1, index, c1);
                 p2 = _mm256_blendv_ps(p2, index, c2);
@@ -442,8 +442,8 @@ unsafe fn argmax_u8_avx2(
                 let r1 = _mm256_unpacklo_epi8(r, _mm256_setzero_si256());
                 let r2 = _mm256_unpackhi_epi8(r, _mm256_setzero_si256());
                 // compare scores to local maximums
-                let c1 = _mm256_cmpgt_epi16(s1, r1);
-                let c2 = _mm256_cmpgt_epi16(s2, r2);
+                let c1 = _mm256_or_si256(_mm256_cmpeq_epi16(r1, s1), _mm256_cmpgt_epi16(r1, s1));
+                let c2 = _mm256_or_si256(_mm256_cmpeq_epi16(r2, s2), _mm256_cmpgt_epi16(r2, s2));
                 // replace indices of new local maximums
                 p1 = _mm256_blendv_epi8(p1, index, c1);
                 p2 = _mm256_blendv_epi8(p2, index, c2);
