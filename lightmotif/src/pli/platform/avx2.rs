@@ -41,6 +41,8 @@ unsafe fn encode_into_avx2<A>(seq: &[u8], dst: &mut [A::Symbol]) -> Result<(), I
 where
     A: Alphabet,
 {
+    const STRIDE: usize = std::mem::size_of::<__m256i>();
+
     let alphabet = A::as_str().as_bytes();
     let g = Pipeline::<A, _>::generic();
     let l = seq.len();
@@ -56,7 +58,7 @@ where
         let mut error = _mm256_setzero_si256();
 
         // Process the beginning of the sequence in SIMD while possible.
-        while i + std::mem::size_of::<__m256i>() < l {
+        while i + STRIDE <= l {
             // Load current row and reset buffers for the encoded result.
             let letters = _mm256_loadu_si256(src_ptr as *const __m256i);
             let mut encoded = _mm256_set1_epi8(A::K::USIZE as i8);
@@ -74,9 +76,9 @@ where
             // Store the encoded result to the output buffer.
             _mm256_storeu_si256(dst_ptr as *mut __m256i, encoded);
             // Advance to the next addresses in input and output.
-            src_ptr = src_ptr.add(std::mem::size_of::<__m256i>());
-            dst_ptr = dst_ptr.add(std::mem::size_of::<__m256i>());
-            i += std::mem::size_of::<__m256i>();
+            src_ptr = src_ptr.add(STRIDE);
+            dst_ptr = dst_ptr.add(STRIDE);
+            i += STRIDE;
         }
 
         // If an invalid symbol was encountered, recover which one.
@@ -88,7 +90,9 @@ where
         }
 
         // Encode the rest of the sequence using the generic implementation.
-        g.encode_into(&seq[i..], &mut dst[i..])?;
+        if i < l {
+            g.encode_into(&seq[i..], &mut dst[i..])?;
+        }
     }
 
     Ok(())

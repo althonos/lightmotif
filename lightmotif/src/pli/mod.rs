@@ -323,7 +323,16 @@ impl<A: Alphabet> Pipeline<A, Sse2> {
     }
 }
 
-impl<A: Alphabet> Encode<A> for Pipeline<A, Sse2> {}
+impl<A: Alphabet> Encode<A> for Pipeline<A, Sse2> {
+    #[inline]
+    fn encode_into<S: AsRef<[u8]>>(
+        &self,
+        seq: S,
+        dst: &mut [A::Symbol],
+    ) -> Result<(), InvalidSymbol> {
+        Sse2::encode_into::<A>(seq.as_ref(), dst)
+    }
+}
 
 impl<A, C> Score<f32, A, C> for Pipeline<A, Sse2>
 where
