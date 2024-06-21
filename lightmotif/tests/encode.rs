@@ -29,13 +29,13 @@ mod generic {
     use super::*;
 
     #[test]
-    fn test_sequence() {
+    fn sequence() {
         let pli = Pipeline::generic();
         test_encode_sequence(&pli);
     }
 
     #[test]
-    fn test_unknown() {
+    fn unknown() {
         let pli = Pipeline::generic();
         test_encode_unknown(&pli);
     }
@@ -45,13 +45,13 @@ mod dispatch {
     use super::*;
 
     #[test]
-    fn test_sequence() {
+    fn sequence() {
         let pli = Pipeline::dispatch();
         test_encode_sequence(&pli);
     }
 
     #[test]
-    fn test_unknown() {
+    fn unknown() {
         let pli = Pipeline::dispatch();
         test_encode_unknown(&pli);
     }
@@ -62,13 +62,13 @@ mod sse2 {
     use super::*;
 
     #[test]
-    fn test_sequence() {
+    fn sequence() {
         let pli = Pipeline::sse2().unwrap();
         test_encode_sequence(&pli);
     }
 
     #[test]
-    fn test_unknown() {
+    fn unknown() {
         let pli = Pipeline::sse2().unwrap();
         test_encode_unknown(&pli);
     }
@@ -79,13 +79,13 @@ mod avx2 {
     use super::*;
 
     #[test]
-    fn test_sequence() {
+    fn sequence() {
         let pli = Pipeline::avx2().unwrap();
         test_encode_sequence(&pli);
     }
 
     #[test]
-    fn test_unknown() {
+    fn unknown() {
         let pli = Pipeline::avx2().unwrap();
         test_encode_unknown(&pli);
     }
@@ -96,13 +96,13 @@ mod neon {
     use super::*;
 
     #[test]
-    fn test_sequence() {
+    fn sequence() {
         let pli = Pipeline::neon().unwrap();
         test_encode_sequence(&pli);
     }
 
     #[test]
-    fn test_unknown() {
+    fn unknown() {
         let pli = Pipeline::neon().unwrap();
         test_encode_unknown(&pli);
     }

@@ -1,10 +1,7 @@
 //! Concrete implementations of the sequence scoring pipeline.
 
-use std::ops::Add;
 use std::ops::AddAssign;
 use std::ops::Range;
-
-use typenum::IsLessOrEqual;
 
 use crate::abc::Alphabet;
 use crate::abc::Dna;

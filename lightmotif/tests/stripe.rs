@@ -48,25 +48,25 @@ mod generic {
     use super::*;
 
     #[test]
-    fn test_s1_c32() {
+    fn s1_c32() {
         let pli = Pipeline::generic();
         super::test_stripe::<U32, _>(&pli, S1);
     }
 
     #[test]
-    fn test_s2_c32() {
+    fn s2_c32() {
         let pli = Pipeline::generic();
         super::test_stripe::<U32, _>(&pli, S2);
     }
 
     #[test]
-    fn test_s1_c16() {
+    fn s1_c16() {
         let pli = Pipeline::generic();
         super::test_stripe::<U16, _>(&pli, S1);
     }
 
     #[test]
-    fn test_s2_c16() {
+    fn s2_c16() {
         let pli = Pipeline::generic();
         super::test_stripe::<U16, _>(&pli, S2);
     }
@@ -76,13 +76,13 @@ mod dispatch {
     use super::*;
 
     #[test]
-    fn test_s1_c32() {
+    fn s1_c32() {
         let pli = Pipeline::dispatch();
         super::test_stripe(&pli, S1);
     }
 
     #[test]
-    fn test_s2_c32() {
+    fn s2_c32() {
         let pli = Pipeline::dispatch();
         super::test_stripe(&pli, S2);
     }
@@ -93,13 +93,13 @@ mod avx2 {
     use super::*;
 
     #[test]
-    fn test_s1_c32() {
+    fn s1_c32() {
         let pli = Pipeline::avx2().unwrap();
         super::test_stripe(&pli, S1);
     }
 
     #[test]
-    fn test_s2_c32() {
+    fn s2_c32() {
         let pli = Pipeline::avx2().unwrap();
         super::test_stripe(&pli, S2);
     }

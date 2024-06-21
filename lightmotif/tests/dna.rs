@@ -197,7 +197,7 @@ mod generic {
     use super::*;
 
     #[test]
-    fn test_score() {
+    fn score() {
         let pli = Pipeline::generic();
         super::test_score::<U32, _>(&pli);
         super::test_score::<U16, _>(&pli);
@@ -205,7 +205,7 @@ mod generic {
     }
 
     #[test]
-    fn test_score_rows() {
+    fn score_rows() {
         let pli = Pipeline::generic();
         super::test_score_rows::<U32, _>(&pli);
         super::test_score_rows::<U16, _>(&pli);
@@ -213,14 +213,22 @@ mod generic {
     }
 
     #[test]
-    fn test_argmax() {
+    fn score_discrete() {
+        let pli = Pipeline::generic();
+        super::test_score_discrete::<U32, _>(&pli);
+        super::test_score_discrete::<U16, _>(&pli);
+        super::test_score_discrete::<U1, _>(&pli);
+    }
+
+    #[test]
+    fn argmax() {
         let pli = Pipeline::generic();
         super::test_argmax::<U32, _>(&pli);
         super::test_argmax::<U1, _>(&pli);
     }
 
     #[test]
-    fn test_threshold() {
+    fn threshold() {
         let pli = Pipeline::generic();
         super::test_threshold::<U32, _>(&pli);
     }
@@ -230,25 +238,31 @@ mod dispatch {
     use super::*;
 
     #[test]
-    fn test_score() {
+    fn score() {
         let pli = Pipeline::dispatch();
         super::test_score(&pli);
     }
 
     #[test]
-    fn test_score_rows() {
+    fn score_rows() {
         let pli = Pipeline::dispatch();
         super::test_score_rows(&pli);
     }
 
     #[test]
-    fn test_argmax() {
+    fn score_discrete() {
+        let pli = Pipeline::dispatch();
+        super::test_score_discrete(&pli);
+    }
+
+    #[test]
+    fn argmax() {
         let pli = Pipeline::dispatch();
         super::test_argmax(&pli);
     }
 
     #[test]
-    fn test_threshold() {
+    fn threshold() {
         let pli = Pipeline::dispatch();
         super::test_threshold(&pli);
     }
@@ -259,28 +273,34 @@ mod sse2 {
     use super::*;
 
     #[test]
-    fn test_score() {
+    fn score() {
         let pli = Pipeline::sse2().unwrap();
         super::test_score::<U32, _>(&pli);
         super::test_score::<U16, _>(&pli);
     }
 
     #[test]
-    fn test_score_rows() {
+    fn score_rows() {
         let pli = Pipeline::sse2().unwrap();
         super::test_score_rows::<U32, _>(&pli);
         super::test_score_rows::<U16, _>(&pli);
     }
 
+    // #[test]
+    // fn score_discrete() {
+    //     let pli = Pipeline::sse2().unwrap();
+    //     super::test_score_discrete(&pli);
+    // }
+
     #[test]
-    fn test_argmax() {
+    fn argmax() {
         let pli = Pipeline::sse2().unwrap();
         super::test_argmax::<U32, _>(&pli);
         super::test_argmax::<U16, _>(&pli);
     }
 
     #[test]
-    fn test_threshold() {
+    fn threshold() {
         let pli = Pipeline::sse2().unwrap();
         super::test_threshold::<U32, _>(&pli);
         super::test_threshold::<U16, _>(&pli);
@@ -292,25 +312,31 @@ mod avx2 {
     use super::*;
 
     #[test]
-    fn test_score() {
+    fn score() {
         let pli = Pipeline::avx2().unwrap();
         super::test_score::<U32, _>(&pli);
     }
 
     #[test]
-    fn test_score_rows() {
+    fn score_rows() {
         let pli = Pipeline::avx2().unwrap();
         super::test_score_rows::<U32, _>(&pli);
     }
 
     #[test]
-    fn test_argmax() {
+    fn score_discrete() {
+        let pli = Pipeline::avx2().unwrap();
+        super::test_score_discrete(&pli);
+    }
+
+    #[test]
+    fn argmax() {
         let pli = Pipeline::avx2().unwrap();
         super::test_argmax::<U32, _>(&pli);
     }
 
     #[test]
-    fn test_threshold() {
+    fn threshold() {
         let pli = Pipeline::avx2().unwrap();
         super::test_threshold::<U32, _>(&pli);
     }
@@ -321,25 +347,31 @@ mod neon {
     use super::*;
 
     #[test]
-    fn test_score() {
+    fn score() {
         let pli = Pipeline::neon().unwrap();
         super::test_score::<U16, _>(&pli);
     }
 
     #[test]
-    fn test_score_rows() {
+    fn score_rows() {
         let pli = Pipeline::neon().unwrap();
         super::test_score_rows::<U16, _>(&pli);
     }
 
+    // #[test]
+    // fn score_discrete() {
+    //     let pli = Pipeline::neon().unwrap();
+    //     super::test_score_discrete(&pli);
+    // }
+
     #[test]
-    fn test_argmax() {
+    fn argmax() {
         let pli = Pipeline::neon().unwrap();
         super::test_argmax::<U16, _>(&pli);
     }
 
     #[test]
-    fn test_threshold() {
+    fn threshold() {
         let pli = Pipeline::neon().unwrap();
         super::test_threshold::<U16, _>(&pli);
     }
