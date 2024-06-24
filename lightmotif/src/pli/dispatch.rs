@@ -190,6 +190,16 @@ impl<A: Alphabet> Maximum<f32, <Dispatch as Backend>::LANES> for Pipeline<A, Dis
             _ => <Generic as Maximum<f32, <Dispatch as Backend>::LANES>>::argmax(&Generic, scores),
         }
     }
+
+    fn max(&self, scores: &StripedScores<f32, <Dispatch as Backend>::LANES>) -> Option<f32> {
+        match self.backend {
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            Dispatch::Avx2 => Avx2::max_f32(scores),
+            // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            // Dispatch::Sse2 => Sse2::argmax(scores),
+            _ => <Generic as Maximum<f32, <Dispatch as Backend>::LANES>>::max(&Generic, scores),
+        }
+    }
 }
 
 impl<A: Alphabet> Maximum<u8, <Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {
