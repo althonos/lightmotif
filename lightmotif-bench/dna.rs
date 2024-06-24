@@ -232,10 +232,45 @@ mod external {
         )
         .unwrap();
 
-        bencher.bytes = seq.len() as u64;
         let mut best = 0;
+        bencher.bytes = seq.len() as u64;
         bencher.iter(|| best = test::black_box(pssm.score(seq.as_bytes()).unwrap()).loc);
 
         println!("best: {:?}", best);
+        assert_eq!(best, 391677);
+    }
+
+    #[bench]
+    fn naive(bencher: &mut test::Bencher) {
+        let seq = &SEQUENCE[..N];
+        let encoded = EncodedSequence::<Dna>::encode(seq).unwrap();
+
+        let bg = Background::<Dna>::uniform();
+        let cm = CountMatrix::<Dna>::from_sequences([
+            EncodedSequence::encode("GTTGACCTTATCAAC").unwrap(),
+            EncodedSequence::encode("GTTGATCCAGTCAAC").unwrap(),
+        ])
+        .unwrap();
+        let pbm = cm.to_freq(0.1);
+        let pssm = pbm.to_scoring(bg);
+
+        let mut best = 0;
+        bencher.bytes = seq.len() as u64;
+        bencher.iter(|| {
+            best = 0;
+            let mut score_best = -f32::INFINITY;
+            for i in 0..encoded.len() - pssm.len() + 1 {
+                let mut score = 0.0;
+                for j in 0..pssm.len() {
+                    score += pssm.matrix()[j][encoded[i + j] as usize];
+                }
+                if score > score_best {
+                    score_best = score;
+                    best = i;
+                }
+            }
+        });
+
+        assert_eq!(best, 391677);
     }
 }
