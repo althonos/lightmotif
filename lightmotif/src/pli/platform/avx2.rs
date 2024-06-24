@@ -479,6 +479,34 @@ unsafe fn argmax_u8_avx2(
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
+unsafe fn max_u8_avx2(scores: &StripedScores<u8, <Avx2 as Backend>::LANES>) -> Option<u8> {
+    if scores.is_empty() {
+        None
+    } else {
+        let data = scores.matrix();
+        unsafe {
+            let mut dataptr = data[0].as_ptr();
+            // store the best scores for each column
+            let mut m = _mm256_setzero_si256();
+            // process all rows iteratively
+            for i in 0..data.rows() {
+                // load scores for the current row
+                let r = _mm256_load_si256(dataptr as *const _);
+                // find highest score
+                m = _mm256_max_epu8(m, r);
+                // advance to next row
+                dataptr = dataptr.add(data.stride());
+            }
+            // find the global maximum across all columns
+            let mut x: [u8; 32] = [0; 32];
+            _mm256_storeu_si256(x.as_mut_ptr() as *mut _, m);
+            x.into_iter().max()
+        }
+    }
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx2")]
 unsafe fn stripe_avx2<A>(
     seq: &[A::Symbol],
     striped: &mut StripedSequence<A, <Avx2 as Backend>::LANES>,
@@ -860,6 +888,16 @@ impl Avx2 {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             argmax_u8_avx2(scores)
+        }
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        panic!("attempting to run AVX2 code on a non-x86 host")
+    }
+
+    #[allow(unused)]
+    pub fn max_u8(scores: &StripedScores<u8, <Avx2 as Backend>::LANES>) -> Option<u8> {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        unsafe {
+            max_u8_avx2(scores)
         }
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
         panic!("attempting to run AVX2 code on a non-x86 host")

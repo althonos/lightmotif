@@ -492,6 +492,10 @@ impl<A: Alphabet> Maximum<u8, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
     ) -> Option<MatrixCoordinates> {
         Avx2::argmax_u8(scores)
     }
+
+    fn max(&self, scores: &StripedScores<u8, <Avx2 as Backend>::LANES>) -> Option<u8> {
+        Avx2::max_u8(scores)
+    }
 }
 
 impl<A: Alphabet> Threshold<f32, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {}
