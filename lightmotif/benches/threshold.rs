@@ -47,41 +47,41 @@ mod f32 {
     }
 
     #[bench]
-    fn bench_generic(bencher: &mut test::Bencher) {
+    fn generic(bencher: &mut test::Bencher) {
         let pli = Pipeline::generic();
         bench::<U32, _>(bencher, &pli);
     }
 
     #[bench]
-    fn bench_dispatch(bencher: &mut test::Bencher) {
+    fn dispatch(bencher: &mut test::Bencher) {
         let pli = Pipeline::dispatch();
         bench(bencher, &pli);
     }
 
     #[cfg(target_feature = "sse2")]
     #[bench]
-    fn bench_sse2(bencher: &mut test::Bencher) {
+    fn sse2(bencher: &mut test::Bencher) {
         let pli = Pipeline::sse2().unwrap();
         bench::<U16, _>(bencher, &pli);
     }
 
     #[cfg(target_feature = "sse2")]
     #[bench]
-    fn bench_sse2_32(bencher: &mut test::Bencher) {
+    fn sse2_32(bencher: &mut test::Bencher) {
         let pli = Pipeline::sse2().unwrap();
         bench::<U32, _>(bencher, &pli);
     }
 
     #[cfg(target_feature = "avx2")]
     #[bench]
-    fn bench_avx2(bencher: &mut test::Bencher) {
+    fn avx2(bencher: &mut test::Bencher) {
         let pli = Pipeline::avx2().unwrap();
         bench(bencher, &pli);
     }
 
     #[cfg(target_feature = "neon")]
     #[bench]
-    fn bench_neon(bencher: &mut test::Bencher) {
+    fn neon(bencher: &mut test::Bencher) {
         let pli = Pipeline::neon().unwrap();
         bench::<U16, _>(bencher, &pli);
     }
@@ -128,41 +128,41 @@ mod u8 {
     }
 
     #[bench]
-    fn bench_generic(bencher: &mut test::Bencher) {
+    fn generic(bencher: &mut test::Bencher) {
         let pli = Pipeline::generic();
         bench::<U32, _>(bencher, &pli);
     }
 
     #[bench]
-    fn bench_dispatch(bencher: &mut test::Bencher) {
+    fn dispatch(bencher: &mut test::Bencher) {
         let pli = Pipeline::dispatch();
         bench(bencher, &pli);
     }
 
     #[cfg(target_feature = "sse2")]
     #[bench]
-    fn bench_sse2(bencher: &mut test::Bencher) {
+    fn sse2(bencher: &mut test::Bencher) {
         let pli = Pipeline::sse2().unwrap();
         bench::<U16, _>(bencher, &pli);
     }
 
     #[cfg(target_feature = "sse2")]
     #[bench]
-    fn bench_sse2_32(bencher: &mut test::Bencher) {
+    fn sse2_32(bencher: &mut test::Bencher) {
         let pli = Pipeline::sse2().unwrap();
         bench::<U32, _>(bencher, &pli);
     }
 
     #[cfg(target_feature = "avx2")]
     #[bench]
-    fn bench_avx2(bencher: &mut test::Bencher) {
+    fn avx2(bencher: &mut test::Bencher) {
         let pli = Pipeline::avx2().unwrap();
         bench(bencher, &pli);
     }
 
     #[cfg(target_feature = "neon")]
     #[bench]
-    fn bench_neon(bencher: &mut test::Bencher) {
+    fn neon(bencher: &mut test::Bencher) {
         let pli = Pipeline::neon().unwrap();
         bench::<U16, _>(bencher, &pli);
     }
