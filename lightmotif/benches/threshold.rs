@@ -113,7 +113,7 @@ mod u8 {
         pli.score_into(&dm, &striped, &mut scores);
 
         let mut hits = Vec::new();
-        bencher.bytes = (std::mem::size_of::<f32>() * scores.matrix().rows() * C::USIZE) as u64;
+        bencher.bytes = (std::mem::size_of::<u8>() * scores.matrix().rows() * C::USIZE) as u64;
         bencher.iter(|| {
             hits.clear();
             for mc in pli.threshold(&scores, threshold) {
