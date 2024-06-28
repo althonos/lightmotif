@@ -6,7 +6,40 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.7.3...HEAD
+[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.8.0...HEAD
+
+
+## [v0.8.0] - 2024-06-28
+[v0.8.0]: https://github.com/althonos/lightmotif/compare/v0.7.3...v0.8.0
+
+### Added
+
+#### `lightmotif`
+- `lightmotif::pwm::DiscreteMatrix` to store a discretized `ScoringMatrix`.
+- `MatrixElement` marker trait for `Default + Copy` types that can be used as a `DenseMatrix` element.
+- `lightmotif::scores::Scores` wrapper of `Vec<T>` with shortcut `max`, `threshold` and `argmax` methods.
+- AVX2 and NEON implementations of `Score<u8, Dna>` pipeline operation.
+
+### Fixed
+
+#### `lightmotif`
+- Remove requirement for `T: Debug` in `Clone` implementation of `DenseMatrix<T>`.
+- SSE2 and AVX2 implementations of `Argmax` not returning the last index in case of ties.
+
+#### `lightmotif-tfmpvalue`
+- Cache internal buffer for Q-values to avoid reallocation between iterations.
+
+### Changed
+
+#### `lightmotif`
+- Cache the `Pipeline` used in `lightmotif::scan::Scanner`.
+- Make `lightmotif::scores::StripedScores` generic over the score type.
+- Make `Maximum` and `Threshold` generic over the score type.
+- Use a discrete matrix in `Scanner` to quickly eliminate blocks without candidate position above given threshold.
+- Compile crate without the `rand` and `rand-distr` features by default.
+
+#### `lightmotif-py`
+- Update `pyo3` dependency to `v0.22.0`.
 
 
 ## [v0.7.3] - 2024-06-17
