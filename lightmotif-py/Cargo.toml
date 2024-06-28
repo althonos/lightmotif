@@ -23,7 +23,7 @@ optional = true
 path = "../lightmotif-tfmpvalue"
 version = "0.7.3"
 [dependencies]
-pyo3 = "0.18.3"
+pyo3 = "0.22.0"
 generic-array = "1.0.0"
 
 [features]

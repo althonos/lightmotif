@@ -24,7 +24,6 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::types::PyList;
 use pyo3::types::PyString;
-use pyo3::AsPyPointer;
 
 // --- Compile-time constants --------------------------------------------------
 
@@ -42,21 +41,22 @@ type C = typenum::consts::U1;
 
 // --- Helpers -----------------------------------------------------------------
 
-fn dict_to_alphabet_array<A: lightmotif::Alphabet>(
-    d: &PyDict,
+fn dict_to_alphabet_array<'py, A: lightmotif::Alphabet>(
+    d: Bound<'py, PyDict>,
 ) -> PyResult<GenericArray<f32, A::K>> {
     let mut p = std::iter::repeat(0.0)
         .take(A::K::USIZE)
         .collect::<GenericArray<f32, A::K>>();
     for (k, v) in d.iter() {
-        let s = k.extract::<&PyString>()?.to_str()?;
-        if s.len() != 1 {
+        let s = k.extract::<Bound<PyString>>()?;
+        let key = s.to_str()?;
+        if key.len() != 1 {
             return Err(PyValueError::new_err((
                 "Invalid key for pseudocount:",
                 s.to_string(),
             )));
         }
-        let x = s.chars().next().unwrap();
+        let x = key.chars().next().unwrap();
         let symbol = <A as lightmotif::Alphabet>::Symbol::from_char(x)
             .map_err(|_| PyValueError::new_err(("Invalid key for pseudocount:", x)))?;
         let value = v.extract::<f32>()?;
@@ -78,7 +78,7 @@ pub struct EncodedSequence {
 impl EncodedSequence {
     /// Encode a sequence with the given alphabet.
     #[new]
-    pub fn __init__(sequence: &PyString) -> PyResult<PyClassInitializer<Self>> {
+    pub fn __init__<'py>(sequence: Bound<'py, PyString>) -> PyResult<PyClassInitializer<Self>> {
         let seq = sequence.to_str()?;
         let py = sequence.py();
 
@@ -255,11 +255,15 @@ pub struct CountMatrix {
 impl CountMatrix {
     /// Create a new count matrix.
     #[new]
-    pub fn __init__(_alphabet: &PyString, values: &PyDict) -> PyResult<PyClassInitializer<Self>> {
+    #[allow(unused_variables)]
+    pub fn __init__<'py>(
+        alphabet: Bound<'py, PyString>,
+        values: Bound<'py, PyDict>,
+    ) -> PyResult<PyClassInitializer<Self>> {
         let mut data: Option<DenseMatrix<u32, <lightmotif::Dna as Alphabet>::K>> = None;
         for s in lightmotif::Dna::symbols() {
             let key = String::from(s.as_char());
-            if let Some(res) = values.get_item(&key) {
+            if let Some(res) = values.get_item(&key)? {
                 let column = res;
                 if data.is_none() {
                     data = Some(DenseMatrix::new(column.len()?));
@@ -283,10 +287,9 @@ impl CountMatrix {
         }
     }
 
-    pub fn __eq__(&self, object: &PyAny) -> PyResult<bool> {
-        let py = object.py();
-        if let Ok(other) = object.extract::<Py<Self>>() {
-            Ok(self.data == other.borrow(py).data)
+    pub fn __eq__<'py>(&self, object: Bound<'py, PyAny>) -> PyResult<bool> {
+        if let Ok(other) = object.extract::<PyRef<Self>>() {
+            Ok(self.data == other.data)
         } else {
             Ok(false)
         }
@@ -326,12 +329,13 @@ impl CountMatrix {
     ///         may be given to map each symbol of the alphabet to a distinct
     ///         pseudocount. If `None` given, no pseudocount is used.
     ///
+    #[pyo3(signature = (pseudocount=None))]
     pub fn normalize(&self, pseudocount: Option<PyObject>) -> PyResult<WeightMatrix> {
         let pseudo = Python::with_gil(|py| {
             if let Some(obj) = pseudocount {
                 if let Ok(x) = obj.extract::<f32>(py) {
                     Ok(lightmotif::abc::Pseudocounts::from(x))
-                } else if let Ok(d) = obj.extract::<&PyDict>(py) {
+                } else if let Ok(d) = obj.extract::<Bound<PyDict>>(py) {
                     let p = dict_to_alphabet_array::<lightmotif::Dna>(d)?;
                     Ok(lightmotif::abc::Pseudocounts::from(p))
                 } else {
@@ -363,10 +367,9 @@ pub struct WeightMatrix {
 
 #[pymethods]
 impl WeightMatrix {
-    pub fn __eq__(&self, object: &PyAny) -> PyResult<bool> {
-        let py = object.py();
-        if let Ok(other) = object.extract::<Py<Self>>() {
-            Ok(self.data == other.borrow(py).data)
+    pub fn __eq__<'py>(&self, object: Bound<'py, PyAny>) -> PyResult<bool> {
+        if let Ok(other) = object.extract::<PyRef<Self>>() {
+            Ok(self.data == other.data)
         } else {
             Ok(false)
         }
@@ -401,7 +404,7 @@ impl WeightMatrix {
         // extract the background from the method argument
         let bg = Python::with_gil(|py| {
             if let Some(obj) = background {
-                if let Ok(d) = obj.extract::<&PyDict>(py) {
+                if let Ok(d) = obj.extract::<Bound<PyDict>>(py) {
                     let p = dict_to_alphabet_array::<lightmotif::Dna>(d)?;
                     lightmotif::abc::Background::new(p)
                         .map_err(|_| PyValueError::new_err("Invalid background frequencies"))
@@ -442,15 +445,17 @@ pub struct ScoringMatrix {
 impl ScoringMatrix {
     /// Create a new scoring matrix.
     #[new]
-    pub fn __init__(
-        _alphabet: &PyString,
-        values: &PyDict,
+    #[pyo3(signature = (alphabet, values, background = None))]
+    #[allow(unused)]
+    pub fn __init__<'py>(
+        alphabet: Bound<'py, PyString>,
+        values: Bound<'py, PyDict>,
         background: Option<PyObject>,
     ) -> PyResult<PyClassInitializer<Self>> {
         // extract the background from the method argument
         let bg = Python::with_gil(|py| {
             if let Some(obj) = background {
-                if let Ok(d) = obj.extract::<&PyDict>(py) {
+                if let Ok(d) = obj.extract::<Bound<PyDict>>(py) {
                     let p = dict_to_alphabet_array::<lightmotif::Dna>(d)?;
                     lightmotif::abc::Background::new(p)
                         .map_err(|_| PyValueError::new_err("Invalid background frequencies"))
@@ -466,7 +471,7 @@ impl ScoringMatrix {
         let mut data: Option<DenseMatrix<f32, <lightmotif::Dna as Alphabet>::K>> = None;
         for s in lightmotif::Dna::symbols() {
             let key = String::from(s.as_char());
-            if let Some(res) = values.get_item(&key) {
+            if let Some(res) = values.get_item(&key)? {
                 let column = res.downcast::<PyList>()?;
                 if data.is_none() {
                     data = Some(DenseMatrix::new(column.len()));
@@ -487,10 +492,9 @@ impl ScoringMatrix {
         }
     }
 
-    pub fn __eq__(&self, object: &PyAny) -> PyResult<bool> {
-        let py = object.py();
-        if let Ok(other) = object.extract::<Py<Self>>() {
-            Ok(self.data == other.borrow(py).data)
+    pub fn __eq__(&self, object: Bound<PyAny>) -> PyResult<bool> {
+        if let Ok(other) = object.extract::<PyRef<Self>>() {
+            Ok(self.data == other.data)
         } else {
             Ok(false)
         }
@@ -700,7 +704,7 @@ impl From<lightmotif::scores::StripedScores<f32, C>> for StripedScores {
 // --- Motif -------------------------------------------------------------------
 
 #[pyclass(module = "lightmotif.lib")]
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Motif {
     #[pyo3(get)]
     counts: Py<CountMatrix>,
@@ -725,14 +729,15 @@ pub struct Motif {
 ///     `~lightmotif.Motif`: The motif corresponding to the given sequences.
 ///
 #[pyfunction]
-pub fn create(sequences: &PyAny) -> PyResult<Motif> {
+pub fn create(sequences: Bound<PyAny>) -> PyResult<Motif> {
     let py = sequences.py();
 
     let mut encoded = Vec::new();
     for seq in sequences.iter()? {
-        let s = seq?.extract::<&PyString>()?.to_str()?;
+        let s = seq?.extract::<Bound<PyString>>()?;
+        let sequence = s.to_str()?;
         let x = py
-            .allow_threads(|| lightmotif::EncodedSequence::encode(s))
+            .allow_threads(|| lightmotif::EncodedSequence::encode(sequence))
             .map_err(|_| PyValueError::new_err("Invalid symbol in sequence"))?;
         encoded.push(x);
     }
@@ -751,9 +756,9 @@ pub fn create(sequences: &PyAny) -> PyResult<Motif> {
 
 /// Encode and stripe a text sequence.
 #[pyfunction]
-pub fn stripe(sequence: &PyAny) -> PyResult<StripedSequence> {
+pub fn stripe(sequence: Bound<PyAny>) -> PyResult<StripedSequence> {
     let py = sequence.py();
-    let s = sequence.extract::<&PyString>()?;
+    let s = sequence.extract::<Bound<PyString>>()?;
     let encoded = EncodedSequence::__init__(s).and_then(|e| Py::new(py, e))?;
     let striped = encoded.borrow(py).stripe();
     striped
@@ -764,7 +769,7 @@ pub fn stripe(sequence: &PyAny) -> PyResult<StripedSequence> {
 /// The API is similar to the `Bio.motifs` module from Biopython on purpose.
 #[pymodule]
 #[pyo3(name = "lib")]
-pub fn init(_py: Python, m: &PyModule) -> PyResult<()> {
+pub fn init<'py>(_py: Python<'py>, m: &Bound<PyModule>) -> PyResult<()> {
     m.add("__package__", "lightmotif")?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add("__author__", env!("CARGO_PKG_AUTHORS").replace(':', "\n"))?;
