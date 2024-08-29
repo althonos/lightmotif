@@ -58,10 +58,7 @@ pub fn parse_alphabet<S: Symbol>(input: &str) -> IResult<&str, Vec<S>> {
 }
 
 pub fn parse_element(input: &str) -> IResult<&str, f32> {
-    nom::branch::alt((
-        nom::combinator::map_res(nom::character::complete::digit1, f32::from_str),
-        nom::combinator::map(nom::number::complete::float, |x| x),
-    ))(input)
+    nom::number::complete::float(input)
 }
 
 pub fn parse_row(input: &str, k: usize) -> IResult<&str, Vec<f32>> {
@@ -329,6 +326,14 @@ mod test {
         let res = super::parse_row(line, 4).unwrap();
         assert_eq!(res.0, "");
         assert_eq!(res.1, vec![0., 0., 2., 0.]);
+    }
+
+    #[test]
+    fn test_parse_count_float() {
+        let line = "01	3566.0	119.0	342.0	225.0\n";
+        let res = super::parse_row(line, 4).unwrap();
+        assert_eq!(res.0, "");
+        assert_eq!(res.1, vec![3566., 119., 342., 225.]);
     }
 
     #[test]
