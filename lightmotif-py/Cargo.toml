@@ -14,6 +14,7 @@ keywords = ["bioinformatics", "python", "bindings", "pssm"]
 [lib]
 crate-type = ["cdylib", "rlib"]
 path = "lightmotif/lib.rs"
+doctest = false
 
 [dependencies.lightmotif]
 path = "../lightmotif"

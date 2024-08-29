@@ -6,17 +6,25 @@ extern crate lightmotif;
 extern crate lightmotif_tfmpvalue;
 extern crate pyo3;
 
+use std::fmt::Display;
+use std::fmt::Formatter;
+
 use lightmotif::abc::Alphabet;
+use lightmotif::abc::Dna;
 use lightmotif::abc::Nucleotide;
+use lightmotif::abc::Protein;
 use lightmotif::abc::Symbol;
 use lightmotif::dense::DenseMatrix;
 use lightmotif::num::Unsigned;
 use lightmotif::pli::platform::Backend;
 use lightmotif::pli::Score;
+#[cfg(feature = "pvalues")]
+use lightmotif_tfmpvalue::TfmPvalue;
 
 use generic_array::GenericArray;
 use pyo3::exceptions::PyBufferError;
 use pyo3::exceptions::PyIndexError;
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::exceptions::PyTypeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::ffi::Py_ssize_t;
@@ -67,23 +75,71 @@ fn dict_to_alphabet_array<'py, A: lightmotif::Alphabet>(
 
 // --- EncodedSequence ---------------------------------------------------------
 
+/// Actual storage of an encoded sequence data.
+#[derive(Clone, Debug)]
+enum EncodedSequenceData {
+    Dna(lightmotif::seq::EncodedSequence<Dna>),
+    Protein(lightmotif::seq::EncodedSequence<Protein>),
+}
+
+impl EncodedSequenceData {
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Dna(dna) => dna.len(),
+            Self::Protein(dna) => dna.len(),
+        }
+    }
+}
+
+impl Display for EncodedSequenceData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Dna(dna) => dna.fmt(f),
+            Self::Protein(prot) => prot.fmt(f),
+        }
+    }
+}
+
+impl From<lightmotif::seq::EncodedSequence<Dna>> for EncodedSequenceData {
+    fn from(dna: lightmotif::seq::EncodedSequence<Dna>) -> Self {
+        Self::Dna(dna)
+    }
+}
+
+impl From<lightmotif::seq::EncodedSequence<Protein>> for EncodedSequenceData {
+    fn from(prot: lightmotif::seq::EncodedSequence<Protein>) -> Self {
+        Self::Protein(prot)
+    }
+}
+
 /// A biological sequence encoded as digits.
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct EncodedSequence {
-    data: lightmotif::seq::EncodedSequence<lightmotif::Dna>,
+    data: EncodedSequenceData,
 }
 
 #[pymethods]
 impl EncodedSequence {
-    /// Encode a sequence with the given alphabet.
+    /// Encode a sequence.
     #[new]
-    pub fn __init__<'py>(sequence: Bound<'py, PyString>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (sequence, protein=false))]
+    pub fn __init__<'py>(
+        sequence: Bound<'py, PyString>,
+        protein: bool,
+    ) -> PyResult<PyClassInitializer<Self>> {
         let seq = sequence.to_str()?;
         let py = sequence.py();
-
         let data = py
-            .allow_threads(|| lightmotif::seq::EncodedSequence::encode(seq))
+            .allow_threads(|| {
+                if protein {
+                    lightmotif::seq::EncodedSequence::<Protein>::encode(seq)
+                        .map(EncodedSequenceData::from)
+                } else {
+                    lightmotif::seq::EncodedSequence::<Dna>::encode(seq)
+                        .map(EncodedSequenceData::from)
+                }
+            })
             .map_err(|lightmotif::err::InvalidSymbol(x)| {
                 PyValueError::new_err(format!("Invalid symbol in input: {}", x))
             })?;
@@ -114,7 +170,10 @@ impl EncodedSequence {
         if index < 0 || index >= length as Py_ssize_t {
             Err(PyIndexError::new_err("sequence index out of range"))
         } else {
-            Ok(self.data[index as usize] as u8)
+            match &self.data {
+                EncodedSequenceData::Dna(dna) => Ok(dna[index as usize] as u8),
+                EncodedSequenceData::Protein(prot) => Ok(prot[index as usize] as u8),
+            }
         }
     }
 
@@ -124,6 +183,16 @@ impl EncodedSequence {
         view: *mut pyo3::ffi::Py_buffer,
         flags: std::os::raw::c_int,
     ) -> PyResult<()> {
+        macro_rules! setup {
+            ($view:ident, $data:ident) => {{
+                let array: &[_] = $data.as_ref();
+                (*$view).buf = array.as_ptr() as *mut std::os::raw::c_void;
+                (*$view).len = $data.len() as isize;
+                (*$view).readonly = 1;
+                (*$view).itemsize = std::mem::size_of::<u8>() as isize;
+            }};
+        }
+
         if view.is_null() {
             return Err(PyBufferError::new_err("View is null"));
         }
@@ -131,14 +200,12 @@ impl EncodedSequence {
             return Err(PyBufferError::new_err("Object is not writable"));
         }
 
+        match &slf.data {
+            EncodedSequenceData::Dna(dna) => setup!(view, dna),
+            EncodedSequenceData::Protein(protein) => setup!(view, protein),
+        }
+
         (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
-        let data: &[Nucleotide] = slf.data.as_ref();
-
-        (*view).buf = data.as_ptr() as *mut std::os::raw::c_void;
-        (*view).len = data.len() as isize;
-        (*view).readonly = 1;
-        (*view).itemsize = std::mem::size_of::<Nucleotide>() as isize;
-
         let msg = std::ffi::CStr::from_bytes_with_nul(b"B\0").unwrap();
         (*view).format = msg.as_ptr() as *mut _;
 
@@ -158,35 +225,82 @@ impl EncodedSequence {
 
     /// Convert this sequence into a striped matrix.
     pub fn stripe(&self) -> PyResult<StripedSequence> {
-        Ok(self.data.to_striped().into())
+        match &self.data {
+            EncodedSequenceData::Dna(dna) => Ok(StripedSequenceData::from(dna.to_striped()).into()),
+            EncodedSequenceData::Protein(protein) => {
+                Ok(StripedSequenceData::from(protein.to_striped()).into())
+            }
+        }
     }
 }
 
-impl From<lightmotif::seq::EncodedSequence<lightmotif::Dna>> for EncodedSequence {
-    fn from(data: lightmotif::seq::EncodedSequence<lightmotif::Dna>) -> Self {
+impl From<EncodedSequenceData> for EncodedSequence {
+    fn from(data: EncodedSequenceData) -> Self {
         Self { data }
     }
 }
 
 // --- StripedSequence ---------------------------------------------------------
 
+/// Actual storage of a striped sequence data.
+#[derive(Clone, Debug)]
+enum StripedSequenceData {
+    Dna(lightmotif::seq::StripedSequence<Dna, C>),
+    Protein(lightmotif::seq::StripedSequence<Protein, C>),
+}
+
+impl StripedSequenceData {
+    fn rows(&self) -> usize {
+        match self {
+            Self::Dna(dna) => dna.matrix().rows(),
+            Self::Protein(protein) => protein.matrix().rows(),
+        }
+    }
+
+    fn columns(&self) -> usize {
+        match self {
+            Self::Dna(dna) => dna.matrix().columns(),
+            Self::Protein(protein) => protein.matrix().columns(),
+        }
+    }
+
+    fn stride(&self) -> usize {
+        match self {
+            Self::Dna(dna) => dna.matrix().stride(),
+            Self::Protein(protein) => protein.matrix().stride(),
+        }
+    }
+}
+
+impl From<lightmotif::seq::StripedSequence<Dna, C>> for StripedSequenceData {
+    fn from(dna: lightmotif::seq::StripedSequence<Dna, C>) -> Self {
+        Self::Dna(dna)
+    }
+}
+
+impl From<lightmotif::seq::StripedSequence<Protein, C>> for StripedSequenceData {
+    fn from(prot: lightmotif::seq::StripedSequence<Protein, C>) -> Self {
+        Self::Protein(prot)
+    }
+}
+
 /// An encoded biological sequence stored in a column-major matrix.
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct StripedSequence {
-    data: lightmotif::seq::StripedSequence<lightmotif::Dna, C>,
+    data: StripedSequenceData,
     shape: [Py_ssize_t; 2],
     strides: [Py_ssize_t; 2],
 }
 
-impl From<lightmotif::seq::StripedSequence<lightmotif::Dna, C>> for StripedSequence {
-    fn from(data: lightmotif::seq::StripedSequence<lightmotif::Dna, C>) -> Self {
+impl From<StripedSequenceData> for StripedSequence {
+    fn from(data: StripedSequenceData) -> Self {
         // extract the matrix shape and strides
-        let cols = data.matrix().columns();
-        let rows = data.matrix().rows();
+        let cols = data.columns();
+        let rows = data.rows();
         let shape = [cols as Py_ssize_t, rows as Py_ssize_t];
         // extract the matrix strides
-        let strides = [1, data.matrix().stride() as Py_ssize_t];
+        let strides = [1, data.stride() as Py_ssize_t];
         Self {
             data,
             shape,
@@ -220,11 +334,13 @@ impl StripedSequence {
         }
 
         (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
-        let matrix = slf.data.matrix();
-        let data = matrix[0].as_ptr();
+        let data = match &slf.data {
+            StripedSequenceData::Dna(dna) => dna.matrix()[0].as_ptr() as *const i8,
+            StripedSequenceData::Protein(prot) => prot.matrix()[0].as_ptr() as *const i8,
+        };
 
         (*view).buf = data as *mut std::os::raw::c_void;
-        (*view).len = (matrix.rows() * matrix.columns()) as isize;
+        (*view).len = (slf.data.rows() * slf.data.columns()) as isize;
         (*view).readonly = 1;
         (*view).itemsize = std::mem::size_of::<Nucleotide>() as isize;
 
@@ -244,11 +360,48 @@ impl StripedSequence {
 
 // --- CountMatrix -------------------------------------------------------------
 
+/// Actual storage of a count matrix data.
+#[derive(Clone, Debug, PartialEq)]
+pub enum CountMatrixData {
+    Dna(lightmotif::CountMatrix<Dna>),
+    Protein(lightmotif::CountMatrix<Protein>),
+}
+
+impl CountMatrixData {
+    fn rows(&self) -> usize {
+        match self {
+            Self::Dna(dna) => dna.matrix().rows(),
+            Self::Protein(protein) => protein.matrix().rows(),
+        }
+    }
+}
+
+impl From<lightmotif::CountMatrix<Dna>> for CountMatrixData {
+    fn from(data: lightmotif::CountMatrix<Dna>) -> Self {
+        Self::Dna(data)
+    }
+}
+
+impl From<lightmotif::CountMatrix<Protein>> for CountMatrixData {
+    fn from(data: lightmotif::CountMatrix<Protein>) -> Self {
+        Self::Protein(data)
+    }
+}
+
 /// A matrix storing the count of a motif letters at each position.
 #[pyclass(module = "lightmotif.lib", sequence)]
 #[derive(Clone, Debug)]
 pub struct CountMatrix {
-    data: lightmotif::CountMatrix<lightmotif::Dna>,
+    data: CountMatrixData,
+}
+
+impl CountMatrix {
+    fn new<D>(data: D) -> Self
+    where
+        D: Into<CountMatrixData>,
+    {
+        Self { data: data.into() }
+    }
 }
 
 #[pymethods]
@@ -256,34 +409,45 @@ impl CountMatrix {
     /// Create a new count matrix.
     #[new]
     #[allow(unused_variables)]
+    #[pyo3(signature = (values, protein = false))]
     pub fn __init__<'py>(
-        alphabet: Bound<'py, PyString>,
         values: Bound<'py, PyDict>,
+        protein: bool,
     ) -> PyResult<PyClassInitializer<Self>> {
-        let mut data: Option<DenseMatrix<u32, <lightmotif::Dna as Alphabet>::K>> = None;
-        for s in lightmotif::Dna::symbols() {
-            let key = String::from(s.as_char());
-            if let Some(res) = values.get_item(&key)? {
-                let column = res;
-                if data.is_none() {
-                    data = Some(DenseMatrix::new(column.len()?));
+        macro_rules! run {
+            ($alphabet:ty) => {{
+                // Extract values from dictionary into matrix
+                let mut data: Option<DenseMatrix<u32, <$alphabet as Alphabet>::K>> = None;
+                for s in <$alphabet as Alphabet>::symbols() {
+                    let key = String::from(s.as_char());
+                    if let Some(res) = values.get_item(&key)? {
+                        let column = res;
+                        if data.is_none() {
+                            data = Some(DenseMatrix::new(column.len()?));
+                        }
+                        let matrix = data.as_mut().unwrap();
+                        if matrix.rows() != column.len()? {
+                            return Err(PyValueError::new_err("Invalid number of rows"));
+                        }
+                        for (i, x) in column.iter()?.enumerate() {
+                            matrix[i][s.as_index()] = x?.extract::<u32>()?;
+                        }
+                    }
                 }
-                let matrix = data.as_mut().unwrap();
-                if matrix.rows() != column.len()? {
-                    return Err(PyValueError::new_err("Invalid number of rows"));
-                }
-                for (i, x) in column.iter()?.enumerate() {
-                    matrix[i][s.as_index()] = x?.extract::<u32>()?;
-                }
-            }
-        }
 
-        match data {
-            None => Err(PyValueError::new_err("Invalid count matrix")),
-            Some(matrix) => match lightmotif::CountMatrix::new(matrix) {
-                Ok(counts) => Ok(Self::from(counts).into()),
-                Err(_) => Err(PyValueError::new_err("Inconsistent rows in count matrix")),
-            },
+                match data {
+                    None => Err(PyValueError::new_err("Invalid count matrix")),
+                    Some(matrix) => match lightmotif::CountMatrix::<$alphabet>::new(matrix) {
+                        Ok(counts) => Ok(CountMatrix::new(counts).into()),
+                        Err(_) => Err(PyValueError::new_err("Inconsistent rows in count matrix")),
+                    },
+                }
+            }};
+        }
+        if protein {
+            run!(Protein)
+        } else {
+            run!(Dna)
         }
     }
 
@@ -296,20 +460,25 @@ impl CountMatrix {
     }
 
     pub fn __len__(&self) -> usize {
-        self.data.matrix().rows()
+        self.data.rows()
     }
 
     pub fn __getitem__<'py>(slf: PyRef<'py, Self>, index: isize) -> PyResult<PyObject> {
         let mut index_ = index;
         if index_ < 0 {
-            index_ += slf.data.matrix().rows() as isize;
+            index_ += slf.data.rows() as isize;
         }
-        if index_ < 0 || (index_ as usize) >= slf.data.matrix().rows() {
+        if index_ < 0 || (index_ as usize) >= slf.data.rows() {
             return Err(PyIndexError::new_err(index));
         }
 
-        let row = &slf.data.matrix()[index_ as usize];
-        Ok(row.to_object(slf.py()))
+        let py = slf.py();
+        let row = match &slf.data {
+            CountMatrixData::Dna(dna) => dna.matrix()[index_ as usize].to_object(py),
+            CountMatrixData::Protein(prot) => prot.matrix()[index_ as usize].to_object(py),
+        };
+
+        Ok(row)
     }
 
     /// Normalize this count matrix to obtain a position weight matrix.
@@ -331,38 +500,83 @@ impl CountMatrix {
     ///
     #[pyo3(signature = (pseudocount=None))]
     pub fn normalize(&self, pseudocount: Option<PyObject>) -> PyResult<WeightMatrix> {
-        let pseudo = Python::with_gil(|py| {
-            if let Some(obj) = pseudocount {
-                if let Ok(x) = obj.extract::<f32>(py) {
-                    Ok(lightmotif::abc::Pseudocounts::from(x))
-                } else if let Ok(d) = obj.extract::<Bound<PyDict>>(py) {
-                    let p = dict_to_alphabet_array::<lightmotif::Dna>(d)?;
-                    Ok(lightmotif::abc::Pseudocounts::from(p))
-                } else {
-                    Err(PyTypeError::new_err("Invalid type for pseudocount"))
-                }
-            } else {
-                Ok(lightmotif::abc::Pseudocounts::default())
-            }
-        })?;
-        let data = self.data.to_freq(pseudo).to_weight(None);
-        Ok(WeightMatrix { data })
+        macro_rules! run {
+            ($data:ident, $alphabet:ty) => {{
+                let pseudo = Python::with_gil(|py| {
+                    if let Some(obj) = pseudocount {
+                        if let Ok(x) = obj.extract::<f32>(py) {
+                            Ok(lightmotif::abc::Pseudocounts::from(x))
+                        } else if let Ok(d) = obj.extract::<Bound<PyDict>>(py) {
+                            let p = dict_to_alphabet_array::<$alphabet>(d)?;
+                            Ok(lightmotif::abc::Pseudocounts::from(p))
+                        } else {
+                            Err(PyTypeError::new_err("Invalid type for pseudocount"))
+                        }
+                    } else {
+                        Ok(lightmotif::abc::Pseudocounts::default())
+                    }
+                })?;
+                let data = $data.to_freq(pseudo).to_weight(None);
+                Ok(WeightMatrix::new(data))
+            }};
+        }
+        match &self.data {
+            CountMatrixData::Dna(dna) => run!(dna, Dna),
+            CountMatrixData::Protein(prot) => run!(prot, Protein),
+        }
     }
 }
 
-impl From<lightmotif::CountMatrix<lightmotif::Dna>> for CountMatrix {
-    fn from(data: lightmotif::CountMatrix<lightmotif::Dna>) -> Self {
+impl From<CountMatrixData> for CountMatrix {
+    fn from(data: CountMatrixData) -> Self {
         Self { data }
     }
 }
 
 // --- WeightMatrix ------------------------------------------------------------
 
+/// Actual storage of a weight matrix data.
+#[derive(Clone, Debug, PartialEq)]
+pub enum WeightMatrixData {
+    Dna(lightmotif::WeightMatrix<Dna>),
+    Protein(lightmotif::WeightMatrix<Protein>),
+}
+
+impl WeightMatrixData {
+    fn rows(&self) -> usize {
+        match self {
+            Self::Dna(dna) => dna.matrix().rows(),
+            Self::Protein(protein) => protein.matrix().rows(),
+        }
+    }
+}
+
+impl From<lightmotif::WeightMatrix<Dna>> for WeightMatrixData {
+    fn from(data: lightmotif::WeightMatrix<Dna>) -> Self {
+        Self::Dna(data)
+    }
+}
+
+impl From<lightmotif::WeightMatrix<Protein>> for WeightMatrixData {
+    fn from(data: lightmotif::WeightMatrix<Protein>) -> Self {
+        Self::Protein(data)
+    }
+}
+
 /// A matrix storing position-specific odds-ratio for a motif.
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct WeightMatrix {
-    data: lightmotif::pwm::WeightMatrix<lightmotif::Dna>,
+    data: WeightMatrixData,
+}
+
+impl WeightMatrix {
+    fn new<D>(data: D) -> Self
+    where
+        D: Into<WeightMatrixData>,
+    {
+        Self { data: data.into() }
+    }
 }
 
 #[pymethods]
@@ -376,20 +590,25 @@ impl WeightMatrix {
     }
 
     pub fn __len__(&self) -> usize {
-        self.data.matrix().rows()
+        self.data.rows()
     }
 
     pub fn __getitem__<'py>(slf: PyRef<'py, Self>, index: isize) -> PyResult<PyObject> {
         let mut index_ = index;
         if index_ < 0 {
-            index_ += slf.data.matrix().rows() as isize;
+            index_ += slf.data.rows() as isize;
         }
-        if index_ < 0 || (index_ as usize) >= slf.data.matrix().rows() {
+        if index_ < 0 || (index_ as usize) >= slf.data.rows() {
             return Err(PyIndexError::new_err(index));
         }
 
-        let row = &slf.data.matrix()[index_ as usize];
-        Ok(row.to_object(slf.py()))
+        let py = slf.py();
+        let row = match &slf.data {
+            WeightMatrixData::Dna(dna) => dna.matrix()[index_ as usize].to_object(py),
+            WeightMatrixData::Protein(prot) => prot.matrix()[index_ as usize].to_object(py),
+        };
+
+        Ok(row)
     }
 
     /// Log-scale this weight matrix to obtain a position-specific scoring matrix.
@@ -401,44 +620,88 @@ impl WeightMatrix {
     ///
     #[pyo3(signature=(background=None, base=2.0))]
     pub fn log_odds(&self, background: Option<PyObject>, base: f32) -> PyResult<ScoringMatrix> {
-        // extract the background from the method argument
-        let bg = Python::with_gil(|py| {
-            if let Some(obj) = background {
-                if let Ok(d) = obj.extract::<Bound<PyDict>>(py) {
-                    let p = dict_to_alphabet_array::<lightmotif::Dna>(d)?;
-                    lightmotif::abc::Background::new(p)
-                        .map_err(|_| PyValueError::new_err("Invalid background frequencies"))
-                } else {
-                    Err(PyTypeError::new_err("Invalid type for pseudocount"))
-                }
-            } else {
-                Ok(lightmotif::abc::Background::uniform())
-            }
-        })?;
-        // rescale if backgrounds do not match
-        let pwm = match bg.frequencies() != self.data.background().frequencies() {
-            false => self.data.rescale(bg),
-            true => self.data.clone(),
-        };
-        Ok(ScoringMatrix {
-            data: pwm.to_scoring_with_base(base),
-        })
+        macro_rules! run {
+            ($data:ident, $alphabet:ty) => {{
+                // extract the background from the method argument
+                let bg = Python::with_gil(|py| {
+                    if let Some(obj) = background {
+                        if let Ok(d) = obj.extract::<Bound<PyDict>>(py) {
+                            let p = dict_to_alphabet_array::<$alphabet>(d)?;
+                            lightmotif::abc::Background::new(p).map_err(|_| {
+                                PyValueError::new_err("Invalid background frequencies")
+                            })
+                        } else {
+                            Err(PyTypeError::new_err("Invalid type for pseudocount"))
+                        }
+                    } else {
+                        Ok(lightmotif::abc::Background::uniform())
+                    }
+                })?;
+                // rescale if backgrounds do not match
+                let pwm = match bg.frequencies() != $data.background().frequencies() {
+                    false => $data.rescale(bg),
+                    true => $data.clone(),
+                };
+                Ok(ScoringMatrix::new(pwm.to_scoring_with_base(base)))
+            }};
+        }
+        match &self.data {
+            WeightMatrixData::Dna(dna) => run!(dna, Dna),
+            WeightMatrixData::Protein(protein) => run!(protein, Protein),
+        }
     }
 }
 
-impl From<lightmotif::WeightMatrix<lightmotif::Dna>> for WeightMatrix {
-    fn from(data: lightmotif::WeightMatrix<lightmotif::Dna>) -> Self {
+impl From<WeightMatrixData> for WeightMatrix {
+    fn from(data: WeightMatrixData) -> Self {
         Self { data }
     }
 }
 
 // --- ScoringMatrix -----------------------------------------------------------
 
+/// Actual storage of a scoring matrix data.
+#[derive(Clone, Debug, PartialEq)]
+enum ScoringMatrixData {
+    Dna(lightmotif::ScoringMatrix<Dna>),
+    Protein(lightmotif::ScoringMatrix<Protein>),
+}
+
+impl ScoringMatrixData {
+    fn rows(&self) -> usize {
+        match self {
+            Self::Dna(dna) => dna.matrix().rows(),
+            Self::Protein(prot) => prot.matrix().rows(),
+        }
+    }
+}
+
+impl From<lightmotif::ScoringMatrix<Dna>> for ScoringMatrixData {
+    fn from(value: lightmotif::ScoringMatrix<Dna>) -> Self {
+        Self::Dna(value)
+    }
+}
+
+impl From<lightmotif::ScoringMatrix<Protein>> for ScoringMatrixData {
+    fn from(value: lightmotif::ScoringMatrix<Protein>) -> Self {
+        Self::Protein(value)
+    }
+}
+
 /// A matrix storing position-specific odds-ratio for a motif.
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Clone, Debug)]
 pub struct ScoringMatrix {
-    data: lightmotif::ScoringMatrix<lightmotif::Dna>,
+    data: ScoringMatrixData,
+}
+
+impl ScoringMatrix {
+    fn new<D>(data: D) -> Self
+    where
+        D: Into<ScoringMatrixData>,
+    {
+        Self { data: data.into() }
+    }
 }
 
 #[pymethods]
@@ -456,7 +719,7 @@ impl ScoringMatrix {
         let bg = Python::with_gil(|py| {
             if let Some(obj) = background {
                 if let Ok(d) = obj.extract::<Bound<PyDict>>(py) {
-                    let p = dict_to_alphabet_array::<lightmotif::Dna>(d)?;
+                    let p = dict_to_alphabet_array::<Dna>(d)?;
                     lightmotif::abc::Background::new(p)
                         .map_err(|_| PyValueError::new_err("Invalid background frequencies"))
                 } else {
@@ -468,8 +731,8 @@ impl ScoringMatrix {
         })?;
 
         // build data
-        let mut data: Option<DenseMatrix<f32, <lightmotif::Dna as Alphabet>::K>> = None;
-        for s in lightmotif::Dna::symbols() {
+        let mut data: Option<DenseMatrix<f32, <Dna as Alphabet>::K>> = None;
+        for s in Dna::symbols() {
             let key = String::from(s.as_char());
             if let Some(res) = values.get_item(&key)? {
                 let column = res.downcast::<PyList>()?;
@@ -488,7 +751,7 @@ impl ScoringMatrix {
 
         match data {
             None => Err(PyValueError::new_err("Invalid count matrix")),
-            Some(matrix) => Ok(Self::from(lightmotif::ScoringMatrix::new(bg, matrix)).into()),
+            Some(matrix) => Ok(Self::new(lightmotif::ScoringMatrix::<Dna>::new(bg, matrix)).into()),
         }
     }
 
@@ -501,20 +764,25 @@ impl ScoringMatrix {
     }
 
     pub fn __len__(&self) -> usize {
-        self.data.matrix().rows()
+        self.data.rows()
     }
 
     pub fn __getitem__<'py>(slf: PyRef<'py, Self>, index: isize) -> PyResult<PyObject> {
         let mut index_ = index;
         if index_ < 0 {
-            index_ += slf.data.matrix().rows() as isize;
+            index_ += slf.data.rows() as isize;
         }
-        if index_ < 0 || (index_ as usize) >= slf.data.matrix().rows() {
+        if index_ < 0 || (index_ as usize) >= slf.data.rows() {
             return Err(PyIndexError::new_err(index));
         }
 
-        let row = &slf.data.matrix()[index_ as usize];
-        Ok(row.to_object(slf.py()))
+        let py = slf.py();
+        let row = match &slf.data {
+            ScoringMatrixData::Dna(dna) => dna.matrix()[index_ as usize].to_object(py),
+            ScoringMatrixData::Protein(prot) => prot.matrix()[index_ as usize].to_object(py),
+        };
+
+        Ok(row)
     }
 
     /// Calculate the PSSM score for all positions of the given sequence.
@@ -528,18 +796,34 @@ impl ScoringMatrix {
     ///     This method uses the best implementation for the local platform,
     ///     prefering AVX2 if available.
     ///
-    pub fn calculate(slf: PyRef<'_, Self>, sequence: &mut StripedSequence) -> StripedScores {
+    pub fn calculate(
+        slf: PyRef<'_, Self>,
+        sequence: &mut StripedSequence,
+    ) -> PyResult<StripedScores> {
         let pssm = &slf.data;
         let seq = &mut sequence.data;
-        seq.configure(pssm);
-        let pli = lightmotif::pli::Pipeline::dispatch();
-        slf.py().allow_threads(|| pli.score(pssm, seq)).into()
+        match (seq, pssm) {
+            (StripedSequenceData::Dna(dna), ScoringMatrixData::Dna(pssm)) => {
+                let pli = lightmotif::pli::Pipeline::dispatch();
+                dna.configure(pssm);
+                Ok(slf.py().allow_threads(|| pli.score(pssm, dna)).into())
+            }
+            (StripedSequenceData::Protein(prot), ScoringMatrixData::Protein(pssm)) => {
+                let pli = lightmotif::pli::Pipeline::dispatch();
+                prot.configure(pssm);
+                Ok(slf.py().allow_threads(|| pli.score(pssm, prot)).into())
+            }
+            (_, _) => Err(PyValueError::new_err("alphabet mismatch")),
+        }
     }
 
     /// Translate an absolute score to a P-value for this PSSM.
     pub fn pvalue(slf: PyRef<'_, Self>, score: f64) -> PyResult<f64> {
         #[cfg(feature = "pvalues")]
-        return Ok(lightmotif_tfmpvalue::TfmPvalue::new(&slf.data).pvalue(score));
+        match &slf.data {
+            ScoringMatrixData::Dna(dna) => Ok(TfmPvalue::new(&dna).pvalue(score)),
+            ScoringMatrixData::Protein(prot) => Ok(TfmPvalue::new(&prot).pvalue(score)),
+        }
         #[cfg(not(feature = "pvalues"))]
         return Err(PyRuntimeError::new_err(
             "package compiled without p-value support",
@@ -549,7 +833,10 @@ impl ScoringMatrix {
     /// Translate a P-value to an absolute score for this PSSM.
     pub fn score(slf: PyRef<'_, Self>, pvalue: f64) -> PyResult<f64> {
         #[cfg(feature = "pvalues")]
-        return Ok(lightmotif_tfmpvalue::TfmPvalue::new(&slf.data).score(pvalue));
+        match &slf.data {
+            ScoringMatrixData::Dna(dna) => Ok(TfmPvalue::new(&dna).score(pvalue)),
+            ScoringMatrixData::Protein(prot) => Ok(TfmPvalue::new(&prot).score(pvalue)),
+        }
         #[cfg(not(feature = "pvalues"))]
         return Err(PyRuntimeError::new_err(
             "package compiled without p-value support",
@@ -557,13 +844,20 @@ impl ScoringMatrix {
     }
 
     /// Compute the reverse complement of this scoring matrix.
-    pub fn reverse_complement(slf: PyRef<'_, Self>) -> ScoringMatrix {
-        slf.data.reverse_complement().into()
+    pub fn reverse_complement(slf: PyRef<'_, Self>) -> PyResult<ScoringMatrix> {
+        match &slf.data {
+            ScoringMatrixData::Dna(dna) => Ok(Self::from(ScoringMatrixData::from(
+                dna.reverse_complement(),
+            ))),
+            ScoringMatrixData::Protein(_) => Err(PyRuntimeError::new_err(
+                "cannot complement a protein sequence",
+            )),
+        }
     }
 }
 
-impl From<lightmotif::ScoringMatrix<lightmotif::Dna>> for ScoringMatrix {
-    fn from(data: lightmotif::ScoringMatrix<lightmotif::Dna>) -> Self {
+impl From<ScoringMatrixData> for ScoringMatrix {
+    fn from(data: ScoringMatrixData) -> Self {
         Self { data }
     }
 }
@@ -718,8 +1012,15 @@ pub struct Motif {
 
 /// Create a new motif from an iterable of sequences.
 ///
-/// All sequences must have the same length, and must contain only valid DNA
-/// symbols (*A*, *T*, *G*, *C*, or *N* as a wildcard).
+/// All sequences must have the same length, and must contain only valid
+/// alphabet symbols (*ATGCN* for nucleotides, *ACDEFGHIKLMNPQRSTVWYX*
+/// for proteins).
+///
+/// Arguments:
+///     sequences (iterable of `str`): The sequences to use to build the
+///         count matrix for the motif.
+///     protein (`bool`): Pass `True` to build a protein motif. Defaults
+///         to `False`.
 ///
 /// Example:
 ///     >>> sequences = ["TATAAT", "TATAAA", "TATATT", "TATAAT"]
@@ -728,38 +1029,53 @@ pub struct Motif {
 /// Returns:
 ///     `~lightmotif.Motif`: The motif corresponding to the given sequences.
 ///
+/// Raises:
+///     `ValueError`: When any of the sequences contain an invalid character,
+///         or when the sequence lengths are not consistent.
+///
 #[pyfunction]
-pub fn create(sequences: Bound<PyAny>) -> PyResult<Motif> {
+#[pyo3(signature = (sequences, protein = false))]
+pub fn create(sequences: Bound<PyAny>, protein: bool) -> PyResult<Motif> {
     let py = sequences.py();
+    macro_rules! run {
+        ($alphabet:ty) => {{
+            let mut encoded = Vec::new();
+            for seq in sequences.iter()? {
+                let s = seq?.extract::<Bound<PyString>>()?;
+                let sequence = s.to_str()?;
+                let x = py
+                    .allow_threads(|| lightmotif::EncodedSequence::<$alphabet>::encode(sequence))
+                    .map_err(|_| PyValueError::new_err("Invalid symbol in sequence"))?;
+                encoded.push(x);
+            }
 
-    let mut encoded = Vec::new();
-    for seq in sequences.iter()? {
-        let s = seq?.extract::<Bound<PyString>>()?;
-        let sequence = s.to_str()?;
-        let x = py
-            .allow_threads(|| lightmotif::EncodedSequence::encode(sequence))
-            .map_err(|_| PyValueError::new_err("Invalid symbol in sequence"))?;
-        encoded.push(x);
+            let data = lightmotif::CountMatrix::from_sequences(encoded)
+                .map_err(|_| PyValueError::new_err("Inconsistent sequence length"))?;
+            let weights = data.to_freq(0.0).to_weight(None);
+            let scoring = weights.to_scoring();
+
+            Ok(Motif {
+                counts: Py::new(py, CountMatrix::new(data))?,
+                pwm: Py::new(py, WeightMatrix::new(weights))?,
+                pssm: Py::new(py, ScoringMatrix::new(scoring))?,
+            })
+        }};
     }
 
-    let data = lightmotif::CountMatrix::from_sequences(encoded)
-        .map_err(|_| PyValueError::new_err("Inconsistent sequence length"))?;
-    let weights = data.to_freq(0.0).to_weight(None);
-    let scoring = weights.to_scoring();
-
-    Ok(Motif {
-        counts: Py::new(py, CountMatrix::from(data))?,
-        pwm: Py::new(py, WeightMatrix::from(weights))?,
-        pssm: Py::new(py, ScoringMatrix::from(scoring))?,
-    })
+    if protein {
+        run!(Protein)
+    } else {
+        run!(Dna)
+    }
 }
 
 /// Encode and stripe a text sequence.
 #[pyfunction]
-pub fn stripe(sequence: Bound<PyAny>) -> PyResult<StripedSequence> {
+#[pyo3(signature = (sequence, protein=false))]
+pub fn stripe(sequence: Bound<PyAny>, protein: bool) -> PyResult<StripedSequence> {
     let py = sequence.py();
     let s = sequence.extract::<Bound<PyString>>()?;
-    let encoded = EncodedSequence::__init__(s).and_then(|e| Py::new(py, e))?;
+    let encoded = EncodedSequence::__init__(s, protein).and_then(|e| Py::new(py, e))?;
     let striped = encoded.borrow(py).stripe();
     striped
 }
@@ -767,6 +1083,22 @@ pub fn stripe(sequence: Bound<PyAny>) -> PyResult<StripedSequence> {
 /// PyO3 bindings to ``lightmotif``, a library for fast PWM motif scanning.
 ///
 /// The API is similar to the `Bio.motifs` module from Biopython on purpose.
+///
+/// Note:
+///     Arbitrary alphabets cannot be configured, as ``lightmotif`` uses
+///     constant definitions of alphabets that cannot be changed at runtime.
+///     The different sequences are treated as nucleotide sequences. To use
+///     a protein sequence instead, most classes and functions
+///     have a ``protein`` keyword `True`::
+///
+///         >>> sequences = ["PILFFRLK", "KDMLKEYL", "PFRLTHKL"]
+///         >>> lightmotif.create(sequences)
+///         Traceback (most recent call last):
+///           ...
+///         ValueError: Invalid symbol in sequence
+///         >>> lightmotif.create(sequences, protein=True)
+///         <lightmotif.lib.Motif object at ...>
+///
 #[pymodule]
 #[pyo3(name = "lib")]
 pub fn init<'py>(_py: Python<'py>, m: &Bound<PyModule>) -> PyResult<()> {
