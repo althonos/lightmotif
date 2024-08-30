@@ -84,7 +84,10 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
         }
 
         if !self.buffer.is_empty() {
-            let record = super::parse::parse_record::<A>(&self.buffer).unwrap().1;
+            let record = match super::parse::parse_record::<A>(&self.buffer) {
+                Err(e) => return Some(Err(Error::from(e))),
+                Ok(x) => x.1,
+            };
             self.buffer.clear();
             self.last = 0;
             Some(Ok(record))
