@@ -25,8 +25,12 @@ where
     ScoringMatrixData: From<lightmotif::pwm::ScoringMatrix<A>>,
 {
     let record = record.unwrap();
+    let name = record.id().to_string();
     let counts = record.into_matrix();
-    Python::with_gil(|py| Motif::from_counts(py, counts))
+
+    let mut motif = Python::with_gil(|py| Motif::from_counts(py, counts))?;
+    motif.name = Some(name);
+    Ok(motif)
 }
 
 fn convert_transfac<A>(record: Result<lightmotif_io::transfac::Record<A>, Error>) -> PyResult<Motif>
@@ -37,10 +41,13 @@ where
     ScoringMatrixData: From<lightmotif::pwm::ScoringMatrix<A>>,
 {
     let record = record.unwrap();
+    let name = record.accession().or(record.id()).map(String::from);
     let counts = record
         .to_counts()
         .ok_or_else(|| PyValueError::new_err("invalid count matrix"))?;
-    Python::with_gil(|py| Motif::from_counts(py, counts))
+    let mut motif = Python::with_gil(|py| Motif::from_counts(py, counts))?;
+    motif.name = name;
+    Ok(motif)
 }
 
 fn convert_uniprobe<A>(record: Result<lightmotif_io::uniprobe::Record<A>, Error>) -> PyResult<Motif>
@@ -50,9 +57,12 @@ where
     ScoringMatrixData: From<lightmotif::pwm::ScoringMatrix<A>>,
 {
     let record = record.unwrap();
+    let name = record.id().to_string();
     let freqs = record.into_matrix();
     let weights = freqs.to_weight(None);
-    Python::with_gil(|py| Motif::from_weights(py, weights))
+    let mut motif = Python::with_gil(|py| Motif::from_weights(py, weights))?;
+    motif.name = Some(name);
+    Ok(motif)
 }
 
 #[pyclass(module = "lightmotif.lib")]

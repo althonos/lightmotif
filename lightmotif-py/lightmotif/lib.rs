@@ -1049,6 +1049,8 @@ pub struct Motif {
     pwm: Py<WeightMatrix>,
     #[pyo3(get)]
     pssm: Py<ScoringMatrix>,
+    #[pyo3(get)]
+    name: Option<String>,
 }
 
 impl Motif {
@@ -1065,6 +1067,7 @@ impl Motif {
             counts: Some(Py::new(py, CountMatrix::new(counts))?),
             pwm: Py::new(py, WeightMatrix::new(weights))?,
             pssm: Py::new(py, ScoringMatrix::new(scoring))?,
+            name: None,
         })
     }
 
@@ -1079,6 +1082,7 @@ impl Motif {
             counts: None,
             pwm: Py::new(py, WeightMatrix::new(weights))?,
             pssm: Py::new(py, ScoringMatrix::new(scoring))?,
+            name: None,
         })
     }
 }
@@ -1154,8 +1158,8 @@ impl From<lightmotif::scan::Hit> for Hit {
 ///         or when the sequence lengths are not consistent.
 ///
 #[pyfunction]
-#[pyo3(signature = (sequences, protein = false))]
-pub fn create(sequences: Bound<PyAny>, protein: bool) -> PyResult<Motif> {
+#[pyo3(signature = (sequences, protein = false, name = None))]
+pub fn create(sequences: Bound<PyAny>, protein: bool, name: Option<String>) -> PyResult<Motif> {
     let py = sequences.py();
     macro_rules! run {
         ($alphabet:ty) => {{
@@ -1178,6 +1182,7 @@ pub fn create(sequences: Bound<PyAny>, protein: bool) -> PyResult<Motif> {
                 counts: Some(Py::new(py, CountMatrix::new(data))?),
                 pwm: Py::new(py, WeightMatrix::new(weights))?,
                 pssm: Py::new(py, ScoringMatrix::new(scoring))?,
+                name,
             })
         }};
     }
