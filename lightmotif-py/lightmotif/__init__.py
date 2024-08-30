@@ -12,6 +12,7 @@ from .lib import (
     create,
     stripe,
     scan,
+    load
 )
 
 __author__ = lib.__author__
