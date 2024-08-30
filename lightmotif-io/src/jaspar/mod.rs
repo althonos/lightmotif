@@ -60,6 +60,12 @@ impl AsRef<CountMatrix<Dna>> for Record {
     }
 }
 
+impl From<Record> for CountMatrix<Dna> {
+    fn from(value: Record) -> Self {
+        value.matrix
+    }
+}
+
 // ---
 
 /// An iterative reader for the JASPAR format.

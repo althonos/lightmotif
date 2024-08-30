@@ -39,6 +39,11 @@ impl<A: Alphabet> Record<A> {
     pub fn matrix(&self) -> &FrequencyMatrix<A> {
         &self.matrix
     }
+
+    /// Take the frequency matrix of the record.
+    pub fn into_matrix(self) -> FrequencyMatrix<A> {
+        self.matrix
+    }
 }
 
 impl<A: Alphabet> AsRef<FrequencyMatrix<A>> for Record<A> {

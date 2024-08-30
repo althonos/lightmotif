@@ -19,6 +19,9 @@ doctest = false
 [dependencies.lightmotif]
 path = "../lightmotif"
 version = "0.8.0"
+[dependencies.lightmotif-io]
+path = "../lightmotif-io"
+version = "0.8.0"
 [dependencies.lightmotif-tfmpvalue]
 optional = true
 path = "../lightmotif-tfmpvalue"

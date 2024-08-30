@@ -49,6 +49,11 @@ impl<A: Alphabet> Record<A> {
     pub fn matrix(&self) -> &CountMatrix<A> {
         &self.matrix
     }
+
+    /// Take the count matrix of the record.
+    pub fn into_matrix(self) -> CountMatrix<A> {
+        self.matrix
+    }
 }
 
 impl<A: Alphabet> AsRef<CountMatrix<A>> for Record<A> {

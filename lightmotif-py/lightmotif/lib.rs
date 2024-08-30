@@ -34,6 +34,10 @@ use pyo3::types::PyDict;
 use pyo3::types::PyList;
 use pyo3::types::PyString;
 
+mod io;
+
+// --- Macros ------------------------------------------------------------------
+
 macro_rules! impl_matrix_methods {
     ($datatype:ident) => {
         impl $datatype {
@@ -1040,11 +1044,43 @@ impl From<lightmotif::scores::StripedScores<f32, C>> for StripedScores {
 #[derive(Debug)]
 pub struct Motif {
     #[pyo3(get)]
-    counts: Py<CountMatrix>,
+    counts: Option<Py<CountMatrix>>,
     #[pyo3(get)]
     pwm: Py<WeightMatrix>,
     #[pyo3(get)]
     pssm: Py<ScoringMatrix>,
+}
+
+impl Motif {
+    fn from_counts<A>(py: Python, counts: lightmotif::pwm::CountMatrix<A>) -> PyResult<Self>
+    where
+        A: Alphabet,
+        CountMatrixData: From<lightmotif::pwm::CountMatrix<A>>,
+        WeightMatrixData: From<lightmotif::pwm::WeightMatrix<A>>,
+        ScoringMatrixData: From<lightmotif::pwm::ScoringMatrix<A>>,
+    {
+        let weights = counts.to_freq(0.0).to_weight(None);
+        let scoring = weights.to_scoring();
+        Ok(Motif {
+            counts: Some(Py::new(py, CountMatrix::new(counts))?),
+            pwm: Py::new(py, WeightMatrix::new(weights))?,
+            pssm: Py::new(py, ScoringMatrix::new(scoring))?,
+        })
+    }
+
+    fn from_weights<A>(py: Python, weights: lightmotif::pwm::WeightMatrix<A>) -> PyResult<Self>
+    where
+        A: Alphabet,
+        WeightMatrixData: From<lightmotif::pwm::WeightMatrix<A>>,
+        ScoringMatrixData: From<lightmotif::pwm::ScoringMatrix<A>>,
+    {
+        let scoring = weights.to_scoring();
+        Ok(Motif {
+            counts: None,
+            pwm: Py::new(py, WeightMatrix::new(weights))?,
+            pssm: Py::new(py, ScoringMatrix::new(scoring))?,
+        })
+    }
 }
 
 // --- Scanner -----------------------------------------------------------------
@@ -1139,7 +1175,7 @@ pub fn create(sequences: Bound<PyAny>, protein: bool) -> PyResult<Motif> {
             let scoring = weights.to_scoring();
 
             Ok(Motif {
-                counts: Py::new(py, CountMatrix::new(data))?,
+                counts: Some(Py::new(py, CountMatrix::new(data))?),
                 pwm: Py::new(py, WeightMatrix::new(weights))?,
                 pssm: Py::new(py, ScoringMatrix::new(scoring))?,
             })
@@ -1251,9 +1287,12 @@ pub fn init<'py>(_py: Python<'py>, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<Scanner>()?;
     m.add_class::<Hit>()?;
 
+    m.add_class::<io::Loader>()?;
+
     m.add_function(wrap_pyfunction!(create, m)?)?;
     m.add_function(wrap_pyfunction!(scan, m)?)?;
     m.add_function(wrap_pyfunction!(stripe, m)?)?;
+    m.add_function(wrap_pyfunction!(io::load, m)?)?;
 
     Ok(())
 }
