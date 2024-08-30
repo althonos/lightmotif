@@ -11,6 +11,7 @@ from .lib import (
     StripedScores,
     create,
     stripe,
+    scan,
 )
 
 __author__ = lib.__author__
