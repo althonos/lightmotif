@@ -6,9 +6,11 @@ extern crate lightmotif;
 extern crate lightmotif_tfmpvalue;
 extern crate pyo3;
 
+use std::borrow::Borrow;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::pin::Pin;
+use std::sync::Arc;
 
 use lightmotif::abc::Alphabet;
 use lightmotif::abc::Dna;
@@ -1089,18 +1091,20 @@ impl Motif {
 
 // --- Scanner -----------------------------------------------------------------
 
-#[derive(Debug)]
-enum ScannerData<'py> {
-    Dna(lightmotif::scan::Scanner<'py, Dna, C>),
-    // Protein(lightmotif::scan::Scanner::<'py, Protein, C>),
-}
-
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Debug)]
 pub struct Scanner {
-    pssm: Pin<Box<lightmotif::pwm::ScoringMatrix<Dna>>>,
-    sequence: Pin<Box<lightmotif::seq::StripedSequence<Dna, C>>>,
-    data: lightmotif::scan::Scanner<'static, Dna, C>,
+    #[allow(unused)]
+    pssm: Py<ScoringMatrix>,
+    #[allow(unused)]
+    sequence: Py<StripedSequence>,
+    data: lightmotif::scan::Scanner<
+        'static,
+        Dna,
+        &'static lightmotif::pwm::ScoringMatrix<Dna>,
+        &'static lightmotif::seq::StripedSequence<Dna, C>,
+        C,
+    >,
 }
 
 #[pymethods]
@@ -1208,35 +1212,37 @@ pub fn stripe(sequence: Bound<PyAny>, protein: bool) -> PyResult<StripedSequence
 /// Scan a sequence using a fast scanner implementation to identify hits.
 #[pyfunction]
 #[pyo3(signature = (pssm, sequence, threshold = 0.0, block_size = 256))]
-pub fn scan(
-    pssm: Bound<ScoringMatrix>,
-    sequence: Bound<StripedSequence>,
+pub fn scan<'py>(
+    pssm: Bound<'py, ScoringMatrix>,
+    sequence: Bound<'py, StripedSequence>,
     threshold: f32,
     block_size: usize,
-) -> PyResult<Scanner> {
-    match (&pssm.try_borrow()?.data, &sequence.try_borrow()?.data) {
+) -> PyResult<Bound<'py, Scanner>> {
+    let py = pssm.py();
+    match (
+        &pssm.try_borrow()?.data,
+        &mut sequence.try_borrow_mut()?.data,
+    ) {
         (ScoringMatrixData::Dna(p), StripedSequenceData::Dna(s)) => {
-            // Move data to the heap so that it doesn't get unallocated
-            // while the scanner is in use (the scanner needs to have
-            // access to the data through a reference)
-            let p = Box::new(p.clone());
-            let mut s = Box::new(s.clone());
             s.configure(&p);
             // transmute (!!!!!) the scanner so that its lifetime is 'static
             // (i.e. the reference to the PSSM and sequence never expire),
             // which is possible because we are building a self-referential
             // struct
             let scanner = unsafe {
-                let mut s = lightmotif::scan::Scanner::<Dna, C>::new(&p, &s);
-                s.threshold(threshold);
-                s.block_size(block_size);
-                std::mem::transmute(s)
+                let mut scanner = lightmotif::scan::Scanner::<Dna, _, _, C>::new(p, s);
+                scanner.threshold(threshold);
+                scanner.block_size(block_size);
+                std::mem::transmute(scanner)
             };
-            Ok(Scanner {
-                data: scanner,
-                pssm: Pin::new(p),
-                sequence: Pin::new(s),
-            })
+            Bound::new(
+                py,
+                Scanner {
+                    data: scanner,
+                    pssm: pssm.unbind(),
+                    sequence: sequence.unbind(),
+                },
+            )
         }
         (ScoringMatrixData::Protein(_), StripedSequenceData::Protein(_)) => {
             Err(PyValueError::new_err("protein scanner is not supported"))
