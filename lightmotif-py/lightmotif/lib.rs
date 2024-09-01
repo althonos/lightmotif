@@ -37,6 +37,7 @@ use pyo3::types::PyList;
 use pyo3::types::PyString;
 
 mod io;
+mod pyfile;
 
 // --- Macros ------------------------------------------------------------------
 
@@ -1042,7 +1043,7 @@ impl From<lightmotif::scores::StripedScores<f32, C>> for StripedScores {
 
 // --- Motif -------------------------------------------------------------------
 
-#[pyclass(module = "lightmotif.lib")]
+#[pyclass(module = "lightmotif.lib", subclass)]
 #[derive(Debug)]
 pub struct Motif {
     #[pyo3(get)]
@@ -1294,6 +1295,9 @@ pub fn init<'py>(_py: Python<'py>, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<StripedScores>()?;
 
     m.add_class::<Motif>()?;
+    m.add_class::<io::TransfacMotif>()?;
+    m.add_class::<io::JasparMotif>()?;
+    m.add_class::<io::UniprobeMotif>()?;
 
     m.add_class::<Scanner>()?;
     m.add_class::<Hit>()?;

@@ -59,7 +59,7 @@ class TestTRANSFAC(_TestLoad, unittest.TestCase):
     length = 1
     first = "M00005"
     text = """
-    AC  M00005
+    NA  M00005
     P0      A      C      G      T
     01      3      0      0      2      W
     02      1      1      3      0      G
