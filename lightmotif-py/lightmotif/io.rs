@@ -9,6 +9,7 @@ use lightmotif_io::error::Error;
 use pyo3::exceptions::PyOSError;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::types::PyBytes;
 use pyo3::types::PyString;
 
 use super::pyfile::PyFileRead;
@@ -160,8 +161,18 @@ impl Loader {
 #[pyfunction]
 #[pyo3(signature = (file, format="jaspar", *, protein=false))]
 pub fn load(file: Bound<PyAny>, format: &str, protein: bool) -> PyResult<Loader> {
-    let b: Box<dyn BufRead + Send> = if let Ok(s) = file.downcast::<PyString>() {
-        std::fs::File::open(s.to_str()?)
+    let py = file.py();
+    let pathlike = py
+        .import_bound(pyo3::intern!(py, "os"))?
+        .call_method1("fsencode", (&file,));
+    let b: Box<dyn BufRead + Send> = if let Ok(path) = pathlike {
+        // NOTE(@althonos): In theory this is safe because `os.fsencode` encodes
+        //                  the PathLike object into the OS prefered encoding,
+        //                  which is was OsStr wants. In practice, there may be
+        //                  some weird bugs if that encoding is incorrect, idk...
+        let encoded = path.downcast::<PyBytes>()?;
+        let s = unsafe { std::ffi::OsStr::from_encoded_bytes_unchecked(encoded.as_bytes()) };
+        std::fs::File::open(s)
             .map(std::io::BufReader::new)
             .map(Box::new)?
     } else {

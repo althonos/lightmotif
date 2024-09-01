@@ -1,7 +1,9 @@
 import unittest
 import io
+import os
 import textwrap
 import tempfile
+import pathlib
 
 import lightmotif
 
@@ -21,6 +23,25 @@ class _TestLoad():
             f.write(text)
             f.flush()
             motifs = list(lightmotif.load(f.name, self.format))
+        self.assertEqual(len(motifs), self.length)
+        self.assertEqual(motifs[0].name, self.first)
+
+    def test_load_filename_bytes(self):
+        text = textwrap.dedent(self.text).encode()
+        with tempfile.NamedTemporaryFile("r+b") as f:
+            f.write(text)
+            f.flush()
+            motifs = list(lightmotif.load(os.fsencode(f.name), self.format))
+        self.assertEqual(len(motifs), self.length)
+        self.assertEqual(motifs[0].name, self.first)
+
+    def test_load_path(self):
+        text = textwrap.dedent(self.text).encode()
+        with tempfile.NamedTemporaryFile("r+b") as f:
+            f.write(text)
+            f.flush()
+            path = pathlib.Path(f.name)
+            motifs = list(lightmotif.load(path, self.format))
         self.assertEqual(len(motifs), self.length)
         self.assertEqual(motifs[0].name, self.first)
 
