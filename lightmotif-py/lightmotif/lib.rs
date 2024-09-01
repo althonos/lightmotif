@@ -1202,10 +1202,9 @@ pub fn create(sequences: Bound<PyAny>, protein: bool, name: Option<String>) -> P
 /// Encode and stripe a text sequence.
 #[pyfunction]
 #[pyo3(signature = (sequence, protein=false))]
-pub fn stripe(sequence: Bound<PyAny>, protein: bool) -> PyResult<StripedSequence> {
+pub fn stripe(sequence: Bound<PyString>, protein: bool) -> PyResult<StripedSequence> {
     let py = sequence.py();
-    let s = sequence.extract::<Bound<PyString>>()?;
-    let encoded = EncodedSequence::__init__(s, protein).and_then(|e| Py::new(py, e))?;
+    let encoded = EncodedSequence::__init__(sequence, protein).and_then(|e| Py::new(py, e))?;
     let striped = encoded.borrow(py).stripe();
     striped
 }

@@ -100,8 +100,11 @@ impl UniprobeMotif {
 
 #[pyclass(module = "lightmotif.lib", extends = Motif)]
 pub struct TransfacMotif {
+    #[pyo3(get)]
     id: Option<String>,
+    #[pyo3(get)]
     accession: Option<String>,
+    #[pyo3(get)]
     description: Option<String>,
 }
 
