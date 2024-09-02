@@ -3,11 +3,20 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-LightMotif |Stars|
-==================
+|Dark| |Light| LightMotif |Stars|
+=================================
+
+.. |Dark| image:: _images/logo-dark.png
+   :class: only-dark 
+   :scale: 50%
+
+.. |Light| image:: _images/logo-light.png
+   :class: only-light
+   :scale: 50%
 
 .. |Stars| image:: https://img.shields.io/github/stars/althonos/lightmotif.svg?style=social&maxAge=3600&label=Star
    :target: https://github.com/althonos/lightmotif/stargazers
+   :class: dark-light
 
 *A lightweight* `platform-accelerated <https://en.wikipedia.org/wiki/Single_instruction,_multiple_data>`_ *library for* `biological motif <https://en.wikipedia.org/wiki/Sequence_motif>`_ *scanning using* `position weight matrices <https://en.wikipedia.org/wiki/Position_weight_matrix>`_.
 
@@ -74,6 +83,7 @@ Position weight matrices are often viewed as `sequence logos <https://en.wikiped
 
 .. image:: https://raw.githubusercontent.com/althonos/lightmotif/main/docs/_static/prodoric_logo_mx000274.svg
    :target: https://www.prodoric.de/matrix/MX000274.html
+   :class: dark-light
 
 The ``lightmotif`` library provides a Python module to run very efficient
 searches for a motif encoded in a position weight matrix. The position

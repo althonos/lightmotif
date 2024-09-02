@@ -132,8 +132,8 @@ html_theme_options = {
     ],
     "logo": {
         "text": "LightMotif",
-        # "image_light": "_images/logo.png",
-        # "image_dark": "_images/logo.png",
+        "image_light": "_images/logo-light.png",
+        "image_dark": "_images/logo-dark.png",
     },
     "navbar_start": ["navbar-logo", "version-switcher"],
     "navbar_align": "left",
@@ -152,7 +152,7 @@ html_context = {
     "doc_path": "docs",
 }
 
-# html_favicon = '_images/favicon.ico'
+html_favicon = '_images/favicon.ico'
 
 
 # -- Options for HTMLHelp output ---------------------------------------------
