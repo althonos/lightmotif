@@ -31,8 +31,8 @@
 .. |License| image:: https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square&maxAge=2678400
    :target: https://choosealicense.com/licenses/mit/
 
-.. |Docs| image:: https://img.shields.io/readthedocs/lightmotif/latest?style=flat-square&maxAge=600
-   :target: https://lightmotif.readthedocs.io
+.. |Docs| image:: https://img.shields.io/readthedocs/lightmotif/stable?style=flat-square&maxAge=600
+   :target: https://lightmotif.readthedocs.io/en/stable/
 
 .. |Crate| image:: https://img.shields.io/crates/v/lightmotif-py.svg?maxAge=600&style=flat-square
    :target: https://crates.io/crates/lightmotif-py
@@ -90,10 +90,29 @@ searches for a motif encoded in a position weight matrix. The position
 scanning combines several techniques to allow high-throughput processing
 of sequences:
 
-- Compile-time definition of alphabets and matrix dimensions.
-- Sequence symbol encoding for fast table look-ups, as implemented in HMMER or MEME
-- Striped sequence matrices to process several positions in parallel, inspired by Michael Farrar.
-- Vectorized matrix row look-up using ``permute`` instructions of `AVX2 <https://fr.wikipedia.org/wiki/Advanced_Vector_Extensions>`_.
+.. grid:: 1 2 4 4
+   :gutter: 1
+
+   .. grid-item-card:: :fas:`fa-solid fa-arrow-down-a-z` Constant alphabets
+
+      Compile-time definition of alphabets and matrix dimensions, allowing
+      constant pointer incrementation in loops over strided arrays.
+
+   .. grid-item-card:: :fas:`fa-solid fa-arrow-down-1-9` Ordinal encoding
+
+      Sequence symbol encoding as indices fo fast table look-ups, as 
+      implemented in `HMMER <https://hmmer.org>`_ or 
+      `MEME <https://meme-suite.org/>`_.
+
+   .. grid-item-card:: :fas:`fa-solid fa-table` Striped matrices
+
+      Striped sequence matrices for parallel processing, 
+      inspired by Michael Farrar (:pmid:`17110365`).
+
+   .. grid-item-card:: :fas:`fa-solid fa-microchip` Platform code
+
+      Vectorized matrix-row look-up using ``permute`` instructions of 
+      `AVX2 <https://fr.wikipedia.org/wiki/Advanced_Vector_Extensions>`_.
 
 *This is the Python version, there is a* `Rust crate <https://docs.rs/lightmotif>`_ *available as well.*
 
