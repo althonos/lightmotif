@@ -40,7 +40,7 @@ impl<T> std::ops::Deref for CowMut<'_, T> {
     fn deref(&self) -> &T {
         match self {
             CowMut::Owned(it) => it,
-            CowMut::Borrowed(it) => *it,
+            CowMut::Borrowed(it) => it,
         }
     }
 }
@@ -49,7 +49,7 @@ impl<T> std::ops::DerefMut for CowMut<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
         match self {
             CowMut::Owned(it) => it,
-            CowMut::Borrowed(it) => *it,
+            CowMut::Borrowed(it) => it,
         }
     }
 }

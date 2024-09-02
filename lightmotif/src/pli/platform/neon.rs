@@ -264,7 +264,7 @@ impl Neon {
             );
         }
 
-        if seq.len() < pssm.rows() || rows.len() == 0 {
+        if seq.len() < pssm.rows() || rows.is_empty() {
             scores.resize(0, 0);
             return;
         }
@@ -302,7 +302,7 @@ impl Neon {
             );
         }
 
-        if seq.len() < pssm.rows() || rows.len() == 0 {
+        if seq.len() < pssm.rows() || rows.is_empty() {
             scores.resize(0, 0);
             return;
         }

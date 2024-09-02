@@ -186,10 +186,10 @@ pub fn parse_reference(mut input: &str) -> IResult<&str, Reference> {
 
 pub fn parse_record<A: Alphabet>(mut input: &str) -> IResult<&str, Record<A>> {
     let mut accession = None;
-    let mut ba = None;
+    let mut _ba = None;
     let mut name = None;
     let mut id = None;
-    let mut copyright = None;
+    let mut _copyright = None;
     let mut description = None;
     let mut dates = Vec::new();
     let mut references = Vec::new();
@@ -207,7 +207,7 @@ pub fn parse_record<A: Alphabet>(mut input: &str) -> IResult<&str, Record<A>> {
             }
             "BA" => {
                 let (rest, line) = preceded(tag("BA"), parse_line)(input)?;
-                ba = Some(line.trim().to_string()); // FIXME: check uniqueness?
+                _ba = Some(line.trim().to_string()); // FIXME: check uniqueness?
                 input = rest;
             }
             "BS" => {
@@ -227,7 +227,7 @@ pub fn parse_record<A: Alphabet>(mut input: &str) -> IResult<&str, Record<A>> {
             }
             "CO" => {
                 let (rest, line) = preceded(tag("CO"), parse_line)(input)?;
-                copyright = Some(line.trim().to_string()); // FIXME: check uniqueness?
+                _copyright = Some(line.trim().to_string()); // FIXME: check uniqueness?
                 input = rest;
             }
             "DE" => {

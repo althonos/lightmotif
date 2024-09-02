@@ -28,10 +28,16 @@ macro_rules! matrix_traits {
                 &self.data
             }
 
-            /// The length of the motif encoded in this matrix.
+            /// Get the length of the motif encoded in this matrix.
             #[inline]
             pub const fn len(&self) -> usize {
                 self.data.rows()
+            }
+
+            /// Check whether the matrix is empty.
+            #[inline]
+            pub const fn is_empty(&self) -> bool {
+                self.data.rows() == 0
             }
         }
 
@@ -115,7 +121,7 @@ impl<A: Alphabet> CountMatrix<A> {
     /// ]);
     /// assert!(result.is_err());
     /// ```
-    pub fn from_sequences<'seq, I>(sequences: I) -> Result<Self, InvalidData>
+    pub fn from_sequences<I>(sequences: I) -> Result<Self, InvalidData>
     where
         I: IntoIterator,
         <I as IntoIterator>::Item: AsRef<EncodedSequence<A>>,

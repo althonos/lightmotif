@@ -87,8 +87,8 @@ where
         let mut x: [u8; 16] = [0; 16];
         _mm_storeu_si128(x.as_mut_ptr() as *mut __m128i, error);
         if x.iter().any(|&x| x != 0) {
-            for i in 0..l {
-                let _ = A::Symbol::from_ascii(seq[i])?;
+            for x in seq.iter() {
+                let _ = A::Symbol::from_ascii(*x)?;
             }
         }
 
@@ -292,7 +292,7 @@ impl Sse2 {
             );
         }
 
-        if seq.len() < pssm.rows() || rows.len() == 0 {
+        if seq.len() < pssm.rows() || rows.is_empty() {
             scores.resize(0, 0);
             return;
         }

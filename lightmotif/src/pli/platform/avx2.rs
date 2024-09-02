@@ -84,8 +84,8 @@ where
         // If an invalid symbol was encountered, recover which one.
         // FIXME: run a vectorize the error search?
         if _mm256_testz_si256(error, error) != 1 {
-            for i in 0..l {
-                A::Symbol::from_ascii(seq[i])?;
+            for s in seq.iter() {
+                A::Symbol::from_ascii(*s)?;
             }
         }
 
@@ -540,6 +540,7 @@ unsafe fn max_u8_avx2(scores: &StripedScores<u8, <Avx2 as Backend>::LANES>) -> O
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
+#[allow(clippy::erasing_op, clippy::identity_op)]
 unsafe fn stripe_avx2<A>(
     seq: &[A::Symbol],
     striped: &mut StripedSequence<A, <Avx2 as Backend>::LANES>,
@@ -598,38 +599,38 @@ unsafe fn stripe_avx2<A>(
     // Process sequence block by block
     let mut i = 0;
     while i + <Avx2 as Backend>::LANES::USIZE <= src_stride {
-        let mut r00 = _mm256_loadu_si256(src.add(00 * src_stride) as _);
-        let mut r01 = _mm256_loadu_si256(src.add(src_stride) as _);
-        let mut r02 = _mm256_loadu_si256(src.add(02 * src_stride) as _);
-        let mut r03 = _mm256_loadu_si256(src.add(03 * src_stride) as _);
-        let mut r04 = _mm256_loadu_si256(src.add(04 * src_stride) as _);
-        let mut r05 = _mm256_loadu_si256(src.add(05 * src_stride) as _);
-        let mut r06 = _mm256_loadu_si256(src.add(06 * src_stride) as _);
-        let mut r07 = _mm256_loadu_si256(src.add(07 * src_stride) as _);
-        let mut r08 = _mm256_loadu_si256(src.add(08 * src_stride) as _);
-        let mut r09 = _mm256_loadu_si256(src.add(09 * src_stride) as _);
-        let mut r10 = _mm256_loadu_si256(src.add(10 * src_stride) as _);
-        let mut r11 = _mm256_loadu_si256(src.add(11 * src_stride) as _);
-        let mut r12 = _mm256_loadu_si256(src.add(12 * src_stride) as _);
-        let mut r13 = _mm256_loadu_si256(src.add(13 * src_stride) as _);
-        let mut r14 = _mm256_loadu_si256(src.add(14 * src_stride) as _);
-        let mut r15 = _mm256_loadu_si256(src.add(15 * src_stride) as _);
-        let mut r16 = _mm256_loadu_si256(src.add(16 * src_stride) as _);
-        let mut r17 = _mm256_loadu_si256(src.add(17 * src_stride) as _);
-        let mut r18 = _mm256_loadu_si256(src.add(18 * src_stride) as _);
-        let mut r19 = _mm256_loadu_si256(src.add(19 * src_stride) as _);
-        let mut r20 = _mm256_loadu_si256(src.add(20 * src_stride) as _);
-        let mut r21 = _mm256_loadu_si256(src.add(21 * src_stride) as _);
-        let mut r22 = _mm256_loadu_si256(src.add(22 * src_stride) as _);
-        let mut r23 = _mm256_loadu_si256(src.add(23 * src_stride) as _);
-        let mut r24 = _mm256_loadu_si256(src.add(24 * src_stride) as _);
-        let mut r25 = _mm256_loadu_si256(src.add(25 * src_stride) as _);
-        let mut r26 = _mm256_loadu_si256(src.add(26 * src_stride) as _);
-        let mut r27 = _mm256_loadu_si256(src.add(27 * src_stride) as _);
-        let mut r28 = _mm256_loadu_si256(src.add(28 * src_stride) as _);
-        let mut r29 = _mm256_loadu_si256(src.add(29 * src_stride) as _);
-        let mut r30 = _mm256_loadu_si256(src.add(30 * src_stride) as _);
-        let mut r31 = _mm256_loadu_si256(src.add(31 * src_stride) as _);
+        let mut r00 = _mm256_loadu_si256(src.add(0x00 * src_stride) as _);
+        let mut r01 = _mm256_loadu_si256(src.add(0x01 * src_stride) as _);
+        let mut r02 = _mm256_loadu_si256(src.add(0x02 * src_stride) as _);
+        let mut r03 = _mm256_loadu_si256(src.add(0x03 * src_stride) as _);
+        let mut r04 = _mm256_loadu_si256(src.add(0x04 * src_stride) as _);
+        let mut r05 = _mm256_loadu_si256(src.add(0x05 * src_stride) as _);
+        let mut r06 = _mm256_loadu_si256(src.add(0x06 * src_stride) as _);
+        let mut r07 = _mm256_loadu_si256(src.add(0x07 * src_stride) as _);
+        let mut r08 = _mm256_loadu_si256(src.add(0x08 * src_stride) as _);
+        let mut r09 = _mm256_loadu_si256(src.add(0x09 * src_stride) as _);
+        let mut r10 = _mm256_loadu_si256(src.add(0x0a * src_stride) as _);
+        let mut r11 = _mm256_loadu_si256(src.add(0x0b * src_stride) as _);
+        let mut r12 = _mm256_loadu_si256(src.add(0x0c * src_stride) as _);
+        let mut r13 = _mm256_loadu_si256(src.add(0x0d * src_stride) as _);
+        let mut r14 = _mm256_loadu_si256(src.add(0x0e * src_stride) as _);
+        let mut r15 = _mm256_loadu_si256(src.add(0x0f * src_stride) as _);
+        let mut r16 = _mm256_loadu_si256(src.add(0x10 * src_stride) as _);
+        let mut r17 = _mm256_loadu_si256(src.add(0x11 * src_stride) as _);
+        let mut r18 = _mm256_loadu_si256(src.add(0x12 * src_stride) as _);
+        let mut r19 = _mm256_loadu_si256(src.add(0x13 * src_stride) as _);
+        let mut r20 = _mm256_loadu_si256(src.add(0x14 * src_stride) as _);
+        let mut r21 = _mm256_loadu_si256(src.add(0x15 * src_stride) as _);
+        let mut r22 = _mm256_loadu_si256(src.add(0x16 * src_stride) as _);
+        let mut r23 = _mm256_loadu_si256(src.add(0x17 * src_stride) as _);
+        let mut r24 = _mm256_loadu_si256(src.add(0x18 * src_stride) as _);
+        let mut r25 = _mm256_loadu_si256(src.add(0x19 * src_stride) as _);
+        let mut r26 = _mm256_loadu_si256(src.add(0x1a * src_stride) as _);
+        let mut r27 = _mm256_loadu_si256(src.add(0x1b * src_stride) as _);
+        let mut r28 = _mm256_loadu_si256(src.add(0x1c * src_stride) as _);
+        let mut r29 = _mm256_loadu_si256(src.add(0x1d * src_stride) as _);
+        let mut r30 = _mm256_loadu_si256(src.add(0x1e * src_stride) as _);
+        let mut r31 = _mm256_loadu_si256(src.add(0x1f * src_stride) as _);
 
         unpack!(epi8, r00, r01);
         unpack!(epi8, r02, r03);
@@ -717,7 +718,7 @@ unsafe fn stripe_avx2<A>(
         unpack!(epi128, r15, r31);
 
         _mm256_stream_si256(out.add(0x00 * out_stride) as _, r00);
-        _mm256_stream_si256(out.add(out_stride) as _, r08);
+        _mm256_stream_si256(out.add(0x01 * out_stride) as _, r08);
         _mm256_stream_si256(out.add(0x02 * out_stride) as _, r04);
         _mm256_stream_si256(out.add(0x03 * out_stride) as _, r12);
         _mm256_stream_si256(out.add(0x04 * out_stride) as _, r02);
@@ -816,7 +817,7 @@ impl Avx2 {
             );
         }
 
-        if seq.len() < pssm.rows() || rows.len() == 0 {
+        if seq.len() < pssm.rows() || rows.is_empty() {
             scores.resize(0, 0);
             return;
         }
@@ -851,7 +852,7 @@ impl Avx2 {
             );
         }
 
-        if seq.len() < pssm.rows() || rows.len() == 0 {
+        if seq.len() < pssm.rows() || rows.is_empty() {
             scores.resize(0, 0);
             return;
         }
@@ -888,7 +889,7 @@ impl Avx2 {
             );
         }
 
-        if seq.len() < pssm.rows() || rows.len() == 0 {
+        if seq.len() < pssm.rows() || rows.is_empty() {
             scores.resize(0, 0);
             return;
         }

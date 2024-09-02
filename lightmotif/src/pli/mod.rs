@@ -36,6 +36,7 @@ pub mod platform;
 /// Used for encoding a sequence into rank-based encoding.
 pub trait Encode<A: Alphabet> {
     /// Encode the given sequence into a vector of symbols.
+    #[allow(clippy::uninit_vec)]
     fn encode_raw<S: AsRef<[u8]>>(&self, seq: S) -> Result<Vec<A::Symbol>, InvalidSymbol> {
         let s = seq.as_ref();
         let mut buffer = Vec::with_capacity(s.len());
@@ -84,7 +85,7 @@ pub trait Score<T: MatrixElement + AddAssign, A: Alphabet, C: StrictlyPositive +
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
 
-        if seq.len() < pssm.rows() || rows.len() == 0 {
+        if seq.len() < pssm.rows() || rows.is_empty() {
             scores.resize(0, 0);
             return;
         }
@@ -115,7 +116,7 @@ pub trait Score<T: MatrixElement + AddAssign, A: Alphabet, C: StrictlyPositive +
     {
         let s = seq.as_ref();
         let rows = s.matrix().rows() - s.wrap();
-        Self::score_rows_into(&self, pssm, s, 0..rows, scores)
+        self.score_rows_into(pssm, s, 0..rows, scores)
     }
 
     /// Compute the PSSM scores for every sequence positions.
@@ -272,14 +273,14 @@ impl<A: Alphabet> Pipeline<A, Dispatch> {
                 alphabet: std::marker::PhantomData,
             };
         }
-        #[cfg(any(target_arch = "x86"))]
+        #[cfg(target_arch = "x86")]
         if std::is_x86_feature_detected!("sse2") {
             return Self {
                 backend: Dispatch::Sse2,
                 alphabet: std::marker::PhantomData,
             };
         }
-        #[cfg(any(target_arch = "x86_64"))]
+        #[cfg(target_arch = "x86_64")]
         return Self {
             backend: Dispatch::Sse2,
             alphabet: std::marker::PhantomData,

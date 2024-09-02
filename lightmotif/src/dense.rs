@@ -8,8 +8,6 @@ use std::ops::Index;
 use std::ops::IndexMut;
 use std::ops::Range;
 
-use crate::abc::Alphabet;
-use crate::abc::Symbol;
 use crate::num::ArrayLength;
 
 // --- MatrixElement -----------------------------------------------------------
@@ -60,6 +58,7 @@ impl<T: MatrixElement, C: ArrayLength> DenseMatrix<T, C> {
     }
 
     /// Create a new *uninitialized* matrix with the given number of rows.
+    #[allow(clippy::uninit_vec)]
     pub unsafe fn uninitialized(rows: usize) -> Self {
         let mut m = Self::new(0);
         m.data.reserve(rows);
@@ -219,7 +218,7 @@ impl<'a, T: MatrixElement, C: ArrayLength> IntoIterator for &'a mut DenseMatrix<
     }
 }
 
-impl<'a, T: MatrixElement + PartialEq, C: ArrayLength> PartialEq for DenseMatrix<T, C> {
+impl<T: MatrixElement + PartialEq, C: ArrayLength> PartialEq for DenseMatrix<T, C> {
     fn eq(&self, other: &Self) -> bool {
         if self.rows() != other.rows() {
             return false;

@@ -3,6 +3,7 @@
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
+use std::fmt::Write;
 use std::ops::Index;
 use std::str::FromStr;
 
@@ -80,6 +81,12 @@ impl<A: Alphabet> EncodedSequence<A> {
         self.data.len()
     }
 
+    /// Check whether the sequence is empty.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
     /// Iterate over the symbols in the sequence.
     #[inline]
     pub fn iter(&self) -> <&[A::Symbol] as IntoIterator>::IntoIter {
@@ -97,15 +104,6 @@ impl<A: Alphabet> EncodedSequence<A> {
     {
         let pli = Pipeline::<A, _>::dispatch();
         pli.stripe(&self.data)
-    }
-
-    /// Convert the encoded sequence back to its textual representation.
-    pub fn to_string(&self) -> String {
-        let mut s = String::with_capacity(self.len());
-        for c in self.data.iter() {
-            s.push(c.as_char());
-        }
-        s
     }
 }
 
@@ -130,7 +128,7 @@ impl<A: Alphabet> Default for EncodedSequence<A> {
 impl<A: Alphabet> Display for EncodedSequence<A> {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         for c in self.data.iter() {
-            write!(f, "{}", c.as_char())?;
+            f.write_char(c.as_char())?;
         }
         Ok(())
     }
@@ -183,12 +181,6 @@ where
         let l = self.data.as_slice();
         let r = other.as_ref();
         l == r
-    }
-
-    fn ne(&self, other: &S) -> bool {
-        let l = self.data.as_slice();
-        let r = other.as_ref();
-        l != r
     }
 }
 
@@ -243,6 +235,12 @@ impl<A: Alphabet, C: StrictlyPositive + ArrayLength> StripedSequence<A, C> {
         self.length
     }
 
+    /// Check whether the sequence is empty.
+    #[inline]
+    pub const fn is_empty(&self) -> bool {
+        self.length == 0
+    }
+
     /// Get the number of wrapping rows in the striped matrix.
     #[inline]
     pub const fn wrap(&self) -> usize {
@@ -263,7 +261,7 @@ impl<A: Alphabet, C: StrictlyPositive + ArrayLength> StripedSequence<A, C> {
 
     /// Reconfigure the striped sequence for searching with a motif.
     pub fn configure(&mut self, motif: &ScoringMatrix<A>) {
-        if motif.len() > 0 {
+        if !motif.is_empty() {
             self.configure_wrap(motif.len() - 1);
         }
     }
