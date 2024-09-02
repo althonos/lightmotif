@@ -189,7 +189,7 @@ napoleon_use_rtype = False
 
 # -- Options for autodoc extension -------------------------------------------
 
-autoclass_content = "init"
+autoclass_content = "class"
 autodoc_member_order = 'groupwise'
 autosummary_generate = []
 
@@ -199,7 +199,6 @@ autosummary_generate = []
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
     "psutil": ("https://psutil.readthedocs.io/en/latest/", None),
-    "biopython": ("https://biopython.org/docs/latest/api/", None),
     "numpy": ("https://numpy.org/doc/stable/", None)
 }
 

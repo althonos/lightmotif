@@ -31,9 +31,16 @@ fn convert_error(error: Error) -> PyErr {
 
 // --- JASPAR motif ------------------------------------------------------------
 
+/// A motif loaded from a JASPAR or JASPAR16 file.
+///
+/// The JASPAR database stores motifs with a FASTA-like header line containing
+/// the motif name and description, and one line per matrix column prefixed
+/// by the alphabet symbol that contains the count matrix.
+///
 #[pyclass(module = "lightmotif.lib", extends = Motif)]
 pub struct JasparMotif {
     #[pyo3(get)]
+    /// `str` or `None`: The description of the motif, if any.
     description: Option<String>,
 }
 
@@ -73,6 +80,7 @@ impl JasparMotif {
 
 // --- UniPROBE motif ----------------------------------------------------------
 
+/// A motif loaded from a UniPROBE file.
 #[pyclass(module = "lightmotif.lib", extends = Motif)]
 pub struct UniprobeMotif {}
 
@@ -98,13 +106,22 @@ impl UniprobeMotif {
 
 // --- TRANSFAC records --------------------------------------------------------
 
+/// A motif loaded from a TRANSFAC file.
+///
+/// The TRANSFAC database stores motif information in an EMBL-like file that
+/// contains the count matrix for the motif, as well as optional metadata
+/// such as accession, description, creation date or bibliography.
+///
 #[pyclass(module = "lightmotif.lib", extends = Motif)]
 pub struct TransfacMotif {
     #[pyo3(get)]
+    /// `str` or `None`: The identifier of the motif, if any.
     id: Option<String>,
     #[pyo3(get)]
+    /// `str` or `None`: The accession of the motif, if any.
     accession: Option<String>,
     #[pyo3(get)]
+    /// `str` or `None`: The description of the motif, if any.
     description: Option<String>,
 }
 
@@ -140,6 +157,7 @@ impl TransfacMotif {
 
 // --- Loader ------------------------------------------------------------------
 
+/// An iterator for loading motifs from a file.
 #[pyclass(module = "lightmotif.lib")]
 pub struct Loader {
     reader: Box<dyn Iterator<Item = PyResult<PyObject>> + Send>,
@@ -147,6 +165,72 @@ pub struct Loader {
 
 #[pymethods]
 impl Loader {
+    #[new]
+    #[pyo3(signature = (file, format="jaspar", *, protein=false))]
+    /// Create a new loader from the given parameters.
+    ///
+    /// Arguments:
+    ///     file (`os.PathLike` or file-like object): The file containing the
+    ///         motifs to load, as either a path to a filesystem location, or
+    ///         a file-like object open in binary mode.
+    ///     format (`str`): The format of the motif file. Supported formats
+    ///         are ``jaspar``, ``jaspar16``, ``uniprobe`` and ``transfac``.
+    ///     protein(`bool`): Set to `True` if the loader should be expecting
+    ///         a protein motif rather than a DNA motif.
+    ///
+    pub fn __init__(
+        file: Bound<PyAny>,
+        format: &str,
+        protein: bool,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let py = file.py();
+        let pathlike = py
+            .import_bound(pyo3::intern!(py, "os"))?
+            .call_method1(pyo3::intern!(py, "fsdecode"), (&file,));
+        let b: Box<dyn BufRead + Send> = if let Ok(path) = pathlike {
+            // NOTE(@althonos): In theory this is safe because `os.fsencode` encodes
+            //                  the PathLike object into the OS prefered encoding,
+            //                  which is was OsStr wants. In practice, there may be
+            //                  some weird bugs if that encoding is incorrect, idk...
+            let decoded = path.downcast::<PyString>()?;
+            std::fs::File::open(decoded.to_str()?)
+                .map(std::io::BufReader::new)
+                .map(Box::new)?
+        } else {
+            PyFileRead::from_ref(&file)
+                .map(std::io::BufReader::new)
+                .map(Box::new)?
+        };
+        let reader: Box<dyn Iterator<Item = PyResult<PyObject>> + Send> = match format {
+            "jaspar" if protein => {
+                return Err(PyValueError::new_err(
+                    "cannot read protein motifs from JASPAR format",
+                ))
+            }
+            "jaspar16" if protein => {
+                Box::new(lightmotif_io::jaspar16::read::<_, Protein>(b).map(JasparMotif::convert16))
+            }
+            "transfac" if protein => {
+                Box::new(lightmotif_io::transfac::read::<_, Protein>(b).map(TransfacMotif::convert))
+            }
+            "uniprobe" if protein => {
+                Box::new(lightmotif_io::uniprobe::read::<_, Protein>(b).map(UniprobeMotif::convert))
+            }
+            "jaspar" => Box::new(lightmotif_io::jaspar::read(b).map(JasparMotif::convert)),
+            "jaspar16" => {
+                Box::new(lightmotif_io::jaspar16::read::<_, Dna>(b).map(JasparMotif::convert16))
+            }
+            "transfac" => {
+                Box::new(lightmotif_io::transfac::read::<_, Dna>(b).map(TransfacMotif::convert))
+            }
+            "uniprobe" => {
+                Box::new(lightmotif_io::uniprobe::read::<_, Dna>(b).map(UniprobeMotif::convert))
+            }
+            _ => return Err(PyValueError::new_err(format!("invalid format: {}", format))),
+        };
+        Ok(PyClassInitializer::from(Loader { reader }))
+    }
+
     fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
         slf
     }
@@ -157,53 +241,26 @@ impl Loader {
 }
 
 /// Load the motifs contained in a file.
+///
+/// Arguments:
+///     file (`os.PathLike` or file-like object): The file containing the
+///         motifs to load, as either a path to a filesystem location, or
+///         a file-like object open in binary mode.
+///     format (`str`): The format of the motif file. Supported formats
+///         are ``jaspar``, ``jaspar16``, ``uniprobe`` and ``transfac``.
+///     protein(`bool`): Set to `True` if the loader should be expecting
+///         a protein motif rather than a DNA motif.
+///
+/// Returns:
+///     `~lightmotif.Loader`: A loader configured to load one or more `Motif`
+///     from the given file.
+///
 #[pyfunction]
 #[pyo3(signature = (file, format="jaspar", *, protein=false))]
-pub fn load(file: Bound<PyAny>, format: &str, protein: bool) -> PyResult<Loader> {
-    let py = file.py();
-    let pathlike = py
-        .import_bound(pyo3::intern!(py, "os"))?
-        .call_method1(pyo3::intern!(py, "fsdecode"), (&file,));
-    let b: Box<dyn BufRead + Send> = if let Ok(path) = pathlike {
-        // NOTE(@althonos): In theory this is safe because `os.fsencode` encodes
-        //                  the PathLike object into the OS prefered encoding,
-        //                  which is was OsStr wants. In practice, there may be
-        //                  some weird bugs if that encoding is incorrect, idk...
-        let decoded = path.downcast::<PyString>()?;
-        std::fs::File::open(decoded.to_str()?)
-            .map(std::io::BufReader::new)
-            .map(Box::new)?
-    } else {
-        PyFileRead::from_ref(&file)
-            .map(std::io::BufReader::new)
-            .map(Box::new)?
-    };
-    let reader: Box<dyn Iterator<Item = PyResult<PyObject>> + Send> = match format {
-        "jaspar" if protein => {
-            return Err(PyValueError::new_err(
-                "cannot read protein motifs from JASPAR format",
-            ))
-        }
-        "jaspar16" if protein => {
-            Box::new(lightmotif_io::jaspar16::read::<_, Protein>(b).map(JasparMotif::convert16))
-        }
-        "transfac" if protein => {
-            Box::new(lightmotif_io::transfac::read::<_, Protein>(b).map(TransfacMotif::convert))
-        }
-        "uniprobe" if protein => {
-            Box::new(lightmotif_io::uniprobe::read::<_, Protein>(b).map(UniprobeMotif::convert))
-        }
-        "jaspar" => Box::new(lightmotif_io::jaspar::read(b).map(JasparMotif::convert)),
-        "jaspar16" => {
-            Box::new(lightmotif_io::jaspar16::read::<_, Dna>(b).map(JasparMotif::convert16))
-        }
-        "transfac" => {
-            Box::new(lightmotif_io::transfac::read::<_, Dna>(b).map(TransfacMotif::convert))
-        }
-        "uniprobe" => {
-            Box::new(lightmotif_io::uniprobe::read::<_, Dna>(b).map(UniprobeMotif::convert))
-        }
-        _ => return Err(PyValueError::new_err(format!("invalid format: {}", format))),
-    };
-    Ok(Loader { reader })
+pub fn load<'py>(
+    file: Bound<'py, PyAny>,
+    format: &str,
+    protein: bool,
+) -> PyResult<Bound<'py, Loader>> {
+    Bound::new(file.py(), Loader::__init__(file, format, protein)?)
 }

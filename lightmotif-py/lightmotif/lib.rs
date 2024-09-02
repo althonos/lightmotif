@@ -265,6 +265,11 @@ impl EncodedSequence {
     }
 
     /// Convert this sequence into a striped matrix.
+    ///
+    /// Returns:
+    ///     `~lightmotif.StripedSequence`: The input sequence, stored in a
+    ///     column-major matrix.
+    ///
     pub fn stripe(&self) -> PyResult<StripedSequence> {
         match &self.data {
             EncodedSequenceData::Dna(dna) => Ok(StripedSequenceData::from(dna.to_striped()).into()),
@@ -1073,16 +1078,24 @@ impl From<lightmotif::scores::StripedScores<f32, C>> for StripedScores {
 
 // --- Motif -------------------------------------------------------------------
 
+/// A base object storing information about a motif.
 #[pyclass(module = "lightmotif.lib", subclass)]
 #[derive(Debug)]
 pub struct Motif {
     #[pyo3(get)]
+    /// `CountMatrix` or `None`: The count matrix for this motif.
+    ///
+    /// This may be `None` if the motif was loaded from a format that does
+    /// not store counts but frequencies, such as the ``uniprobe`` format.
     counts: Option<Py<CountMatrix>>,
     #[pyo3(get)]
+    /// `WeightMatrix`: The weight matrix for this motif.
     pwm: Py<WeightMatrix>,
     #[pyo3(get)]
+    /// `ScoringMatrix`: The scoring matrix for this motif.
     pssm: Py<ScoringMatrix>,
     #[pyo3(get)]
+    /// `str` or `None`: An optional name for the motif.
     name: Option<String>,
 }
 
@@ -1135,6 +1148,18 @@ impl Motif {
 
 // --- Scanner -----------------------------------------------------------------
 
+/// A fast scanner for identifying high scoring positions in a sequence.
+///
+/// This class internally uses a discretized version of the matrix to
+/// identify candidate positions, and then rescores blocks with the full
+/// algorithm only if needed. Using a `Scanner` is likely faster than
+/// using the `~ScoringMatrix.calculate` method for rare sites or high
+/// thresholds.
+///
+/// Note:
+///     This algorithm is only available for DNA motifs because of
+///     implementation requirements.
+///
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Debug)]
 pub struct Scanner {
@@ -1200,12 +1225,15 @@ impl Scanner {
     }
 }
 
+/// A hit found by a `~lightmotif.Scanner`.
 #[pyclass(module = "lightmotif.lib")]
 #[derive(Debug)]
 pub struct Hit {
     #[pyo3(get)]
+    /// `int`: The index of the hit, zero-based.
     position: usize,
     #[pyo3(get)]
+    /// `float`: The score of the scoring matrix at the hit position.
     score: f32,
 }
 
@@ -1281,6 +1309,19 @@ pub fn create(sequences: Bound<PyAny>, protein: bool, name: Option<String>) -> P
 }
 
 /// Encode and stripe a text sequence.
+///
+/// Arguments:
+///     sequence (`str`): The sequence to encode and stripe.
+///     protein (`bool`): Pass `True` to treat the sequence as a protein
+///         sequence.
+///
+/// Returns:
+///     `~lightmotif.StripedSequence`: A striped sequence containing the
+///     sequence data.
+///
+/// Raises:
+///     `ValueError`: When the sequences contains an invalid character.
+///
 #[pyfunction]
 #[pyo3(signature = (sequence, protein=false))]
 pub fn stripe(sequence: Bound<PyString>, protein: bool) -> PyResult<StripedSequence> {
@@ -1291,6 +1332,32 @@ pub fn stripe(sequence: Bound<PyString>, protein: bool) -> PyResult<StripedSeque
 }
 
 /// Scan a sequence using a fast scanner implementation to identify hits.
+///
+/// See `~lightmotif.Scanner` for more information.
+///
+/// Arguments:
+///     pssm (`~lightmotif.ScoringMatrix`): The scoring matrix to use to
+///         score the sequence with.
+///     sequence (`~lightmotif.StripedSequence`): The striped sequence to
+///         process with the scanner. Longer sequences benifit more from the
+///         scanning implementation.
+///     threshold (`float`): The score threshold to use for filtering hits.
+///         Use `ScoringMatrix.score` to compute a score threshold from a
+///         target *p-value*. A higher threshold will result in less
+///         candidate hits and total runtime.
+///     
+/// Returns:
+///     `~lightmotif.Scanner`: The scanner for finding candidate hits in
+///     the target sequence.
+///  
+/// Raises:
+///     `ValueError`: When either ``pssm`` or ``sequence`` are not using
+///         the DNA alphabet.
+///
+/// Note:
+///     This algorithm is only available for DNA motifs because of
+///     implementation requirements.  
+///
 #[pyfunction]
 #[pyo3(signature = (pssm, sequence, threshold = 0.0, block_size = 256))]
 pub fn scan<'py>(
