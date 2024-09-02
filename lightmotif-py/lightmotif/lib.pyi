@@ -84,12 +84,23 @@ class TransfacMotif(Motif):
 class JasparMotif(Motif):
     @property
     def counts(self) -> CountMatrix: ...
+    @property
+    def name(self) -> str: ...
+    @property
+    def description(self) -> Optional[str]: ...
 
 class UniprobeMotif(Motif):
     @property
     def counts(self) -> None: ...
 
 class Scanner(Iterator[Hit]):
+    def __init__(
+        self,
+        pssm: ScoringMatrix,
+        sequence: StripedSequence,
+        threshold: float = 0.0,
+        block_size: int = 256,
+    ) -> None: ...
     def __iter__(self) -> Scanner: ...
     def __next__(self) -> Hit: ...
 
