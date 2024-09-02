@@ -8,6 +8,7 @@ sphinx >=5.0
 recommonmark ~=0.7
 pygments-style-monokailight ~=0.4
 ipython ~=7.19
+ipykernel
 pygments ~=2.4
 nbsphinx ~=0.8
 sphinxcontrib-jquery ~=4.1
