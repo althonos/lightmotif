@@ -6,7 +6,22 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.9.1...HEAD
+
+
+## [v0.9.1] - 2024-09-03
+[v0.9.1]: https://github.com/althonos/lightmotif/compare/v0.9.0...v0.9.1
+
+### Added
+
+#### `lightmotif-py`
+- Arch User Repository package `python-lightmotif` to distribute the Python package on ArchLinux.
+
+### Fixed
+
+#### `lightmotif-py`
+- Fix issues with source distribution missing required files for compilation.
+- Remove unused test data to reduce size of source distribution.
 
 
 ## [v0.9.0] - 2024-09-02

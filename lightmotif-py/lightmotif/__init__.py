@@ -1,4 +1,4 @@
-__version__ = "0.9.0-post2"
+__version__ = "0.9.1"
 
 from . import lib
 from .lib import (
