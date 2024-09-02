@@ -253,6 +253,12 @@ impl EncodedSequence {
         Ok(())
     }
 
+    /// `bool`: `True` if the encoded sequence is a protein sequence.
+    #[getter]
+    pub fn protein(&self) -> bool {
+        matches!(self.data, EncodedSequenceData::Protein(_))
+    }
+
     /// Create a copy of this sequence.
     pub fn copy(&self) -> Self {
         self.clone()
@@ -331,9 +337,10 @@ impl StripedSequence {
         self.copy()
     }
 
-    /// Create a copy of this sequence.
-    pub fn copy(&self) -> Self {
-        self.clone()
+    /// `bool`: `True` if the striped sequence is a protein sequence.
+    #[getter]
+    pub fn protein(&self) -> bool {
+        matches!(self.data, StripedSequenceData::Protein(_))
     }
 
     unsafe fn __getbuffer__(
@@ -370,6 +377,11 @@ impl StripedSequence {
         (*view).internal = std::ptr::null_mut();
 
         Ok(())
+    }
+
+    /// Create a copy of this sequence.
+    pub fn copy(&self) -> Self {
+        self.clone()
     }
 }
 
@@ -487,6 +499,12 @@ impl CountMatrix {
         };
 
         Ok(row)
+    }
+
+    /// `bool`: `True` if the count matrix stores protein counts.
+    #[getter]
+    pub fn protein(&self) -> bool {
+        matches!(self.data, CountMatrixData::Protein(_))
     }
 
     /// Normalize this count matrix to obtain a position weight matrix.
@@ -610,6 +628,12 @@ impl WeightMatrix {
         };
 
         Ok(row)
+    }
+
+    /// `bool`: `True` if the weight matrix stores protein weights.
+    #[getter]
+    pub fn protein(&self) -> bool {
+        matches!(self.data, WeightMatrixData::Protein(_))
     }
 
     /// Log-scale this weight matrix to obtain a position-specific scoring matrix.
@@ -829,6 +853,12 @@ impl ScoringMatrix {
         (*view).internal = std::ptr::null_mut();
 
         Ok(())
+    }
+
+    /// `bool`: `True` if the scoring matrix stores protein scores.
+    #[getter]
+    pub fn protein(&self) -> bool {
+        matches!(self.data, ScoringMatrixData::Protein(_))
     }
 
     /// Calculate the PSSM score for all positions of the given sequence.
@@ -1087,6 +1117,19 @@ impl Motif {
             pssm: Py::new(py, ScoringMatrix::new(scoring))?,
             name: None,
         })
+    }
+}
+
+#[pymethods]
+impl Motif {
+    /// `bool`: `True` if the motif is a protein motif.
+    #[getter]
+    pub fn protein<'py>(slf: PyRef<'py, Self>) -> bool {
+        let py = slf.py();
+        matches!(
+            slf.pssm.bind(py).borrow().data,
+            ScoringMatrixData::Protein(_)
+        )
     }
 }
 
