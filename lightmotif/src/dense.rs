@@ -8,6 +8,8 @@ use std::ops::Index;
 use std::ops::IndexMut;
 use std::ops::Range;
 
+use crate::abc::Alphabet;
+use crate::abc::Symbol;
 use crate::num::ArrayLength;
 
 // --- MatrixElement -----------------------------------------------------------
@@ -131,18 +133,35 @@ impl<T: MatrixElement, C: ArrayLength> DenseMatrix<T, C> {
         Iter::new(self)
     }
 
-    /// Returns an it,erator that allows modifying each row.
+    /// Returns an iterator that allows modifying each row.
     #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_, T, C> {
         IterMut::new(self)
     }
 
+    /// Return the matrix content as a flat slice, including padding.
+    #[inline]
+    pub fn ravel(&self) -> &[T] {
+        unsafe {
+            std::slice::from_raw_parts(self.data.as_ptr() as *mut T, self.rows() * self.stride())
+        }
+    }
+
+    /// Return the matrix content as a flat mutable slice, including padding.
+    #[inline]
+    pub fn ravel_mut(&mut self) -> &mut [T] {
+        unsafe {
+            std::slice::from_raw_parts_mut(
+                self.data.as_mut_ptr() as *mut T,
+                self.rows() * self.stride(),
+            )
+        }
+    }
+
     /// Fill the entire matrix with a constant value.
     #[inline]
     pub fn fill(&mut self, value: T) {
-        for row in self.data.iter_mut() {
-            row.a.fill(value)
-        }
+        self.ravel_mut().fill(value);
     }
 }
 
