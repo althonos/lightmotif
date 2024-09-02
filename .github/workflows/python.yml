@@ -229,7 +229,6 @@ jobs:
         path: dist/
         merge-multiple: true
     - name: Download wheel distributions
-      if: "!contains(github.ref, 'post')"
       uses: actions/download-artifact@v4
       with:
         pattern: wheels-*
@@ -261,6 +260,7 @@ jobs:
     if: "!contains(github.ref, 'rc')"
     name: Update AUR package
     needs:
+    - upload
     - sdist
     steps:
     - uses: actions/checkout@v4
