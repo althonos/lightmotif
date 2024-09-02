@@ -8,6 +8,7 @@ This section contains guides and documents about LightMotif usage.
    :caption: Getting Started
 
     Installation <install>
+    Example <example>
 
 .. toctree::
    :maxdepth: 1
