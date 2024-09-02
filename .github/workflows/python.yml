@@ -23,14 +23,14 @@ jobs:
         - pp39-manylinux_aarch64
         - pp310-manylinux_aarch64
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up QEMU
       id: qemu
-      uses: docker/setup-qemu-action@v2
+      uses: docker/setup-qemu-action@v3
       with:
         platforms: all
     - name: Build manylinux wheels
-      uses: pypa/cibuildwheel@v2.19.1
+      uses: pypa/cibuildwheel@v2.20.0
       env:
         CIBW_ARCHS: aarch64
         CIBW_BUILD: ${{ matrix.python-tag }}
@@ -63,10 +63,10 @@ jobs:
         - pp39-manylinux_x86_64
         - pp310-manylinux_x86_64
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@stable
     - name: Build manylinux wheels
-      uses: pypa/cibuildwheel@v2.19.1
+      uses: pypa/cibuildwheel@v2.20.0
       env:
         CIBW_ARCHS: x86_64
         CIBW_BUILD: ${{ matrix.python-tag }}
@@ -98,10 +98,10 @@ jobs:
         - pp39-macosx_x86_64
         - pp310-macosx_x86_64
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@stable
     - name: Build manylinux wheels
-      uses: pypa/cibuildwheel@v2.19.1
+      uses: pypa/cibuildwheel@v2.20.0
       env:
         CIBW_ARCHS: x86_64
         CIBW_BUILD: ${{ matrix.python-tag }}
@@ -130,12 +130,12 @@ jobs:
         - cp311-macosx_arm64
         - cp312-macosx_arm64
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@stable
       with:
         targets: aarch64-apple-darwin
     - name: Build manylinux wheels
-      uses: pypa/cibuildwheel@v2.19.1
+      uses: pypa/cibuildwheel@v2.20.0
       env:
         CIBW_ARCHS: arm64
         CIBW_BUILD: ${{ matrix.python-tag }}
@@ -168,10 +168,10 @@ jobs:
         - pp39-win_amd64
         - pp310-win_amd64
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@stable
     - name: Build manylinux wheels
-      uses: pypa/cibuildwheel@v2.19.1
+      uses: pypa/cibuildwheel@v2.20.0
       env:
         CIBW_ARCHS: AMD64
         CIBW_BUILD: ${{ matrix.python-tag }}
@@ -189,11 +189,11 @@ jobs:
     runs-on: ubuntu-latest
     name: Build source distribution
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Set up Python 3.12
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: 3.12
     - name: Install setup requirements
@@ -245,6 +245,8 @@ jobs:
     if: "startsWith(github.ref, 'refs/tags/v')"
     name: Release
     needs: upload
+    permissions:
+      contents: write
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -260,22 +262,22 @@ jobs:
     name: Update AUR package
     needs:
     - sdist
-    - upload
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Set up Python 3.12
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: '3.12'
     - name: Install build dependencies
       run: pip install setuptools-rust
-    - name: Download built wheels
-      uses: actions/download-artifact@v2
+    - name: Download source distribution
+      uses: actions/download-artifact@v4
       with:
-          name: wheels
-          path: dist
+        name: sdist
+        path: dist/
+        merge-multiple: true
     - name: Extract package version
       run: echo PKGVER=$(python setup.py --version) >> $GITHUB_ENV
     - name: Compute SHA256 of source distribution
@@ -284,6 +286,7 @@ jobs:
       run: sed -e "s/%pkgver/${{ env.PKGVER }}/g" -e "s/%sha256sum/${{ env.SHA256 }}/g" pkg/aur/PKGBUILD.in > pkg/aur/PKGBUILD
     - name: Update package
       uses: KSXGitHub/github-actions-deploy-aur@v2.7.2
+      if: "startsWith(github.ref, 'refs/tags/v')"
       with:
         pkgname: python-lightmotif
         pkgbuild: pkg/aur/PKGBUILD

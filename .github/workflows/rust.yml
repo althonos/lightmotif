@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -31,7 +31,7 @@ jobs:
           - "aarch64-unknown-linux-gnu"
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Setup Rust ${{ matrix.rust-toolchain }}
       uses: dtolnay/rust-toolchain@master
       with:
@@ -62,7 +62,7 @@ jobs:
           - "x86-64"
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Setup Rust ${{ matrix.rust-toolchain }}
       uses: dtolnay/rust-toolchain@master
       with:
@@ -86,7 +86,7 @@ jobs:
           - "x86-64"
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Setup Rust stable
       uses: dtolnay/rust-toolchain@stable
     - name: Setup cache for cargo
@@ -118,7 +118,7 @@ jobs:
     name: Publish crates
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Setup Rust ${{ matrix.rust-toolchain }}
       uses: dtolnay/rust-toolchain@stable
     - name: Package and publish lightmotif
@@ -135,6 +135,8 @@ jobs:
     if: "startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'post') && !contains(github.ref, 'alpha')"
     name: Release
     needs: publish
+    permissions:
+      contents: write
     steps:
     - uses: actions/checkout@v4
       with:
