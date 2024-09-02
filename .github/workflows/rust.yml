@@ -142,6 +142,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
     - name: Release a Changelog
-      uses: rasmus-saks/release-a-changelog-action@v1.0.1
+      uses: rasmus-saks/release-a-changelog-action@v1.2.0
       with:
         github-token: '${{ secrets.GITHUB_TOKEN }}'

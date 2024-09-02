@@ -6,7 +6,42 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.9.0...HEAD
+
+
+## [v0.9.0] - 2024-09-02
+[v0.9.0]: https://github.com/althonos/lightmotif/compare/v0.8.0...v0.9.0
+
+### Added
+
+#### `lightmotif`
+- `DenseMatrix::ravel` to get the array of a `DenseMatrix` as a single continuous slice.
+
+#### `lightmotif-py`
+- Support for protein alphabets ([#5](https://github.com/althonos/lightmotif/issues/5)).
+- `protein` property to `CountMatrix`, `WeightMatrix`, `ScoringMatrix`, `EncodedSequence` and `StripedSequence`.
+- `Scanner` class to use the new DNA scanning algorithm.
+- Buffer protocol implmementation for `ScoringMatrix` objects.
+- `lightmotif.load` function to load one or more `Motif` from a file-like object ([#6](https://github.com/althonos/lightmotif/issues/6)).
+- `Motif.name` property to store the optional name of a `Motif`.
+- Several `Motif` subclasses to store motif and metadata loaded from a file.
+- Type annotations for the `lightmotif.lib` package.
+
+### Fixed
+
+#### `lightmotif-io`
+- Parsing of floating-point numbers in JASPAR parser.
+- Panic on error unwrapping in `lightmotif-io`.
+
+### Changed
+
+#### `lightmotif`
+- Rewrite `DenseMatrix` with constant platform-specific alignment to reduce amount of `unsafe` code.
+
+### Removed
+
+#### `lightmotif-py`
+- `alphabet` parameter of `ScoringMatrix` and `EncodedSequence`.
 
 
 ## [v0.8.0] - 2024-06-28
