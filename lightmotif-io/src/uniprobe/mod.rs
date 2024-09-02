@@ -16,7 +16,6 @@
 use std::io::BufRead;
 
 use lightmotif::abc::Alphabet;
-use lightmotif::dense::DefaultAlignment;
 use lightmotif::pwm::FrequencyMatrix;
 
 use crate::error::Error;
@@ -123,7 +122,7 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
             }
         }
 
-        let matrix = match self::parse::build_matrix::<A, DefaultAlignment>(columns) {
+        let matrix = match self::parse::build_matrix::<A>(columns) {
             Err(e) => return Some(Err(Error::from(e))),
             Ok(matrix) => matrix,
         };

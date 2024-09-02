@@ -10,6 +10,7 @@ use crate::dense::DenseMatrix;
 use crate::dense::MatrixCoordinates;
 use crate::dense::MatrixElement;
 use crate::err::InvalidData;
+use crate::num::ArrayLength;
 use crate::num::StrictlyPositive;
 use crate::pli::dispatch::Dispatch;
 use crate::pli::Maximum;
@@ -86,14 +87,14 @@ impl<T> From<Scores<T>> for Vec<T> {
 
 /// Striped matrix storing scores for an equally striped sequence.
 #[derive(Clone, Debug)]
-pub struct StripedScores<T: MatrixElement, C: StrictlyPositive> {
+pub struct StripedScores<T: MatrixElement, C: StrictlyPositive + ArrayLength> {
     /// The raw data matrix storing the scores.
     data: DenseMatrix<T, C>,
     /// The total length of the `StripedSequence` these scores were obtained from.
     max_index: usize,
 }
 
-impl<T: MatrixElement, C: StrictlyPositive> StripedScores<T, C> {
+impl<T: MatrixElement, C: StrictlyPositive + ArrayLength> StripedScores<T, C> {
     /// Create a new striped score matrix with the given length and data.
     fn new(data: DenseMatrix<T, C>, max_index: usize) -> Result<Self, InvalidData> {
         Ok(Self { data, max_index })
@@ -149,7 +150,7 @@ impl<T: MatrixElement, C: StrictlyPositive> StripedScores<T, C> {
     }
 }
 
-impl<T: MatrixElement + PartialOrd, C: StrictlyPositive> StripedScores<T, C>
+impl<T: MatrixElement + PartialOrd, C: StrictlyPositive + ArrayLength> StripedScores<T, C>
 where
     Pipeline<Dna, Dispatch>: Maximum<T, C>,
 {
@@ -170,7 +171,7 @@ where
     }
 }
 
-impl<T: MatrixElement + PartialOrd, C: StrictlyPositive> StripedScores<T, C>
+impl<T: MatrixElement + PartialOrd, C: StrictlyPositive + ArrayLength> StripedScores<T, C>
 where
     Pipeline<Dna, Dispatch>: Threshold<T, C>,
 {
@@ -191,25 +192,29 @@ where
     }
 }
 
-impl<T: MatrixElement, C: StrictlyPositive> AsRef<DenseMatrix<T, C>> for StripedScores<T, C> {
+impl<T: MatrixElement, C: StrictlyPositive + ArrayLength> AsRef<DenseMatrix<T, C>>
+    for StripedScores<T, C>
+{
     fn as_ref(&self) -> &DenseMatrix<T, C> {
         self.matrix()
     }
 }
 
-impl<T: MatrixElement, C: StrictlyPositive> AsMut<DenseMatrix<T, C>> for StripedScores<T, C> {
+impl<T: MatrixElement, C: StrictlyPositive + ArrayLength> AsMut<DenseMatrix<T, C>>
+    for StripedScores<T, C>
+{
     fn as_mut(&mut self) -> &mut DenseMatrix<T, C> {
         self.matrix_mut()
     }
 }
 
-impl<T: MatrixElement, C: StrictlyPositive> Default for StripedScores<T, C> {
+impl<T: MatrixElement, C: StrictlyPositive + ArrayLength> Default for StripedScores<T, C> {
     fn default() -> Self {
         StripedScores::empty()
     }
 }
 
-impl<T: MatrixElement, C: StrictlyPositive> Index<usize> for StripedScores<T, C> {
+impl<T: MatrixElement, C: StrictlyPositive + ArrayLength> Index<usize> for StripedScores<T, C> {
     type Output = T;
     #[inline]
     fn index(&self, index: usize) -> &T {
@@ -219,7 +224,7 @@ impl<T: MatrixElement, C: StrictlyPositive> Index<usize> for StripedScores<T, C>
     }
 }
 
-impl<T: MatrixElement, C: StrictlyPositive> From<StripedScores<T, C>> for Vec<T> {
+impl<T: MatrixElement, C: StrictlyPositive + ArrayLength> From<StripedScores<T, C>> for Vec<T> {
     fn from(scores: StripedScores<T, C>) -> Self {
         scores.iter().cloned().collect()
     }
@@ -227,12 +232,12 @@ impl<T: MatrixElement, C: StrictlyPositive> From<StripedScores<T, C>> for Vec<T>
 
 // --- Iter --------------------------------------------------------------------
 
-pub struct Iter<'a, T: MatrixElement, C: StrictlyPositive> {
+pub struct Iter<'a, T: MatrixElement, C: StrictlyPositive + ArrayLength> {
     scores: &'a StripedScores<T, C>,
     indices: Range<usize>,
 }
 
-impl<'a, T: MatrixElement, C: StrictlyPositive> Iter<'a, T, C> {
+impl<'a, T: MatrixElement, C: StrictlyPositive + ArrayLength> Iter<'a, T, C> {
     fn new(scores: &'a StripedScores<T, C>) -> Self {
         // Compute the last index
         let end = scores
@@ -250,22 +255,24 @@ impl<'a, T: MatrixElement, C: StrictlyPositive> Iter<'a, T, C> {
     }
 }
 
-impl<'a, T: MatrixElement, C: StrictlyPositive> Iterator for Iter<'a, T, C> {
+impl<'a, T: MatrixElement, C: StrictlyPositive + ArrayLength> Iterator for Iter<'a, T, C> {
     type Item = &'a T;
     fn next(&mut self) -> Option<Self::Item> {
         self.indices.next().map(|i| self.get(i))
     }
 }
 
-impl<'a, T: MatrixElement, C: StrictlyPositive> ExactSizeIterator for Iter<'a, T, C> {
+impl<'a, T: MatrixElement, C: StrictlyPositive + ArrayLength> ExactSizeIterator for Iter<'a, T, C> {
     fn len(&self) -> usize {
         self.indices.len()
     }
 }
 
-impl<'a, T: MatrixElement, C: StrictlyPositive> FusedIterator for Iter<'a, T, C> {}
+impl<'a, T: MatrixElement, C: StrictlyPositive + ArrayLength> FusedIterator for Iter<'a, T, C> {}
 
-impl<'a, T: MatrixElement, C: StrictlyPositive> DoubleEndedIterator for Iter<'a, T, C> {
+impl<'a, T: MatrixElement, C: StrictlyPositive + ArrayLength> DoubleEndedIterator
+    for Iter<'a, T, C>
+{
     fn next_back(&mut self) -> Option<Self::Item> {
         self.indices.next_back().map(|i| self.get(i))
     }

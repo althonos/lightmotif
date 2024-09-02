@@ -2,6 +2,7 @@ extern crate lightmotif;
 
 use lightmotif::abc::Background;
 use lightmotif::abc::Dna;
+use lightmotif::num::ArrayLength;
 use lightmotif::num::StrictlyPositive;
 use lightmotif::num::U1;
 use lightmotif::num::U16;
@@ -19,7 +20,7 @@ const SEQUENCE: &str = include_str!("../benches/ecoli.txt");
 const PATTERNS: &[&str] = &["GTTGACCTTATCAAC", "GTTGATCCAGTCAAC"];
 const N: usize = SEQUENCE.len() / 10;
 
-fn test_argmax_f32<C: StrictlyPositive, P: Maximum<f32, C>>(pli: &P) {
+fn test_argmax_f32<C: StrictlyPositive + ArrayLength, P: Maximum<f32, C>>(pli: &P) {
     let generic = Pipeline::generic();
 
     let seq = &SEQUENCE[..N];

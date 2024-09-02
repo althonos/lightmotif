@@ -9,6 +9,8 @@ use std::ops::Mul;
 use std::ops::Range;
 use std::ops::Rem;
 
+use generic_array::ArrayLength;
+
 use super::Backend;
 use crate::abc::Alphabet;
 use crate::abc::Symbol;
@@ -125,7 +127,7 @@ where
 
 #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
 #[target_feature(enable = "neon")]
-unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16>>(
+unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
     pssm: &DenseMatrix<f32, A::K>,
     seq: &StripedSequence<A, C>,
     rows: Range<usize>,
@@ -185,7 +187,7 @@ unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16>>(
 
 #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
 #[target_feature(enable = "neon")]
-unsafe fn score_u8_neon<A: Alphabet, C: MultipleOf<U16>>(
+unsafe fn score_u8_neon<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
     pssm: &DenseMatrix<u8, A::K>,
     seq: &StripedSequence<A, C>,
     rows: Range<usize>,
@@ -248,7 +250,7 @@ impl Neon {
         scores: &mut StripedScores<f32, C>,
     ) where
         A: Alphabet,
-        C: MultipleOf<U16>,
+        C: MultipleOf<U16> + ArrayLength,
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<DenseMatrix<f32, A::K>>,
     {
@@ -286,7 +288,7 @@ impl Neon {
         <A as Alphabet>::K: IsLessOrEqual<U16>,
         <<A as Alphabet>::K as IsLessOrEqual<U16>>::Output: NonZero,
         A: Alphabet,
-        C: MultipleOf<U16>,
+        C: MultipleOf<U16> + ArrayLength,
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<DenseMatrix<u8, A::K>>,
     {

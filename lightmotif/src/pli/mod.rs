@@ -69,7 +69,7 @@ pub trait Encode<A: Alphabet> {
 }
 
 /// Used computing sequence scores with a PSSM.
-pub trait Score<T: MatrixElement + AddAssign, A: Alphabet, C: StrictlyPositive> {
+pub trait Score<T: MatrixElement + AddAssign, A: Alphabet, C: StrictlyPositive + ArrayLength> {
     /// Compute the PSSM scores into the given striped score matrix.
     fn score_rows_into<S, M>(
         &self,
@@ -132,7 +132,7 @@ pub trait Score<T: MatrixElement + AddAssign, A: Alphabet, C: StrictlyPositive> 
 }
 
 /// Used for finding the highest scoring site in a striped score matrix.
-pub trait Maximum<T: MatrixElement + PartialOrd, C: StrictlyPositive> {
+pub trait Maximum<T: MatrixElement + PartialOrd, C: StrictlyPositive + ArrayLength> {
     /// Find the matrix coordinates with the highest score.
     fn argmax(&self, scores: &StripedScores<T, C>) -> Option<MatrixCoordinates> {
         if scores.is_empty() {
@@ -163,7 +163,7 @@ pub trait Maximum<T: MatrixElement + PartialOrd, C: StrictlyPositive> {
 }
 
 /// Used for converting an encoded sequence into a striped sequence.
-pub trait Stripe<A: Alphabet, C: StrictlyPositive> {
+pub trait Stripe<A: Alphabet, C: StrictlyPositive + ArrayLength> {
     /// Stripe a sequence into a striped, column-major order matrix.
     fn stripe<S: AsRef<[A::Symbol]>>(&self, seq: S) -> StripedSequence<A, C> {
         let s = seq.as_ref();
@@ -199,7 +199,7 @@ pub trait Stripe<A: Alphabet, C: StrictlyPositive> {
 }
 
 /// Used for finding positions above a score threshold in a striped score matrix.
-pub trait Threshold<T: MatrixElement + PartialOrd, C: StrictlyPositive> {
+pub trait Threshold<T: MatrixElement + PartialOrd, C: StrictlyPositive + ArrayLength> {
     /// Return the coordinates of positions with score equal to or greater than the threshold.
     ///
     /// # Note
@@ -242,19 +242,19 @@ impl<A: Alphabet> Pipeline<A, Generic> {
 
 impl<A: Alphabet> Encode<A> for Pipeline<A, Generic> {}
 
-impl<T: MatrixElement + AddAssign, A: Alphabet, C: StrictlyPositive> Score<T, A, C>
+impl<T: MatrixElement + AddAssign, A: Alphabet, C: StrictlyPositive + ArrayLength> Score<T, A, C>
     for Pipeline<A, Generic>
 {
 }
 
-impl<T: MatrixElement + PartialOrd, A: Alphabet, C: StrictlyPositive> Maximum<T, C>
+impl<T: MatrixElement + PartialOrd, A: Alphabet, C: StrictlyPositive + ArrayLength> Maximum<T, C>
     for Pipeline<A, Generic>
 {
 }
 
-impl<A: Alphabet, C: StrictlyPositive> Stripe<A, C> for Pipeline<A, Generic> {}
+impl<A: Alphabet, C: StrictlyPositive + ArrayLength> Stripe<A, C> for Pipeline<A, Generic> {}
 
-impl<T: MatrixElement + PartialOrd, A: Alphabet, C: StrictlyPositive> Threshold<T, C>
+impl<T: MatrixElement + PartialOrd, A: Alphabet, C: StrictlyPositive + ArrayLength> Threshold<T, C>
     for Pipeline<A, Generic>
 {
 }
@@ -336,7 +336,7 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Sse2> {
 impl<A, C> Score<f32, A, C> for Pipeline<A, Sse2>
 where
     A: Alphabet,
-    C: StrictlyPositive + MultipleOf<U16>,
+    C: StrictlyPositive + MultipleOf<U16> + ArrayLength,
 {
     #[inline]
     fn score_rows_into<S, M>(
@@ -356,7 +356,7 @@ where
 impl<A, C> Score<u8, A, C> for Pipeline<A, Sse2>
 where
     A: Alphabet,
-    C: StrictlyPositive + MultipleOf<U16>,
+    C: StrictlyPositive + MultipleOf<U16> + ArrayLength,
 {
 }
 
@@ -374,21 +374,21 @@ where
 impl<A, C> Maximum<u8, C> for Pipeline<A, Sse2>
 where
     A: Alphabet,
-    C: StrictlyPositive + MultipleOf<U16>,
+    C: StrictlyPositive + MultipleOf<U16> + ArrayLength,
 {
 }
 
 impl<A, C> Threshold<f32, C> for Pipeline<A, Sse2>
 where
     A: Alphabet,
-    C: StrictlyPositive + MultipleOf<U16>,
+    C: StrictlyPositive + MultipleOf<U16> + ArrayLength,
 {
 }
 
 impl<A, C> Threshold<u8, C> for Pipeline<A, Sse2>
 where
     A: Alphabet,
-    C: StrictlyPositive + MultipleOf<U16>,
+    C: StrictlyPositive + MultipleOf<U16> + ArrayLength,
 {
 }
 
@@ -538,7 +538,7 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Neon> {
 impl<A, C> Score<f32, A, C> for Pipeline<A, Neon>
 where
     A: Alphabet,
-    C: StrictlyPositive + MultipleOf<U16>,
+    C: StrictlyPositive + MultipleOf<U16> + ArrayLength,
 {
     #[inline]
     fn score_rows_into<S, M>(
@@ -557,7 +557,7 @@ where
 
 impl<C> Score<u8, Dna, C> for Pipeline<Dna, Neon>
 where
-    C: StrictlyPositive + MultipleOf<U16>,
+    C: StrictlyPositive + MultipleOf<U16> + ArrayLength,
 {
     #[inline]
     fn score_rows_into<S, M>(
@@ -577,28 +577,28 @@ where
 impl<A, C> Maximum<f32, C> for Pipeline<A, Neon>
 where
     A: Alphabet,
-    C: StrictlyPositive + MultipleOf<U16>,
+    C: StrictlyPositive + MultipleOf<U16> + ArrayLength,
 {
 }
 
 impl<A, C> Maximum<u8, C> for Pipeline<A, Neon>
 where
     A: Alphabet,
-    C: StrictlyPositive + MultipleOf<U16>,
+    C: StrictlyPositive + MultipleOf<U16> + ArrayLength,
 {
 }
 
 impl<A, C> Threshold<f32, C> for Pipeline<A, Neon>
 where
     A: Alphabet,
-    C: StrictlyPositive + MultipleOf<U16>,
+    C: StrictlyPositive + MultipleOf<U16> + ArrayLength,
 {
 }
 
 impl<A, C> Threshold<u8, C> for Pipeline<A, Neon>
 where
     A: Alphabet,
-    C: StrictlyPositive + MultipleOf<U16>,
+    C: StrictlyPositive + MultipleOf<U16> + ArrayLength,
 {
 }
 

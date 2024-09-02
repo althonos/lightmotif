@@ -6,11 +6,8 @@ extern crate lightmotif;
 extern crate lightmotif_tfmpvalue;
 extern crate pyo3;
 
-use std::borrow::Borrow;
 use std::fmt::Display;
 use std::fmt::Formatter;
-use std::pin::Pin;
-use std::sync::Arc;
 
 use lightmotif::abc::Alphabet;
 use lightmotif::abc::Dna;

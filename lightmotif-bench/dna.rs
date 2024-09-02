@@ -6,6 +6,7 @@ extern crate test;
 
 use lightmotif::abc::Background;
 use lightmotif::abc::Dna;
+use lightmotif::num::ArrayLength;
 use lightmotif::num::StrictlyPositive;
 use lightmotif::num::U1;
 use lightmotif::num::U16;
@@ -77,7 +78,10 @@ mod f32 {
 
     /// Bench how long `Pipeline::score` and `Pipeline::argmax` take for
     /// an arbitrary pipeline.
-    fn bench_lightmotif<C: StrictlyPositive, P: Score<f32, Dna, C> + Maximum<f32, C>>(
+    fn bench_lightmotif<
+        C: StrictlyPositive + ArrayLength,
+        P: Score<f32, Dna, C> + Maximum<f32, C>,
+    >(
         bencher: &mut test::Bencher,
         pli: &P,
     ) {
@@ -148,7 +152,10 @@ mod u8 {
 
     /// Bench how long `Pipeline::score` and `Pipeline::argmax` take for
     /// an arbitrary pipeline using discrete scores.
-    fn bench_lightmotif_discrete<C: StrictlyPositive, P: Score<u8, Dna, C> + Maximum<u8, C>>(
+    fn bench_lightmotif_discrete<
+        C: StrictlyPositive + ArrayLength,
+        P: Score<u8, Dna, C> + Maximum<u8, C>,
+    >(
         bencher: &mut test::Bencher,
         pli: &P,
     ) {

@@ -4,6 +4,7 @@ extern crate lightmotif;
 extern crate test;
 
 use lightmotif::abc::Dna;
+use lightmotif::num::ArrayLength;
 use lightmotif::num::StrictlyPositive;
 use lightmotif::num::U16;
 use lightmotif::num::U32;
@@ -21,7 +22,7 @@ mod f32 {
 
     use super::*;
 
-    fn bench<C: StrictlyPositive, P: Score<f32, Dna, C> + Maximum<f32, C>>(
+    fn bench<C: StrictlyPositive + ArrayLength, P: Score<f32, Dna, C> + Maximum<f32, C>>(
         bencher: &mut test::Bencher,
         pli: &P,
     ) {
@@ -91,7 +92,7 @@ mod u8 {
 
     use super::*;
 
-    fn bench<C: StrictlyPositive, P: Score<u8, Dna, C> + Maximum<u8, C>>(
+    fn bench<C: StrictlyPositive + ArrayLength, P: Score<u8, Dna, C> + Maximum<u8, C>>(
         bencher: &mut test::Bencher,
         pli: &P,
     ) {

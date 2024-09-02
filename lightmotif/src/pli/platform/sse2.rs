@@ -104,7 +104,7 @@ where
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES>>(
+unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES> + ArrayLength>(
     pssm: &DenseMatrix<f32, A::K>,
     seq: &StripedSequence<A, C>,
     rows: Range<usize>,
@@ -278,7 +278,7 @@ impl Sse2 {
         scores: &mut StripedScores<f32, C>,
     ) where
         A: Alphabet,
-        C: MultipleOf<<Sse2 as Backend>::LANES>,
+        C: MultipleOf<<Sse2 as Backend>::LANES> + ArrayLength,
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<DenseMatrix<f32, A::K>>,
     {

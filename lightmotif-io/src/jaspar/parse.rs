@@ -23,7 +23,6 @@ use lightmotif::abc::Alphabet;
 use lightmotif::abc::Dna;
 use lightmotif::abc::Nucleotide;
 use lightmotif::abc::Symbol;
-use lightmotif::dense::DefaultAlignment;
 use lightmotif::dense::DenseMatrix;
 use lightmotif::err::InvalidData;
 use lightmotif::num::PowerOfTwo;
@@ -64,10 +63,10 @@ pub fn matrix_column(input: &str) -> IResult<&str, Vec<u32>> {
     terminated(counts, line_ending)(input)
 }
 
-pub fn build_matrix<B: Unsigned + PowerOfTwo>(
+pub fn build_matrix(
     input: GenericArray<Vec<u32>, U4>,
     symbols: &[<Dna as Alphabet>::Symbol],
-) -> Result<DenseMatrix<u32, <Dna as Alphabet>::K, B>, InvalidData> {
+) -> Result<DenseMatrix<u32, <Dna as Alphabet>::K>, InvalidData> {
     let mut matrix = DenseMatrix::new(input[0].len());
     for (counts, s) in input.as_slice().into_iter().zip(symbols) {
         // check that array length is consistent
@@ -82,9 +81,7 @@ pub fn build_matrix<B: Unsigned + PowerOfTwo>(
     Ok(matrix)
 }
 
-pub fn matrix<B: Unsigned + PowerOfTwo>(
-    input: &str,
-) -> IResult<&str, DenseMatrix<u32, <Dna as Alphabet>::K, B>> {
+pub fn matrix(input: &str) -> IResult<&str, DenseMatrix<u32, <Dna as Alphabet>::K>> {
     let (input, a) = matrix_column(input)?;
     let (input, c) = matrix_column(input)?;
     let (input, g) = matrix_column(input)?;
@@ -119,7 +116,7 @@ pub fn header(input: &str) -> IResult<&str, (&str, Option<&str>)> {
 
 pub fn record(input: &str) -> IResult<&str, Record> {
     let (input, (id, description)) = header(input)?;
-    let (input, matrix) = map_res(matrix::<DefaultAlignment>, CountMatrix::new)(input)?;
+    let (input, matrix) = map_res(matrix, CountMatrix::new)(input)?;
 
     Ok((
         input,
@@ -147,7 +144,7 @@ mod tests {
 
     #[test]
     fn test_matrix() {
-        let (_rest, matrix) = super::matrix::<DefaultAlignment>(concat!(
+        let (_rest, matrix) = super::matrix(concat!(
             "10 12  4  1  2  2  0  0  0  8 13\n",
             " 2  2  7  1  0  8  0  0  1  2  2\n",
             " 3  1  1  0 23  0 26 26  0  0  4\n",

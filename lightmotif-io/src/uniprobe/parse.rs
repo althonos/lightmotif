@@ -4,22 +4,21 @@ use std::str::FromStr;
 
 use lightmotif::abc::Alphabet;
 use lightmotif::abc::Symbol;
-use lightmotif::dense::DefaultAlignment;
 use lightmotif::dense::DenseMatrix;
 use lightmotif::err::InvalidData;
+use lightmotif::num::ArrayLength;
 use lightmotif::num::PowerOfTwo;
 use lightmotif::num::Unsigned;
 use lightmotif::pwm::FrequencyMatrix;
 use nom::bytes::complete::take_while;
 use nom::character::complete::anychar;
 use nom::character::complete::line_ending;
-use nom::number::complete::float;
-
 use nom::character::complete::not_line_ending;
 use nom::character::complete::tab;
 use nom::combinator::map;
 use nom::combinator::map_res;
 use nom::multi::many1;
+use nom::number::complete::float;
 use nom::sequence::pair;
 use nom::sequence::preceded;
 use nom::sequence::separated_pair;
@@ -45,9 +44,9 @@ pub fn matrix_column<A: Alphabet>(input: &str) -> IResult<&str, (A::Symbol, Vec<
     )(input)
 }
 
-pub fn build_matrix<A: Alphabet, B: Unsigned + PowerOfTwo>(
+pub fn build_matrix<A: Alphabet>(
     input: Vec<(A::Symbol, Vec<f32>)>,
-) -> Result<DenseMatrix<f32, A::K, B>, InvalidData> {
+) -> Result<DenseMatrix<f32, A::K>, InvalidData> {
     let mut done = vec![false; A::K::USIZE];
     let mut matrix = DenseMatrix::new(input[0].1.len());
 
@@ -70,10 +69,8 @@ pub fn build_matrix<A: Alphabet, B: Unsigned + PowerOfTwo>(
     Ok(matrix)
 }
 
-pub fn matrix<A: Alphabet, B: Unsigned + PowerOfTwo>(
-    input: &str,
-) -> IResult<&str, DenseMatrix<f32, A::K, B>> {
-    map_res(nom::multi::many1(matrix_column::<A>), build_matrix::<A, B>)(input)
+pub fn matrix<A: Alphabet>(input: &str) -> IResult<&str, DenseMatrix<f32, A::K>> {
+    map_res(nom::multi::many1(matrix_column::<A>), build_matrix::<A>)(input)
 }
 
 pub fn id(input: &str) -> IResult<&str, &str> {
@@ -82,10 +79,7 @@ pub fn id(input: &str) -> IResult<&str, &str> {
 
 pub fn record<A: Alphabet>(input: &str) -> IResult<&str, (&str, FrequencyMatrix<A>)> {
     terminated(
-        pair(
-            id,
-            map_res(matrix::<A, DefaultAlignment>, FrequencyMatrix::<A>::new),
-        ),
+        pair(id, map_res(matrix::<A>, FrequencyMatrix::<A>::new)),
         line_ending,
     )(input)
 }
@@ -107,7 +101,7 @@ mod tests {
 
     #[test]
     fn test_matrix() {
-        let (_rest, matrix) = super::matrix::<Dna, DefaultAlignment>(concat!(
+        let (_rest, matrix) = super::matrix::<Dna>(concat!(
             "A:	0.179	0.210	0.182\n",
             "C:	0.268	0.218	0.213\n",
             "G:	0.383	0.352	0.340\n",

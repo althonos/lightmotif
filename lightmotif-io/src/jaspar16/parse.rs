@@ -4,9 +4,9 @@ use std::str::FromStr;
 
 use lightmotif::abc::Alphabet;
 use lightmotif::abc::Symbol;
-use lightmotif::dense::DefaultAlignment;
 use lightmotif::dense::DenseMatrix;
 use lightmotif::err::InvalidData;
+use lightmotif::num::ArrayLength;
 use lightmotif::num::PowerOfTwo;
 use lightmotif::num::Unsigned;
 use lightmotif::pwm::CountMatrix;
@@ -48,9 +48,9 @@ pub fn matrix_column<A: Alphabet>(input: &str) -> IResult<&str, (A::Symbol, Vec<
     terminated(separated_pair(symbol::<A>, space1, counts), line_ending)(input)
 }
 
-pub fn build_matrix<A: Alphabet, B: Unsigned + PowerOfTwo>(
+pub fn build_matrix<A: Alphabet>(
     input: Vec<(A::Symbol, Vec<u32>)>,
-) -> Result<DenseMatrix<u32, A::K, B>, InvalidData> {
+) -> Result<DenseMatrix<u32, A::K>, InvalidData> {
     let mut done = vec![false; A::K::USIZE];
     let mut matrix = DenseMatrix::new(input[0].1.len());
 
@@ -73,10 +73,8 @@ pub fn build_matrix<A: Alphabet, B: Unsigned + PowerOfTwo>(
     Ok(matrix)
 }
 
-pub fn matrix<A: Alphabet, B: Unsigned + PowerOfTwo>(
-    input: &str,
-) -> IResult<&str, DenseMatrix<u32, A::K, B>> {
-    map_res(nom::multi::many1(matrix_column::<A>), build_matrix::<A, B>)(input)
+pub fn matrix<A: Alphabet>(input: &str) -> IResult<&str, DenseMatrix<u32, A::K>> {
+    map_res(nom::multi::many1(matrix_column::<A>), build_matrix::<A>)(input)
 }
 
 pub fn header(input: &str) -> IResult<&str, (&str, Option<&str>)> {
@@ -102,7 +100,7 @@ pub fn header(input: &str) -> IResult<&str, (&str, Option<&str>)> {
 
 pub fn record<A: Alphabet>(input: &str) -> IResult<&str, Record<A>> {
     let (input, (id, description)) = header(input)?;
-    let (input, matrix) = map_res(matrix::<A, DefaultAlignment>, CountMatrix::<A>::new)(input)?;
+    let (input, matrix) = map_res(matrix::<A>, CountMatrix::<A>::new)(input)?;
 
     Ok((
         input,
@@ -141,7 +139,7 @@ mod tests {
 
     #[test]
     fn test_matrix() {
-        let (_rest, matrix) = super::matrix::<Dna, DefaultAlignment>(concat!(
+        let (_rest, matrix) = super::matrix::<Dna>(concat!(
             "A [10 12  4  1  2  2  0  0  0  8 13 ]\n",
             "C [ 2  2  7  1  0  8  0  0  1  2  2 ]\n",
             "G [ 3  1  1  0 23  0 26 26  0  0  4 ]\n",

@@ -2,8 +2,6 @@
 
 use std::ops::Index;
 
-use typenum::marker_traits::Unsigned;
-
 use crate::abc::Alphabet;
 use crate::abc::Background;
 use crate::abc::ComplementableAlphabet;
@@ -11,7 +9,9 @@ use crate::abc::Pseudocounts;
 use crate::abc::Symbol;
 use crate::dense::DenseMatrix;
 use crate::err::InvalidData;
+use crate::num::ArrayLength;
 use crate::num::StrictlyPositive;
+use crate::num::Unsigned;
 use crate::pli::dispatch::Dispatch;
 use crate::pli::Pipeline;
 use crate::pli::Score;
@@ -481,7 +481,7 @@ impl<A: Alphabet> ScoringMatrix<A> {
     /// Uses platform-accelerated implementation when available.
     pub fn score<S, C>(&self, seq: S) -> StripedScores<f32, C>
     where
-        C: StrictlyPositive,
+        C: StrictlyPositive + ArrayLength,
         S: AsRef<StripedSequence<A, C>>,
         Pipeline<A, Dispatch>: Score<f32, A, C>,
     {
@@ -492,7 +492,7 @@ impl<A: Alphabet> ScoringMatrix<A> {
     /// Compute the score for a single sequence position.
     pub fn score_position<S, C>(&self, seq: S, pos: usize) -> f32
     where
-        C: StrictlyPositive,
+        C: StrictlyPositive + ArrayLength,
         S: AsRef<StripedSequence<A, C>>,
     {
         let mut score = 0.0;
@@ -588,7 +588,7 @@ impl<A: Alphabet> DiscreteMatrix<A> {
     /// Compute the score for a single sequence position.
     pub fn score_position<S, C>(&self, seq: S, pos: usize) -> u8
     where
-        C: StrictlyPositive,
+        C: StrictlyPositive + ArrayLength,
         S: AsRef<StripedSequence<A, C>>,
     {
         let mut score = 0;

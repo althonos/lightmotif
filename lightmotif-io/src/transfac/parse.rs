@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::bytes::complete::take_till;

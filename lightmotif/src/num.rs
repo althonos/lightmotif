@@ -4,6 +4,8 @@ use std::ops::Div;
 use std::ops::Rem;
 
 #[doc(no_inline)]
+pub use generic_array::ArrayLength;
+#[doc(no_inline)]
 pub use typenum::*;
 
 /// A marker trait for type numbers that are strictly positive.

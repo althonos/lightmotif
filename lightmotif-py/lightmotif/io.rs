@@ -10,7 +10,6 @@ use pyo3::exceptions::PyOSError;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-use pyo3::types::PyString;
 
 use super::pyfile::PyFileRead;
 use super::CountMatrixData;

@@ -1,5 +1,7 @@
 use std::ops::AddAssign;
 
+use generic_array::ArrayLength;
+
 use crate::abc::Alphabet;
 use crate::dense::MatrixElement;
 use crate::num::StrictlyPositive;
@@ -22,10 +24,13 @@ impl Backend for Generic {
 
 impl<A: Alphabet> Encode<A> for Generic {}
 
-impl<T: MatrixElement + AddAssign, A: Alphabet, C: StrictlyPositive> Score<T, A, C> for Generic {}
+impl<T: MatrixElement + AddAssign, A: Alphabet, C: StrictlyPositive + ArrayLength> Score<T, A, C>
+    for Generic
+{
+}
 
-impl<T: MatrixElement + PartialOrd, C: StrictlyPositive> Maximum<T, C> for Generic {}
+impl<T: MatrixElement + PartialOrd, C: StrictlyPositive + ArrayLength> Maximum<T, C> for Generic {}
 
-impl<A: Alphabet, C: StrictlyPositive> Stripe<A, C> for Generic {}
+impl<A: Alphabet, C: StrictlyPositive + ArrayLength> Stripe<A, C> for Generic {}
 
-impl<T: MatrixElement + PartialOrd, C: StrictlyPositive> Threshold<T, C> for Generic {}
+impl<T: MatrixElement + PartialOrd, C: StrictlyPositive + ArrayLength> Threshold<T, C> for Generic {}

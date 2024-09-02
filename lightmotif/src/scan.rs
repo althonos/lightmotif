@@ -5,6 +5,7 @@ use super::abc::Alphabet;
 use super::pli::dispatch::Dispatch;
 use super::pwm::ScoringMatrix;
 use super::seq::StripedSequence;
+use crate::num::ArrayLength;
 use crate::num::StrictlyPositive;
 use crate::pli::Maximum;
 use crate::pli::Pipeline;
@@ -98,7 +99,7 @@ pub struct Scanner<
     A: Alphabet,
     M: AsRef<ScoringMatrix<A>>,
     S: AsRef<StripedSequence<A, C>>,
-    C: StrictlyPositive = DefaultColumns,
+    C: StrictlyPositive + ArrayLength = DefaultColumns,
 > {
     pssm: M,
     dm: DiscreteMatrix<A>,
@@ -115,7 +116,7 @@ pub struct Scanner<
 impl<'a, A, M, S, C> Scanner<'a, A, M, S, C>
 where
     A: Alphabet,
-    C: StrictlyPositive,
+    C: StrictlyPositive + ArrayLength,
     M: AsRef<ScoringMatrix<A>>,
     S: AsRef<StripedSequence<A, C>>,
 {
@@ -157,7 +158,7 @@ where
 impl<'a, A, M, S, C> Iterator for Scanner<'a, A, M, S, C>
 where
     A: Alphabet,
-    C: StrictlyPositive,
+    C: StrictlyPositive + ArrayLength,
     M: AsRef<ScoringMatrix<A>>,
     S: AsRef<StripedSequence<A, C>>,
     Pipeline<A, Dispatch>: Score<u8, A, C> + Threshold<u8, C> + Maximum<u8, C>,
@@ -255,7 +256,7 @@ mod test {
     const SEQUENCE: &str = "ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG";
     const PATTERNS: &[&str] = &["GTTGACCTTATCAAC", "GTTGATCCAGTCAAC"];
 
-    fn seq<C: StrictlyPositive>() -> StripedSequence<Dna, C> {
+    fn seq<C: StrictlyPositive + ArrayLength>() -> StripedSequence<Dna, C> {
         let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
         Pipeline::generic().stripe(encoded)
     }

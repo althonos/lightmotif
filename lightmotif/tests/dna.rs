@@ -2,6 +2,7 @@ extern crate lightmotif;
 extern crate typenum;
 
 use lightmotif::abc::Dna;
+use lightmotif::num::ArrayLength;
 use lightmotif::num::StrictlyPositive;
 use lightmotif::num::U1;
 use lightmotif::num::U16;
@@ -36,7 +37,7 @@ const EXPECTED: &[f32] = &[
     -30.922688 , -18.678621 
 ];
 
-fn test_score_rows<C: StrictlyPositive, P: Score<f32, Dna, C>>(pli: &P) {
+fn test_score_rows<C: StrictlyPositive + ArrayLength, P: Score<f32, Dna, C>>(pli: &P) {
     let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
     let mut striped = Pipeline::generic().stripe(encoded);
 
@@ -61,7 +62,7 @@ fn test_score_rows<C: StrictlyPositive, P: Score<f32, Dna, C>>(pli: &P) {
     assert_eq!(scores.matrix()[0][0], EXPECTED[1]);
 }
 
-fn test_score<C: StrictlyPositive, P: Score<f32, Dna, C>>(pli: &P) {
+fn test_score<C: StrictlyPositive + ArrayLength, P: Score<f32, Dna, C>>(pli: &P) {
     let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
     let mut striped = Pipeline::generic().stripe(encoded);
 
@@ -89,7 +90,7 @@ fn test_score<C: StrictlyPositive, P: Score<f32, Dna, C>>(pli: &P) {
     }
 }
 
-fn test_score_discrete<C: StrictlyPositive, P: Score<u8, Dna, C>>(pli: &P) {
+fn test_score_discrete<C: StrictlyPositive + ArrayLength, P: Score<u8, Dna, C>>(pli: &P) {
     let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
     let mut striped = Pipeline::generic().stripe(encoded);
 
@@ -118,7 +119,9 @@ fn test_score_discrete<C: StrictlyPositive, P: Score<u8, Dna, C>>(pli: &P) {
     }
 }
 
-fn test_argmax<C: StrictlyPositive, P: Score<f32, Dna, C> + Maximum<f32, C>>(pli: &P) {
+fn test_argmax<C: StrictlyPositive + ArrayLength, P: Score<f32, Dna, C> + Maximum<f32, C>>(
+    pli: &P,
+) {
     let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
     let mut striped = Pipeline::generic().stripe(encoded);
 
@@ -135,7 +138,9 @@ fn test_argmax<C: StrictlyPositive, P: Score<f32, Dna, C> + Maximum<f32, C>>(pli
     assert_eq!(pli.argmax(&result).map(|c| result.offset(c)), Some(18));
 }
 
-fn test_threshold<C: StrictlyPositive, P: Score<f32, Dna, C> + Threshold<f32, C>>(pli: &P) {
+fn test_threshold<C: StrictlyPositive + ArrayLength, P: Score<f32, Dna, C> + Threshold<f32, C>>(
+    pli: &P,
+) {
     let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
     let mut striped = Pipeline::generic().stripe(encoded);
 

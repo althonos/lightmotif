@@ -3,6 +3,7 @@
 extern crate lightmotif;
 extern crate test;
 
+use lightmotif::num::ArrayLength;
 use lightmotif::num::StrictlyPositive;
 use lightmotif::num::U16;
 use lightmotif::num::U32;
@@ -24,7 +25,10 @@ mod dna {
     mod f32 {
         use super::*;
 
-        fn bench<C: StrictlyPositive, P: Score<f32, Dna, C>>(bencher: &mut test::Bencher, pli: &P) {
+        fn bench<C: StrictlyPositive + ArrayLength, P: Score<f32, Dna, C>>(
+            bencher: &mut test::Bencher,
+            pli: &P,
+        ) {
             let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
             let mut striped = Pipeline::generic().stripe(encoded);
 
@@ -89,7 +93,10 @@ mod dna {
     mod u8 {
         use super::*;
 
-        fn bench<C: StrictlyPositive, P: Score<u8, Dna, C>>(bencher: &mut test::Bencher, pli: &P) {
+        fn bench<C: StrictlyPositive + ArrayLength, P: Score<u8, Dna, C>>(
+            bencher: &mut test::Bencher,
+            pli: &P,
+        ) {
             let encoded = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
             let mut striped = Pipeline::generic().stripe(encoded);
 
@@ -163,7 +170,7 @@ mod protein {
     mod f32 {
         use super::*;
 
-        fn bench<C: StrictlyPositive, P: Score<f32, Protein, C>>(
+        fn bench<C: StrictlyPositive + ArrayLength, P: Score<f32, Protein, C>>(
             bencher: &mut test::Bencher,
             pli: &P,
         ) {

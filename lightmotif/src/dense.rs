@@ -7,27 +7,8 @@ use std::iter::FusedIterator;
 use std::ops::Index;
 use std::ops::IndexMut;
 use std::ops::Range;
-use std::ptr::NonNull;
 
-use crate::num::PowerOfTwo;
-use crate::num::Unsigned;
-
-// --- DefaultAlignment --------------------------------------------------------
-
-#[cfg(target_arch = "x86_64")]
-type _DefaultAlignment = typenum::consts::U32;
-#[cfg(any(target_arch = "x86", target_arch = "arm", target_arch = "aarch64"))]
-type _DefaultAlignment = typenum::consts::U16;
-#[cfg(not(any(
-    target_arch = "x86",
-    target_arch = "x86_64",
-    target_arch = "arm",
-    target_arch = "aarch64"
-)))]
-type _DefaultAlignment = typenum::consts::U1;
-
-/// The default alignment used in dense matrices.
-pub type DefaultAlignment = _DefaultAlignment;
+use crate::num::ArrayLength;
 
 // --- MatrixElement -----------------------------------------------------------
 
@@ -53,50 +34,34 @@ impl MatrixCoordinates {
 
 // --- DenseMatrix -------------------------------------------------------------
 
-/// A memory-aligned dense matrix with a constant number of columns.
-#[derive(Eq)]
-pub struct DenseMatrix<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo = DefaultAlignment> {
-    data: Vec<T>,
-    offset: usize,
-    rows: usize,
-    _columns: std::marker::PhantomData<C>,
-    _alignment: std::marker::PhantomData<A>,
+#[cfg_attr(target_arch = "x86_64", repr(align(32)))]
+#[cfg_attr(not(target_arch = "x86_64"), repr(align(16)))]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+struct Row<T: MatrixElement, C: ArrayLength> {
+    a: generic_array::GenericArray<T, C>,
 }
 
-impl<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> DenseMatrix<T, C, A> {
+/// A memory-aligned dense matrix with a constant number of columns.
+#[derive(Clone, Eq)]
+pub struct DenseMatrix<T: MatrixElement, C: ArrayLength> {
+    data: Vec<Row<T, C>>,
+    rows: usize,
+}
+
+impl<T: MatrixElement, C: ArrayLength> DenseMatrix<T, C> {
     /// Create a new matrix with the given number of rows.
     pub fn new(rows: usize) -> Self {
         let data = Vec::new();
-        let mut matrix = Self {
-            data,
-            offset: 0,
-            rows: 0,
-            _columns: std::marker::PhantomData,
-            _alignment: std::marker::PhantomData,
-        };
+        let mut matrix = Self { data, rows: 0 };
         matrix.resize(rows);
         matrix
     }
 
     /// Create a new *uninitialized* matrix with the given number of rows.
     pub unsafe fn uninitialized(rows: usize) -> Self {
-        // Always over-allocate columns to avoid alignment issues.
         let mut m = Self::new(0);
-        let c = m.stride();
-
-        // NOTE: this is unsafe but given that we require `T` to be
-        //       copy, this should be fine, as `Copy` prevents the
-        //       type to be `Drop` as well.
-        // reserve the vector without initializing the data
-        m.data.reserve((rows + 1) * c);
-        m.data.set_len((rows + 1) * c);
-
-        // compute offset to aligned memory
-        m.offset = 0;
-        while m.data[m.offset..].as_ptr() as usize & (A::USIZE - 1) > 0 {
-            m.offset += 1
-        }
-
+        m.data.reserve(rows);
+        m.data.set_len(rows);
         m.rows = rows;
         m
     }
@@ -137,17 +102,14 @@ impl<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> DenseMatrix<T, C, 
     ///
     /// # Example
     /// ```rust
-    /// # use typenum::{U43, U32};
+    /// # use lightmotif::num::U43;
     /// # use lightmotif::dense::DenseMatrix;
-    /// let d = DenseMatrix::<u8, U43, U32>::new(0);
+    /// let d = DenseMatrix::<u8, U43>::new(0);
     /// assert_eq!(d.stride(), 64);
     /// ```
     #[inline]
     pub const fn stride(&self) -> usize {
-        let x = std::mem::size_of::<T>();
-        let c = C::USIZE * x;
-        let b = c + (A::USIZE - c % A::USIZE) * ((c % A::USIZE) > 0) as usize;
-        b / x + ((b % x) > 0) as usize
+        std::mem::size_of::<Row<T, C>>() / std::mem::size_of::<T>()
     }
 
     /// The number of rows of the matrix.
@@ -157,151 +119,88 @@ impl<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> DenseMatrix<T, C, 
     }
 
     /// Change the number of rows of the matrix.
+    #[inline]
     pub fn resize(&mut self, rows: usize) {
-        // Always over-allocate columns to avoid alignment issues.
-        let c: usize = self.stride();
-
-        // Cache previous dimensions
-        let previous_rows = self.rows;
-        let previous_offset = self.offset;
-
-        // Only reallocate if needed
-        if previous_rows > rows {
-            // Truncate rows
-            self.data.truncate((rows + 1) * c);
-        } else if previous_rows < rows {
-            // Allocate data block
-            self.data.resize_with((rows + 1) * c, T::default);
-            // Compute offset to aligned memory
-            self.offset = 0;
-            while self.data[self.offset..].as_ptr() as usize & (A::USIZE - 1) > 0 {
-                self.offset += 1
-            }
-            // Copy data in case alignment offset changed
-            if previous_offset != self.offset {
-                self.data.as_mut_slice().copy_within(
-                    previous_offset..previous_offset + (previous_rows * c),
-                    self.offset,
-                );
-            }
-        }
-
-        // Update row count
+        self.data.resize_with(rows, Default::default);
         self.rows = rows;
     }
 
     /// Iterate over the rows of the matrix.
     #[inline]
-    pub fn iter(&self) -> Iter<'_, T, C, A> {
+    pub fn iter(&self) -> Iter<'_, T, C> {
         Iter::new(self)
     }
 
-    /// Returns an iterator that allows modifying each row.
+    /// Returns an it,erator that allows modifying each row.
     #[inline]
-    pub fn iter_mut(&mut self) -> IterMut<'_, T, C, A> {
+    pub fn iter_mut(&mut self) -> IterMut<'_, T, C> {
         IterMut::new(self)
     }
 
     /// Fill the entire matrix with a constant value.
     #[inline]
     pub fn fill(&mut self, value: T) {
-        self.data.fill(value);
+        for row in self.data.iter_mut() {
+            row.a.fill(value)
+        }
     }
 }
 
-impl<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> AsRef<DenseMatrix<T, C, A>>
-    for DenseMatrix<T, C, A>
-{
-    fn as_ref(&self) -> &DenseMatrix<T, C, A> {
+impl<T: MatrixElement, C: ArrayLength> AsRef<DenseMatrix<T, C>> for DenseMatrix<T, C> {
+    #[inline]
+    fn as_ref(&self) -> &DenseMatrix<T, C> {
         self
     }
 }
 
-impl<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> Clone for DenseMatrix<T, C, A> {
-    fn clone(&self) -> Self {
-        let mut clone = unsafe { Self::uninitialized(self.rows) };
-        let l = self.rows() * self.stride();
-        clone.data[clone.offset..clone.offset + l]
-            .copy_from_slice(&self.data[self.offset..self.offset + l]);
-        clone
-    }
-}
-
-impl<T: MatrixElement + Debug, C: Unsigned, A: Unsigned + PowerOfTwo> Debug
-    for DenseMatrix<T, C, A>
-{
+impl<T: MatrixElement + Debug, C: ArrayLength> Debug for DenseMatrix<T, C> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
         f.debug_list().entries(self.iter()).finish()
     }
 }
 
-impl<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> Index<usize>
-    for DenseMatrix<T, C, A>
-{
+impl<T: MatrixElement, C: ArrayLength> Index<usize> for DenseMatrix<T, C> {
     type Output = [T];
     #[inline]
     fn index(&self, index: usize) -> &Self::Output {
-        let c = self.stride();
-        let row = self.offset + c * index;
-        debug_assert!(row + C::USIZE <= self.data.len());
-        let row = &self.data[row..row + C::USIZE];
-        debug_assert_eq!(row.as_ptr() as usize & (A::USIZE - 1), 0);
-        row
+        self.data[index].a.as_slice()
     }
 }
 
-impl<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> IndexMut<usize>
-    for DenseMatrix<T, C, A>
-{
+impl<T: MatrixElement, C: ArrayLength> IndexMut<usize> for DenseMatrix<T, C> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        let c = self.stride();
-        let row = self.offset + c * index;
-        debug_assert!(row + C::USIZE <= self.data.len());
-        let row = &mut self.data[row..row + C::USIZE];
-        debug_assert_eq!(row.as_ptr() as usize & (A::USIZE - 1), 0);
-        row
+        self.data[index].a.as_mut_slice()
     }
 }
 
-impl<T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> Index<MatrixCoordinates>
-    for DenseMatrix<T, C, A>
-{
+impl<T: MatrixElement, C: ArrayLength> Index<MatrixCoordinates> for DenseMatrix<T, C> {
     type Output = T;
     #[inline]
     fn index(&self, index: MatrixCoordinates) -> &Self::Output {
-        let c = self.stride();
-        let i = self.offset + c * index.row + index.col;
-        debug_assert!(i < self.data.len());
-        &self.data[i]
+        &self.data[index.row].a[index.col]
     }
 }
 
-impl<'a, T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> IntoIterator
-    for &'a DenseMatrix<T, C, A>
-{
+impl<'a, T: MatrixElement, C: ArrayLength> IntoIterator for &'a DenseMatrix<T, C> {
     type Item = &'a [T];
-    type IntoIter = Iter<'a, T, C, A>;
+    type IntoIter = Iter<'a, T, C>;
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
         Iter::new(self)
     }
 }
 
-impl<'a, T: MatrixElement, C: Unsigned, A: Unsigned + PowerOfTwo> IntoIterator
-    for &'a mut DenseMatrix<T, C, A>
-{
+impl<'a, T: MatrixElement, C: ArrayLength> IntoIterator for &'a mut DenseMatrix<T, C> {
     type Item = &'a mut [T];
-    type IntoIter = IterMut<'a, T, C, A>;
+    type IntoIter = IterMut<'a, T, C>;
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
         IterMut::new(self)
     }
 }
 
-impl<'a, T: MatrixElement + PartialEq, C: Unsigned, A: Unsigned + PowerOfTwo> PartialEq
-    for DenseMatrix<T, C, A>
-{
+impl<'a, T: MatrixElement + PartialEq, C: ArrayLength> PartialEq for DenseMatrix<T, C> {
     fn eq(&self, other: &Self) -> bool {
         if self.rows() != other.rows() {
             return false;
@@ -325,75 +224,57 @@ impl<'a, T: MatrixElement + PartialEq, C: Unsigned, A: Unsigned + PowerOfTwo> Pa
 
 // --- Iter --------------------------------------------------------------------
 
-pub struct Iter<'a, T, C, A>
+pub struct Iter<'a, T, C>
 where
     T: 'a + MatrixElement,
-    C: Unsigned,
-    A: Unsigned + PowerOfTwo,
+    C: ArrayLength,
 {
-    matrix: &'a DenseMatrix<T, C, A>,
+    matrix: &'a DenseMatrix<T, C>,
     indices: Range<usize>,
-    data: std::ptr::NonNull<T>,
 }
 
-impl<'a, T, C, A> Iter<'a, T, C, A>
+impl<'a, T, C> Iter<'a, T, C>
 where
     T: 'a + MatrixElement,
-    C: Unsigned,
-    A: Unsigned + PowerOfTwo,
+    C: ArrayLength,
 {
-    fn new(matrix: &'a DenseMatrix<T, C, A>) -> Self {
+    #[inline]
+    fn new(matrix: &'a DenseMatrix<T, C>) -> Self {
         let indices = 0..matrix.rows();
-        let data = unsafe { NonNull::new_unchecked(matrix.data.as_ptr() as *mut T) };
-        Self {
-            indices,
-            matrix,
-            data,
-        }
+        Self { indices, matrix }
     }
 
     #[inline]
     fn get(&mut self, i: usize) -> &'a [T] {
-        let c = self.matrix.stride();
-        let row = self.matrix.offset + c * i;
-        unsafe { std::slice::from_raw_parts(self.data.as_ptr().add(row), C::USIZE) }
+        self.matrix.data[i].a.as_slice()
     }
 }
 
 // --- IterMut -----------------------------------------------------------------
 
-pub struct IterMut<'a, T, C, A>
+pub struct IterMut<'a, T, C>
 where
     T: 'a + MatrixElement,
-    C: Unsigned,
-    A: Unsigned + PowerOfTwo,
+    C: ArrayLength,
 {
-    matrix: &'a mut DenseMatrix<T, C, A>,
+    matrix: &'a mut DenseMatrix<T, C>,
     indices: Range<usize>,
-    data: std::ptr::NonNull<T>,
 }
 
-impl<'a, T, C, A> IterMut<'a, T, C, A>
+impl<'a, T, C> IterMut<'a, T, C>
 where
     T: 'a + MatrixElement,
-    C: Unsigned,
-    A: Unsigned + PowerOfTwo,
+    C: ArrayLength,
 {
-    fn new(matrix: &'a mut DenseMatrix<T, C, A>) -> Self {
+    #[inline]
+    fn new(matrix: &'a mut DenseMatrix<T, C>) -> Self {
         let indices = 0..matrix.rows();
-        let data = unsafe { NonNull::new_unchecked(matrix.data.as_mut_ptr()) };
-        Self {
-            indices,
-            data,
-            matrix,
-        }
+        Self { indices, matrix }
     }
 
     #[inline]
     fn get(&mut self, i: usize) -> &'a mut [T] {
-        let c = self.matrix.stride();
-        let row = self.matrix.offset + c * i;
-        unsafe { std::slice::from_raw_parts_mut(self.data.as_ptr().add(row), C::USIZE) }
+        unsafe { std::slice::from_raw_parts_mut(self.matrix.data[i].a.as_mut_ptr(), C::USIZE) }
     }
 }
 
@@ -401,23 +282,22 @@ where
 
 macro_rules! iterator {
     ($t:ident, $T:ident, $($item:tt)*) => {
-        impl<'a, $T, C, A> Iterator for $t<'a, $T, C, A>
+        impl<'a, $T, C> Iterator for $t<'a, $T, C>
         where
             $T: MatrixElement,
-            C: Unsigned,
-            A: Unsigned + PowerOfTwo,
+            C: ArrayLength,
         {
             type Item = &'a $($item)*;
+            #[inline]
             fn next(&mut self) -> Option<Self::Item> {
                 self.indices.next().map(|i| self.get(i))
             }
         }
 
-        impl<'a, $T, C, A> ExactSizeIterator for $t<'a, $T, C, A>
+        impl<'a, $T, C> ExactSizeIterator for $t<'a, $T, C>
         where
             $T: MatrixElement,
-            C: Unsigned,
-            A: Unsigned + PowerOfTwo,
+            C: ArrayLength,
         {
             #[inline]
             fn len(&self) -> usize {
@@ -425,19 +305,18 @@ macro_rules! iterator {
             }
         }
 
-        impl<'a, $T, C, A> FusedIterator for $t<'a, $T, C, A>
+        impl<'a, $T, C> FusedIterator for $t<'a, $T, C>
         where
             $T: MatrixElement,
-            C: Unsigned,
-            A: Unsigned + PowerOfTwo,
+            C: ArrayLength,
         {}
 
-        impl<'a, $T, C, A> DoubleEndedIterator for $t<'a, $T, C, A>
+        impl<'a, $T, C> DoubleEndedIterator for $t<'a, $T, C>
         where
             $T: MatrixElement,
-            C: Unsigned,
-            A: Unsigned + PowerOfTwo,
+            C: ArrayLength,
         {
+            #[inline]
             fn next_back(&mut self) -> Option<Self::Item> {
                 self.indices.next_back().map(|i| self.get(i))
             }
@@ -450,36 +329,32 @@ iterator!(IterMut, T, mut [T]);
 
 #[cfg(test)]
 mod test {
-    use typenum::consts::U15;
     use typenum::consts::U16;
-    use typenum::consts::U3;
     use typenum::consts::U32;
+    use typenum::consts::U33;
     use typenum::consts::U8;
 
     use super::*;
 
     #[test]
     fn stride() {
-        let d1 = DenseMatrix::<u8, U32, U32>::new(0);
+        let d1 = DenseMatrix::<u8, U32>::new(0);
         assert_eq!(d1.stride(), 32);
 
-        let d2 = DenseMatrix::<u8, U16, U32>::new(0);
+        let d2 = DenseMatrix::<u8, U16>::new(0);
         assert_eq!(d2.stride(), 32);
 
-        let d3 = DenseMatrix::<u32, U32, U32>::new(0);
+        let d3 = DenseMatrix::<u32, U32>::new(0);
         assert_eq!(d3.stride(), 32);
 
-        let d4 = DenseMatrix::<u32, U8, U32>::new(0);
+        let d4 = DenseMatrix::<u32, U8>::new(0);
         assert_eq!(d4.stride(), 8);
 
-        let d5 = DenseMatrix::<u32, U16, U32>::new(0);
+        let d5 = DenseMatrix::<u32, U16>::new(0);
         assert_eq!(d5.stride(), 16);
 
-        let d6 = DenseMatrix::<u32, U3, U16>::new(0);
-        assert_eq!(d6.stride(), 4);
-
-        let d7 = DenseMatrix::<u8, U15, U8>::new(0);
-        assert_eq!(d7.stride(), 16);
+        let d7 = DenseMatrix::<u8, U33>::new(0);
+        assert_eq!(d7.stride(), 64);
     }
 
     #[test]
