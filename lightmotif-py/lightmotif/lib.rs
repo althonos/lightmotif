@@ -434,7 +434,7 @@ impl CountMatrix {
     /// Create a new count matrix.
     #[new]
     #[allow(unused_variables)]
-    #[pyo3(signature = (values, protein = false))]
+    #[pyo3(signature = (values, *, protein = false))]
     pub fn __init__<'py>(
         values: Bound<'py, PyDict>,
         protein: bool,
@@ -746,50 +746,63 @@ impl ScoringMatrix {
 impl ScoringMatrix {
     /// Create a new scoring matrix.
     #[new]
-    #[pyo3(signature = (alphabet, values, background = None))]
+    #[pyo3(signature = (values, background = None, *, protein = false))]
     #[allow(unused)]
     pub fn __init__<'py>(
-        alphabet: Bound<'py, PyString>,
         values: Bound<'py, PyDict>,
         background: Option<PyObject>,
+        protein: bool,
     ) -> PyResult<PyClassInitializer<Self>> {
-        // extract the background from the method argument
-        let bg = Python::with_gil(|py| {
-            if let Some(obj) = background {
-                if let Ok(d) = obj.extract::<Bound<PyDict>>(py) {
-                    let p = dict_to_alphabet_array::<Dna>(d)?;
-                    lightmotif::abc::Background::new(p)
-                        .map_err(|_| PyValueError::new_err("Invalid background frequencies"))
-                } else {
-                    Err(PyTypeError::new_err("Invalid type for pseudocount"))
+        macro_rules! run {
+            ($alphabet:ty) => {{
+                // extract the background from the method argument
+                let bg = Python::with_gil(|py| {
+                    if let Some(obj) = background {
+                        if let Ok(d) = obj.extract::<Bound<PyDict>>(py) {
+                            let p = dict_to_alphabet_array::<$alphabet>(d)?;
+                            lightmotif::abc::Background::<$alphabet>::new(p).map_err(|_| {
+                                PyValueError::new_err("Invalid background frequencies")
+                            })
+                        } else {
+                            Err(PyTypeError::new_err("Invalid type for pseudocount"))
+                        }
+                    } else {
+                        Ok(lightmotif::abc::Background::uniform())
+                    }
+                })?;
+                // build data
+                let mut data: Option<DenseMatrix<f32, <$alphabet as Alphabet>::K>> = None;
+                for s in <$alphabet as Alphabet>::symbols() {
+                    let key = String::from(s.as_char());
+                    if let Some(res) = values.get_item(&key)? {
+                        let column = res.downcast::<PyList>()?;
+                        if data.is_none() {
+                            data = Some(DenseMatrix::new(column.len()));
+                        }
+                        let matrix = data.as_mut().unwrap();
+                        if matrix.rows() != column.len() {
+                            return Err(PyValueError::new_err("Invalid number of rows"));
+                        }
+                        for (i, x) in column.iter().enumerate() {
+                            matrix[i][s.as_index()] = x.extract::<f32>()?;
+                        }
+                    }
                 }
-            } else {
-                Ok(lightmotif::abc::Background::uniform())
-            }
-        })?;
-
-        // build data
-        let mut data: Option<DenseMatrix<f32, <Dna as Alphabet>::K>> = None;
-        for s in Dna::symbols() {
-            let key = String::from(s.as_char());
-            if let Some(res) = values.get_item(&key)? {
-                let column = res.downcast::<PyList>()?;
-                if data.is_none() {
-                    data = Some(DenseMatrix::new(column.len()));
+                // create matrix
+                match data {
+                    None => Err(PyValueError::new_err("Invalid count matrix")),
+                    Some(matrix) => Ok(Self::new(lightmotif::ScoringMatrix::<$alphabet>::new(
+                        bg, matrix,
+                    ))
+                    .into()),
                 }
-                let matrix = data.as_mut().unwrap();
-                if matrix.rows() != column.len() {
-                    return Err(PyValueError::new_err("Invalid number of rows"));
-                }
-                for (i, x) in column.iter().enumerate() {
-                    matrix[i][s.as_index()] = x.extract::<f32>()?;
-                }
-            }
+            }};
         }
 
-        match data {
-            None => Err(PyValueError::new_err("Invalid count matrix")),
-            Some(matrix) => Ok(Self::new(lightmotif::ScoringMatrix::<Dna>::new(bg, matrix)).into()),
+        if protein {
+            run!(Protein)
+        } else {
+            run!(Dna)
         }
     }
 
@@ -1272,7 +1285,7 @@ impl From<lightmotif::scan::Hit> for Hit {
 ///         or when the sequence lengths are not consistent.
 ///
 #[pyfunction]
-#[pyo3(signature = (sequences, protein = false, name = None))]
+#[pyo3(signature = (sequences, *, protein = false, name = None))]
 pub fn create(sequences: Bound<PyAny>, protein: bool, name: Option<String>) -> PyResult<Motif> {
     let py = sequences.py();
     macro_rules! run {
@@ -1323,7 +1336,7 @@ pub fn create(sequences: Bound<PyAny>, protein: bool, name: Option<String>) -> P
 ///     `ValueError`: When the sequences contains an invalid character.
 ///
 #[pyfunction]
-#[pyo3(signature = (sequence, protein=false))]
+#[pyo3(signature = (sequence, *, protein=false))]
 pub fn stripe(sequence: Bound<PyString>, protein: bool) -> PyResult<StripedSequence> {
     let py = sequence.py();
     let encoded = EncodedSequence::__init__(sequence, protein).and_then(|e| Py::new(py, e))?;
@@ -1359,7 +1372,7 @@ pub fn stripe(sequence: Bound<PyString>, protein: bool) -> PyResult<StripedSeque
 ///     implementation requirements.  
 ///
 #[pyfunction]
-#[pyo3(signature = (pssm, sequence, threshold = 0.0, block_size = 256))]
+#[pyo3(signature = (pssm, sequence, *, threshold = 0.0, block_size = 256))]
 pub fn scan<'py>(
     pssm: Bound<'py, ScoringMatrix>,
     sequence: Bound<'py, StripedSequence>,

@@ -15,7 +15,7 @@ AVX2_SUPPORTED: bool
 FORMAT = Literal["jaspar", "jaspar16", "uniprobe", "transfac"]
 
 class EncodedSequence:
-    def __init__(self, sequence: str, protein: bool = False) -> None: ...
+    def __init__(self, sequence: str, *, protein: bool = False) -> None: ...
     def __str__(self) -> str: ...
     def __len__(self) -> int: ...
     def __copy__(self) -> EncodedSequence: ...
@@ -34,7 +34,7 @@ class StripedSequence:
 
 class CountMatrix:
     def __init__(
-        self, values: Dict[str, Iterable[int]], protein: bool = False
+        self, values: Dict[str, Iterable[int]], *, protein: bool = False
     ) -> None: ...
     def __eq__(self, other: object) -> bool: ...
     def __len__(self) -> int: ...
@@ -57,7 +57,11 @@ class WeightMatrix:
 
 class ScoringMatrix:
     def __init__(
-        self, values: Dict[str, Iterable[float]], protein: bool = False
+        self,
+        values: Dict[str, Iterable[float]],
+        background: Optional[Dict[str, float]] = None,
+        *,
+        protein: bool = False,
     ) -> None: ...
     def __len__(self) -> int: ...
     def __eq__(self, other: object) -> bool: ...
@@ -125,16 +129,24 @@ class Hit:
 M = typing.TypeVar("M", bound=Motif)
 
 class Loader(Generic[M], Iterator[M]):
+    def __init__(
+        self,
+        file: Union[BinaryIO, PathLike[str]],
+        format: Literal["jaspar16"],
+        *,
+        protein: bool = False,
+    ) -> None: ...
     def __iter__(self) -> Loader[M]: ...
     def __next__(self) -> M: ...
 
 def create(
-    sequences: Iterable[str], protein: bool = False, name: Optional[str] = None
+    sequences: Iterable[str], *, protein: bool = False, name: Optional[str] = None
 ) -> Motif: ...
-def stripe(sequence: str, protein: bool = False) -> StripedSequence: ...
+def stripe(sequence: str, *, protein: bool = False) -> StripedSequence: ...
 def scan(
     pssm: ScoringMatrix,
     sequence: StripedSequence,
+    *,
     threshold: float = 0.0,
     block_size: int = 256,
 ) -> Scanner: ...
@@ -143,33 +155,33 @@ def load(
     file: Union[BinaryIO, PathLike[str]],
     format: Literal["jaspar"],
     *,
-    protein: bool = False
+    protein: bool = False,
 ) -> Loader[JasparMotif]: ...
 @typing.overload
 def load(
     file: Union[BinaryIO, PathLike[str]],
     format: Literal["jaspar16"],
     *,
-    protein: bool = False
+    protein: bool = False,
 ) -> Loader[JasparMotif]: ...
 @typing.overload
 def load(
     file: Union[BinaryIO, PathLike[str]],
     format: Literal["uniprobe"],
     *,
-    protein: bool = False
+    protein: bool = False,
 ) -> Loader[UniprobeMotif]: ...
 @typing.overload
 def load(
     file: Union[BinaryIO, PathLike[str]],
     format: Literal["transfac"],
     *,
-    protein: bool = False
+    protein: bool = False,
 ) -> Loader[TransfacMotif]: ...
 @typing.overload
 def load(
     file: Union[BinaryIO, PathLike[str]],
     format: FORMAT = "jaspar",
     *,
-    protein: bool = False
+    protein: bool = False,
 ) -> Loader[Motif]: ...
