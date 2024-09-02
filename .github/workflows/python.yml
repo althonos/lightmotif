@@ -41,9 +41,9 @@ jobs:
         CIBW_TEST_COMMAND: python -m unittest lightmotif.tests
       with:
         output-dir: dist
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
-        name: wheels
+        name: wheels-${{ matrix.python-tag }}
         path: dist/*
 
   wheel-linux-x86_64:
@@ -77,9 +77,9 @@ jobs:
         CIBW_TEST_COMMAND: python -m unittest lightmotif.tests
       with:
         output-dir: dist
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
-        name: wheels
+        name: wheels-${{ matrix.python-tag }}
         path: dist/*
 
   wheel-macos-x86_64:
@@ -112,9 +112,9 @@ jobs:
         CIBW_TEST_COMMAND: python -m unittest lightmotif.tests
       with:
         output-dir: dist
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
-        name: wheels
+        name: wheels-${{ matrix.python-tag }}
         path: dist/*
 
   wheel-macos-aarch64:
@@ -146,9 +146,9 @@ jobs:
         CIBW_TEST_COMMAND: python -m unittest lightmotif.tests
       with:
         output-dir: dist
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
-        name: wheels
+        name: wheels-${{ matrix.python-tag }}
         path: dist/*
 
   wheel-win32-x86_64:
@@ -182,7 +182,7 @@ jobs:
         output-dir: dist
     - uses: actions/upload-artifact@v4
       with:
-        name: wheels
+        name: wheels-${{ matrix.python-tag }}
         path: dist/*
 
   sdist:
@@ -222,22 +222,24 @@ jobs:
     - wheel-macos-x86_64
     - wheel-win32-x86_64
     steps:
-    - name: Download built wheels
-      if: "!contains(github.ref, 'post')"
-      uses: actions/download-artifact@v4
-      with:
-        merge-multiple: true
-        name: wheels
-        path: dist
     - name: Download source distribution
       uses: actions/download-artifact@v4
       with:
-        merge-multiple: true
         name: sdist
-        path: dist
+        path: dist/
+        merge-multiple: true
+    - name: Download wheel distributions
+      if: "!contains(github.ref, 'post')"
+      uses: actions/download-artifact@v4
+      with:
+        pattern: wheels-*
+        path: dist/
+        merge-multiple: true
     - name: Publish distributions to PyPI
+      if: startsWith(github.ref, 'refs/tags/v')
       uses: pypa/gh-action-pypi-publish@release/v1
   release:
+    permissions: write-all
     environment: GitHub Releases
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/v')"
@@ -245,7 +247,7 @@ jobs:
     needs: upload
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Release a Changelog
       uses: rasmus-saks/release-a-changelog-action@v1.2.0
       with:
