@@ -200,6 +200,13 @@ impl<T: MatrixElement, C: ArrayLength> Index<MatrixCoordinates> for DenseMatrix<
     }
 }
 
+impl<T: MatrixElement, C: ArrayLength> IndexMut<MatrixCoordinates> for DenseMatrix<T, C> {
+    #[inline]
+    fn index_mut(&mut self, index: MatrixCoordinates) -> &mut Self::Output {
+        &mut self.data[index.row].a[index.col]
+    }
+}
+
 impl<'a, T: MatrixElement, C: ArrayLength> IntoIterator for &'a DenseMatrix<T, C> {
     type Item = &'a [T];
     type IntoIter = Iter<'a, T, C>;
