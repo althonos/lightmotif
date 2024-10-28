@@ -5,7 +5,6 @@
 
 # -- Imports -----------------------------------------------------------------
 
-import configparser
 import datetime
 import os
 import sys
@@ -38,15 +37,6 @@ copyright = '{}, {}'.format("2023" if year==2023 else "2023-{}".format(year), au
 semver = semantic_version.Version.coerce(lightmotif.__version__)
 version = str(semver.truncate(level="patch"))
 release = str(semver)
-
-# extract the project URLs from ``setup.cfg``
-cfgparser = configparser.ConfigParser()
-cfgparser.read(os.path.join(project_dir, "setup.cfg"))
-project_urls = dict(
-    map(str.strip, line.split(" = ", 1))
-    for line in cfgparser.get("metadata", "project_urls").splitlines()
-    if line.strip()
-)
 
 # patch the docstring of so that we don't show the link to redirect
 # to the docs (we don't want to see it when reading the docs already, duh!)
