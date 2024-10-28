@@ -1,6 +1,5 @@
 # build dependencies
-setuptools >=46.4
-setuptools-rust
+maturin ~=1.2
 
 # sphinx documentation dependencies
 semantic_version ~=2.8
