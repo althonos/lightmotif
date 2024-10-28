@@ -11,6 +11,8 @@ use std::str::FromStr;
 use rand::Rng;
 
 use super::abc::Alphabet;
+#[cfg(feature = "sample")]
+use super::abc::Background;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
 use super::err::InvalidData;
