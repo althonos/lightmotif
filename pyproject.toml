@@ -58,7 +58,7 @@ free-threaded-support = false
 
 [tool.cibuildwheel.linux]
 environment = { PATH="$PATH:$HOME/.cargo/bin" }
-before-all = "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh /dev/stdin -y"
+before-all = "curl -sSf https://sh.rustup.rs | sh -s -- -y"
 
 [tool.coverage.report]
 show_missing = true
