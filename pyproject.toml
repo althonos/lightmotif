@@ -57,8 +57,14 @@ build-verbosity = 1
 free-threaded-support = false
 
 [tool.cibuildwheel.linux]
-environment = { PATH="$PATH:$HOME/.cargo/bin" }
+environment = { PATH="$HOME/.cargo/bin:$PATH" }
 before-all = "curl -sSf https://sh.rustup.rs | sh -s -- -y"
+
+[tool.cibuildwheel.macos]
+before-all = [
+  "curl -sSf https://sh.rustup.rs | sh -s -- -y",
+  "rustup target add aarch64-apple-darwin"
+]
 
 [tool.coverage.report]
 show_missing = true
