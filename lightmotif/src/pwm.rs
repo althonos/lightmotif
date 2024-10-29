@@ -172,9 +172,9 @@ impl<A: Alphabet> CountMatrix<A> {
         FrequencyMatrix::new_unchecked(probas)
     }
 
-    /// Compute the entropy of each column of the matrix.
+    /// Compute the entropy of each row of the matrix.
     ///
-    /// The entropy of a column, sometimes refered to as "uncertainty", is
+    /// The entropy of a row, sometimes refered to as "uncertainty", is
     /// computed by treating each motif position as a random variable taking
     /// values in alphabet `A`.
     pub fn entropy(&self) -> Vec<f32> {
@@ -189,17 +189,6 @@ impl<A: Alphabet> CountMatrix<A> {
                     .sum::<f32>()
             })
             .collect()
-    }
-
-    /// Compute the information content of the matrix.
-    pub fn information_content(&self) -> f32 {
-        let entropy = self.entropy();
-        let hmax = entropy
-            .iter()
-            .max_by(|h1, h2| h1.partial_cmp(h2).unwrap())
-            .cloned()
-            .unwrap();
-        entropy.into_iter().map(|h| hmax - h).sum()
     }
 }
 
@@ -371,6 +360,19 @@ impl<A: Alphabet> WeightMatrix<A> {
         }
     }
 
+    /// Compute the information content of the matrix.
+    pub fn information_content(&self) -> f32 {
+        self.matrix()
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .zip(&self.background.frequencies()[..A::K::USIZE - 1])
+                    .map(|(x, b)| x * (x / b).log2())
+                    .sum::<f32>()
+            })
+            .sum()
+    }
+
     /// Get a position-specific scoring matrix from this position weight matrix.
     pub fn to_scoring(&self) -> ScoringMatrix<A> {
         self.to_scoring_with_base(2.0)
@@ -477,6 +479,19 @@ impl<A: Alphabet> ScoringMatrix<A> {
                     .iter()
                     .max_by(|a, b| a.partial_cmp(b).unwrap())
                     .unwrap()
+            })
+            .sum()
+    }
+
+    /// Compute the information content of the matrix.
+    pub fn information_content(&self) -> f32 {
+        self.matrix()
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .zip(&self.background.frequencies()[..A::K::USIZE - 1])
+                    .map(|(x, b)| (x.exp() * b) * x)
+                    .sum::<f32>()
             })
             .sum()
     }
