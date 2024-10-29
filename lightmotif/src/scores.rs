@@ -64,6 +64,12 @@ impl<T: PartialOrd + Clone> Scores<T> {
     }
 }
 
+impl<T> AsRef<Vec<T>> for Scores<T> {
+    fn as_ref(&self) -> &Vec<T> {
+        &self.data
+    }
+}
+
 impl<T> Deref for Scores<T> {
     type Target = Vec<T>;
     fn deref(&self) -> &Self::Target {
