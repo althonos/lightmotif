@@ -143,11 +143,8 @@ where
             &mut scores,
         );
         // sample new position using scores as sampling weights
-        let weights: Vec<f64> = scores
-            .iter()
-            .map(|&x| (x as f64 / self.temperature).exp())
-            .collect();
-        let dist = rand::distributions::WeightedIndex::new(weights).unwrap();
+        let weights = scores.iter().map(|&x| (x as f64 / self.temperature).exp());
+        let dist = WeightedIndex::new(weights).unwrap();
         self.indices[z] = dist.sample(&mut self.rng);
 
         // yield current iteration
