@@ -367,7 +367,7 @@ impl<A: Alphabet> WeightMatrix<A> {
             .map(|row| {
                 row.iter()
                     .zip(&self.background.frequencies()[..A::K::USIZE - 1])
-                    .map(|(x, b)| x * (x / b).log2())
+                    .map(|(x, b)| if *b == 0.0 { 0.0 } else { x * (x / b).log2() })
                     .sum::<f32>()
             })
             .sum()
@@ -490,7 +490,7 @@ impl<A: Alphabet> ScoringMatrix<A> {
             .map(|row| {
                 row.iter()
                     .zip(&self.background.frequencies()[..A::K::USIZE - 1])
-                    .map(|(x, b)| (x.exp() * b) * x)
+                    .map(|(x, b)| if *b == 0.0 { 0.0 } else { (x.exp() * b) * x })
                     .sum::<f32>()
             })
             .sum()
