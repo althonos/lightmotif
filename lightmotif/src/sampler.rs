@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::iter::Iterator;
 use std::sync::RwLock;
 
@@ -8,24 +7,19 @@ use rand::distributions::Uniform;
 use rand::Rng;
 use rand_distr::WeightedIndex;
 
-use crate::ScoringMatrix;
-
 use super::abc::Alphabet;
 use super::abc::Background;
-use super::abc::Dna;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
 use super::dense::MatrixCoordinates;
 use super::num::ArrayLength;
 use super::num::NonZero;
 use super::num::Unsigned;
-use super::num::U32;
 use super::pli::dispatch::Dispatch;
-use super::pli::platform::Backend;
-use super::pli::Maximum;
 use super::pli::Pipeline;
 use super::pli::Score;
 use super::pwm::CountMatrix;
+use super::pwm::ScoringMatrix;
 use super::scores::StripedScores;
 use super::seq::StripedSequence;
 use super::seq::SymbolCount;
@@ -255,12 +249,9 @@ pub struct GibbsIteration<A: Alphabet> {
 
 #[cfg(test)]
 mod test {
-    use std::default;
     use std::str::FromStr;
 
-    use rand::SeedableRng;
-
-    use crate::abc::{AminoAcid, Protein};
+    use crate::abc::Protein;
     use crate::seq::EncodedSequence;
 
     use super::*;

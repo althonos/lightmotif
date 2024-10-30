@@ -4,7 +4,6 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
 use std::fmt::Write;
-use std::hash::DefaultHasher;
 use std::ops::Index;
 use std::str::FromStr;
 
