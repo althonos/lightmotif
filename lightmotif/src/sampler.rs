@@ -50,7 +50,7 @@ where
     C: ArrayLength + NonZero,
     S: AsRef<[StripedSequence<A, C>]>,
 {
-    fn new(sequences: S) -> Self {
+    pub fn new(sequences: S) -> Self {
         let s = sequences.as_ref();
         // count background positions only once
         let counts = s
@@ -76,14 +76,84 @@ where
     }
 }
 
+pub struct SamplerBuilder<'a, A, C, S>
+where
+    A: Alphabet,
+    C: ArrayLength + NonZero,
+    S: AsRef<[StripedSequence<A, C>]>,
+{
+    data: &'a SamplerData<A, C, S>,
+    width: usize,
+    mode: SamplerMode,
+    temperature: f64,
+    seeds: usize,
+    inertia: Option<usize>,
+}
+
+impl<'a, A, C, S> SamplerBuilder<'a, A, C, S>
+where
+    A: Alphabet,
+    C: ArrayLength + NonZero,
+    S: AsRef<[StripedSequence<A, C>]>,
+{
+    pub fn new(data: &'a SamplerData<A, C, S>, width: usize) -> Self {
+        Self {
+            data,
+            width,
+            mode: SamplerMode::Oops,
+            temperature: 1.0,
+            seeds: 0,
+            inertia: None,
+        }
+    }
+
+    pub fn width(&mut self, width: usize) -> &mut Self {
+        self.width = width;
+        self
+    }
+
+    pub fn mode(&mut self, mode: SamplerMode) -> &mut Self {
+        self.mode = mode;
+        self
+    }
+
+    pub fn temperature(&mut self, temperature: f64) -> &mut Self {
+        self.temperature = temperature;
+        self
+    }
+
+    pub fn seeds(&mut self, seeds: usize) -> &mut Self {
+        self.seeds = seeds;
+        self.inertia.get_or_insert(seeds * 10);
+        self
+    }
+
+    pub fn inertia(&mut self, inertia: usize) -> &mut Self {
+        self.inertia = Some(inertia);
+        self
+    }
+
+    pub fn sample<R: Rng>(&self, rng: R) -> Sampler<'a, R, A, C, S> {
+        Sampler::_new(
+            self.data,
+            self.width,
+            rng,
+            self.mode.clone(),
+            self.seeds,
+            self.inertia.unwrap_or(0),
+        )
+    }
+}
+
 #[derive(Debug)]
-pub struct Sampler<
-    'a,
+pub struct Sampler<'a, R, A, C, S>
+where
     R: Rng,
     A: Alphabet,
     C: ArrayLength + NonZero,
     S: AsRef<[StripedSequence<A, C>]>,
-> {
+{
+    // -- References ----------------------------
     /// A reference to the sampler data.
     data: &'a SamplerData<A, C, S>,
     /// The `lightmotif` pipeline used to accelerate computations.
@@ -98,8 +168,9 @@ pub struct Sampler<
     mode: SamplerMode,
     /// The temperature used for sampling new sequence positions.
     temperature: f64,
-    ///
-    initials: Vec<usize>,
+    /// The sequences that were selected to build the "seed" motif (in `zoops` mode).
+    seed: Vec<usize>,
+    /// The number of steps to iterate only on "seed" sequences (in `zoops` mode).
     inertia: usize,
 
     // -- Internal data -------------------------
@@ -147,15 +218,17 @@ where
             .collect::<Vec<usize>>();
 
         // select initial active sequences
-        let mut initials = Vec::new();
+        let mut seed = Vec::new();
         let active = match mode {
-            SamplerMode::Oops => vec![true; starts.len()],
+            SamplerMode::Oops => {
+                vec![true; starts.len()]
+            }
             SamplerMode::Zoops => {
                 let mut active = vec![false; starts.len()];
                 for i in rand::seq::index::sample(&mut rng, active.len(), initial.min(active.len()))
                 {
                     active[i] = true;
-                    initials.push(i);
+                    seed.push(i);
                 }
                 active
             }
@@ -199,7 +272,7 @@ where
             pli: Pipeline::dispatch(),
             mode,
             active,
-            initials,
+            seed,
             inertia,
             step: 0,
         }
@@ -208,7 +281,7 @@ where
     fn select_holdout(&mut self) -> usize {
         match self.mode {
             SamplerMode::Zoops if self.step < self.inertia => {
-                *self.initials.choose(&mut self.rng).unwrap()
+                *self.seed.choose(&mut self.rng).unwrap()
             }
             _ => self.rng.sample(Uniform::new(0, self.starts.len())),
         }
@@ -289,7 +362,7 @@ where
     S: AsRef<[StripedSequence<A, C>]>,
     Pipeline<A, Dispatch>: Score<f32, A, C>,
 {
-    type Item = GibbsIteration<A>;
+    type Item = Iteration<A>;
     fn next(&mut self) -> Option<Self::Item> {
         // step 1: sampling
         // select the holdout sequence
@@ -316,22 +389,25 @@ where
         // advance step counter
         self.step += 1;
         // yield current iteration
-        Some(GibbsIteration {
+        Some(Iteration {
             pssm,
             counts: cm,
             z,
+            step: self.step - 1,
         })
     }
 }
 
 #[derive(Debug)]
-pub struct GibbsIteration<A: Alphabet> {
+pub struct Iteration<A: Alphabet> {
     /// The count matrix built from all sequences but *z*.
     pub counts: CountMatrix<A>,
-    /// The scoring matrix build from all sequences but *z*.
+    /// The scoring matrix built from all sequences but *z*.
     pub pssm: ScoringMatrix<A>,
     /// The index of the hold-out sequence.
     pub z: usize,
+    /// The current step.
+    pub step: usize,
 }
 
 #[cfg(test)]
