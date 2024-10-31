@@ -5,6 +5,7 @@ use std::sync::RwLock;
 use generic_array::GenericArray;
 use rand::distributions::Distribution;
 use rand::distributions::Uniform;
+use rand::seq::SliceRandom;
 use rand::Rng;
 use rand_distr::WeightedIndex;
 
@@ -26,13 +27,13 @@ use super::seq::StripedSequence;
 use super::seq::SymbolCount;
 
 #[derive(Debug, Clone, PartialEq)]
-enum SamplerMode {
+pub enum SamplerMode {
     Zoops,
     Oops,
 }
 
 #[derive(Debug)]
-struct SamplerData<A, C, S>
+pub struct SamplerData<A, C, S>
 where
     A: Alphabet,
     C: ArrayLength + NonZero,
@@ -75,53 +76,8 @@ where
     }
 }
 
-// #[derive(Debug)]
-// struct SamplerBuilder {
-//     data: Option<Cow<'a, SamplerData>>,
-//     mode: SamplerMode,
-//     temperature: f32,
-//     rng: Option<R>,
-// }
-
-// impl SamplerBuilder {
-//     pub fn new() -> Self {
-//         Self {
-//             data: None,
-//             mode: SamplerMode::Oops,
-//             temperature: 1.0,
-//             rng: None,
-//         }
-//     }
-
-//     pub fn data(&mut self, data: &'a SamplerData) -> &mut Self {
-//         self.data = Some(Cow::Borrowed(data));
-//         self
-//     }
-
-//     pub fn sequences(&mut self, sequences: Into<SamplerData<A, C, S>>) -> &mut Self {
-//         self.data = Some(Cow::Owned(sequences.into()));
-//         self
-//     }
-
-//     pub fn mode(&mut self, mode: SamplerMode) -> &mut Self {
-//         self.mode = mode;
-//         self
-//     }
-
-//     pub fn rng(&mut self, rng: R) -> &mut Self {
-//         self.rng = Some(rng);
-//         self
-//     }
-
-//     pub fn build(&mut self) -> Option<GibbsSampler<'a, R, A, C, S>> {
-//         GibbsSampler::new(
-//             self.data?
-//         )
-//     }
-// }
-
 #[derive(Debug)]
-pub struct GibbsSampler<
+pub struct Sampler<
     'a,
     R: Rng,
     A: Alphabet,
@@ -134,28 +90,50 @@ pub struct GibbsSampler<
     pli: Pipeline<A, Dispatch>,
     /// The random number generator.
     rng: R,
+
+    // -- Parameters ----------------------------
     /// The width of the motif currently being built.
     width: usize,
     /// The sampler mode.
     mode: SamplerMode,
     /// The temperature used for sampling new sequence positions.
     temperature: f64,
+    ///
+    initials: Vec<usize>,
+    inertia: usize,
+
+    // -- Internal data -------------------------
+    /// Which sequences are currently in the motif.
+    active: Vec<bool>,
     /// The start positions of the motif in each sequence.
     starts: Vec<usize>,
     /// The current count matrix for the motif.
     motif: DenseMatrix<u32, A::K>,
     /// The current background counts for the motif.
     background_counts: GenericArray<usize, A::K>,
+    /// The current step.
+    step: usize,
 }
 
-impl<'a, R, A, C, S> GibbsSampler<'a, R, A, C, S>
+impl<'a, R, A, C, S> Sampler<'a, R, A, C, S>
 where
     R: Rng,
     A: Alphabet,
     C: ArrayLength + NonZero,
     S: AsRef<[StripedSequence<A, C>]>,
 {
-    fn new(data: &'a SamplerData<A, C, S>, width: usize, mut rng: R) -> Self {
+    pub fn new(data: &'a SamplerData<A, C, S>, width: usize, rng: R) -> Self {
+        Self::_new(data, width, rng, SamplerMode::Oops, 0, 0)
+    }
+
+    fn _new(
+        data: &'a SamplerData<A, C, S>,
+        width: usize,
+        mut rng: R,
+        mode: SamplerMode,
+        initial: usize,
+        inertia: usize,
+    ) -> Self {
         // make sure the sequences have sufficient wrap rows before starting
         if data.sequences.as_ref().iter().any(|x| x.wrap() < width) {
             panic!("booh")
@@ -167,28 +145,46 @@ where
             .iter()
             .map(|seq| rng.sample(Uniform::new(0, seq.len() - width + 1)))
             .collect::<Vec<usize>>();
-        // build motif count with all sequences
+
+        // select initial active sequences
+        let mut initials = Vec::new();
+        let active = match mode {
+            SamplerMode::Oops => vec![true; starts.len()],
+            SamplerMode::Zoops => {
+                let mut active = vec![false; starts.len()];
+                for i in rand::seq::index::sample(&mut rng, active.len(), initial.min(active.len()))
+                {
+                    active[i] = true;
+                    initials.push(i);
+                }
+                active
+            }
+        };
+
+        // build motif count with active sequences
         let mut motif = DenseMatrix::new(width);
-        for (seq, &start) in data.sequences.as_ref().iter().zip(&starts) {
-            // compute motif counts
-            for (i, j) in (start..start + width).enumerate() {
-                motif[MatrixCoordinates::new(i, seq[j].as_index())] += 1;
+        for (i, seq) in data.sequences.as_ref().iter().enumerate() {
+            if active[i] {
+                let start = starts[i];
+                // compute motif counts
+                for (j, k) in (start..start + width).enumerate() {
+                    motif[MatrixCoordinates::new(j, seq[k].as_index())] += 1;
+                }
             }
         }
-        // build background counts with all sequences
+
+        // build background counts with active sequences
         let mut background_counts = GenericArray::default();
-        for ((seq, &start), counts) in data
-            .sequences
-            .as_ref()
-            .iter()
-            .zip(&starts)
-            .zip(&data.counts)
-        {
-            for symbol in 0..A::K::USIZE {
-                background_counts[symbol] += counts[symbol];
-            }
-            for j in start..start + width {
-                background_counts[seq[j].as_index()] -= 1;
+        for (i, seq) in data.sequences.as_ref().iter().enumerate() {
+            if active[i] {
+                let counts = &data.counts[i];
+                let start = starts[i];
+                for symbol in 0..A::K::USIZE {
+                    background_counts[symbol] += counts[symbol];
+                }
+                for j in start..start + width {
+                    background_counts[seq[j].as_index()] -= 1;
+                }
             }
         }
         // finish initializing the generator
@@ -201,12 +197,21 @@ where
             motif,
             background_counts,
             pli: Pipeline::dispatch(),
-            mode: SamplerMode::Oops,
+            mode,
+            active,
+            initials,
+            inertia,
+            step: 0,
         }
     }
 
     fn select_holdout(&mut self) -> usize {
-        self.rng.sample(Uniform::new(0, self.starts.len()))
+        match self.mode {
+            SamplerMode::Zoops if self.step < self.inertia => {
+                *self.initials.choose(&mut self.rng).unwrap()
+            }
+            _ => self.rng.sample(Uniform::new(0, self.starts.len())),
+        }
     }
 
     fn include_sequence(&mut self, z: usize) {
@@ -215,14 +220,17 @@ where
         let start = self.starts[z];
         let counts = &self.data.counts[z];
 
-        for (i, j) in (start..start + self.width).enumerate() {
-            self.motif[MatrixCoordinates::new(i, seq[j].as_index())] += 1;
-        }
-        for symbol in 0..A::K::USIZE {
-            self.background_counts[symbol] += counts[symbol];
-        }
-        for j in start..start + self.width {
-            self.background_counts[seq[j].as_index()] -= 1;
+        if !self.active[z] {
+            for (i, j) in (start..start + self.width).enumerate() {
+                self.motif[MatrixCoordinates::new(i, seq[j].as_index())] += 1;
+            }
+            for symbol in 0..A::K::USIZE {
+                self.background_counts[symbol] += counts[symbol];
+            }
+            for j in start..start + self.width {
+                self.background_counts[seq[j].as_index()] -= 1;
+            }
+            self.active[z] = true;
         }
     }
 
@@ -232,29 +240,29 @@ where
         let start = self.starts[z];
         let counts = &self.data.counts[z];
 
-        for (i, j) in (start..start + self.width).enumerate() {
-            self.motif[MatrixCoordinates::new(i, seq[j].as_index())] -= 1;
-        }
-        for j in start..start + self.width {
-            self.background_counts[seq[j].as_index()] += 1
-        }
-        for symbol in 0..A::K::USIZE {
-            self.background_counts[symbol] -= counts[symbol];
+        if self.active[z] {
+            for (i, j) in (start..start + self.width).enumerate() {
+                self.motif[MatrixCoordinates::new(i, seq[j].as_index())] -= 1;
+            }
+            for j in start..start + self.width {
+                self.background_counts[seq[j].as_index()] += 1
+            }
+            for symbol in 0..A::K::USIZE {
+                self.background_counts[symbol] -= counts[symbol];
+            }
+            self.active[z] = false;
         }
     }
 
-    fn prepare_pssm(
-        &self,
-        motif: DenseMatrix<u32, A::K>,
-        background: Background<A>,
-    ) -> (CountMatrix<A>, ScoringMatrix<A>) {
-        let counts = CountMatrix::new(motif).unwrap();
+    fn prepare_pssm(&self, motif: &DenseMatrix<u32, A::K>) -> (CountMatrix<A>, ScoringMatrix<A>) {
+        let background = Background::from_counts(&self.background_counts).unwrap();
+        let counts = CountMatrix::new(motif.clone()).unwrap();
         let pssm = counts.to_freq(0.1).to_scoring(background);
         (counts, pssm)
     }
 }
 
-impl<'a, R, A, C, S> GibbsSampler<'a, R, A, C, S>
+impl<'a, R, A, C, S> Sampler<'a, R, A, C, S>
 where
     R: Rng,
     A: Alphabet,
@@ -273,7 +281,7 @@ where
     }
 }
 
-impl<'a, R, A, C, S> Iterator for GibbsSampler<'a, R, A, C, S>
+impl<'a, R, A, C, S> Iterator for Sampler<'a, R, A, C, S>
 where
     R: Rng,
     A: Alphabet,
@@ -288,17 +296,25 @@ where
         let z = self.select_holdout();
         // remove holdout sequence from motif counts
         self.exclude_sequence(z);
-        // build background & count matrix excluding sequence z
-        let background = Background::from_counts(&self.background_counts).unwrap();
 
         // step 2: update
         // create PSSM from motif
-        let (cm, pssm) = self.prepare_pssm(self.motif.clone(), background);
+        let (cm, pssm) = self.prepare_pssm(&self.motif);
         // select new start position for sequence Z
         self.update_holdout(z, &pssm);
         // add new holdout sequence position to motif counts
         self.include_sequence(z);
 
+        // in Zoops, discard sequences which do not improve information content
+        if self.mode == SamplerMode::Zoops && self.step > self.inertia {
+            let (_, newpssm) = self.prepare_pssm(&self.motif);
+            if newpssm.information_content() < pssm.information_content() {
+                self.exclude_sequence(z);
+            }
+        }
+
+        // advance step counter
+        self.step += 1;
         // yield current iteration
         Some(GibbsIteration {
             pssm,
@@ -328,8 +344,8 @@ mod test {
     use super::*;
 
     #[test]
-    fn sample() {
-        let mut sequences = [
+    fn sample_oops() {
+        let sequences = [
             "IIDLTYIQNKSQKETGDILGISQMHVSRLQRKAVKKLR",
             "RFGLDLKKEKTQREIAKELGISRSWSRIEKRALMKMF",
             "VVFNQLLVDRRVSITAENLGLTQPAVSNALKRLRTSLQ",
@@ -388,18 +404,76 @@ mod test {
         let data = SamplerData::new(&striped);
 
         let rng = rand::rngs::mock::StepRng::new(1, 42);
-        let gen = GibbsSampler::new(&data, 17, rng);
-
-        // let gen = sampler.sample(17, rng);
-        // println!("{:?}", gen.motif);
-        // gen.recount_motifs(0, Op::Sub);
-        // println!("{:?}", gen.motif);
-        // gen.recount_motifs(0, Op::Add);
-        // println!("{:?}", gen.motif);
+        let gen = Sampler::_new(&data, 17, rng, SamplerMode::Oops, 0, 0);
 
         let result = gen.skip(20).next().unwrap();
-        // println!("{:?}", result.pssm);
-        // panic!("ic={:?}", result.pssm.information_content());
         assert_eq!(result.pssm.information_content(), 30.054865);
+    }
+
+    #[test]
+    fn sample_zoops() {
+        let sequences = [
+            "IIDLTYIQNKSQKETGDILGISQMHVSRLQRKAVKKLR",
+            "RFGLDLKKEKTQREIAKELGISRSWSRIEKRALMKMF",
+            "VVFNQLLVDRRVSITAENLGLTQPAVSNALKRLRTSLQ",
+            "FHFNRYLTRRRRIEIAHALCLTERQIKIWFQNRRMKWK",
+            "LTAALAATRGNQIRAADLLGLNRNTLRKKIRDLDIQVY",
+            "IRYRRMNLKHTQRSLAKALKISHVSVSQWERGDSEPTG",
+            "MNAYTVSRLALDAGVSVHIVRDYLLRGLLRPV",
+            "LDMVMQYTRGNQTRAALMMGINRGTLRKKLKKYGMN",
+            "FRRKQSLNSKEKEEVAKKCGITPLQVRVWFINKRMRSK",
+            "SALLNKIALMGTEKTAEAVGVDKSQISRWKRLMIPKFS",
+            "THPDGMQIKITRQEIGQIVGCSRETVGRILKMLEDQNL",
+            "ITLKDYAMRFGQTKTAKDLGVYQSAINKAIHAGRKIFL",
+            "YKKDVIDHFGTQRAVAKALGISDAAVSQWKEVIPEKDA",
+            "ISDHLADSNFDIASVAQHVCLSPSRLSHLFRQQLGISV",
+            "FSPREFRLTMTRGDIGNYLGLTVETISRLLGRFQKSGM",
+            "ARWLDEDNKSTLQELADRYGVSAERVRQLEKNANKKLR",
+            "LTTALRHTQGHKQEAARLLGWGRNTLTRKLRELGME",
+            "MKAKKQETAATMKDVALKAKVSTATVSRALMNPDKVSQ",
+            "LQELRRSDRLHLKDAAALLGVSEMTIRRDLNNHSAPVV",
+            "MATIKDVARLAGVSVAWSRVINNSPRASE",
+            "MKPVTLYDVAEYAGVSYQTVSRVVNQASHVSA",
+            "LLNEVGIEGLTTRKLAQKLGVEQPTLYWVKNKRALLD",
+            "IVEELLRGEMSQRELKNELGAGIATITRGSNSLRAAPV",
+            "LIAALEKAGWVQAKAARLLGMTPRQVAYRIQIMDITMP",
+            "RFGLVGEEEKTQKDVAIMGISQSYISRLEKRIIKRLR",
+            "QAGRLIAAGTPRQKVAIIYDVGVSTLYKTFPAGDR",
+            "MATIKDVAKRANVSTTTVSHVINKTRFVAE",
+            "MATLKDIAIEAGVSLATVSRVLNDDPTLNV",
+            "DHISQTGMPPTRAEIAQRLGFRSPNAAEEHLKALARKG",
+            "SSILNRIAIRGQRRVADALGINESQISRWRGDFIPRMG",
+        ];
+
+        let striped = sequences
+            .iter()
+            .cloned()
+            .map(EncodedSequence::<Protein>::from_str)
+            .map(Result::unwrap)
+            .map(StripedSequence::from)
+            .map(|mut s| {
+                s.configure_wrap(17);
+                s
+            })
+            .collect::<Vec<_>>();
+
+        let encoded = sequences
+            .iter()
+            .cloned()
+            .map(EncodedSequence::<Protein>::from_str)
+            .map(Result::unwrap)
+            .collect::<Vec<_>>();
+
+        let x = &striped[3];
+        let y = &encoded[3];
+        assert_eq!(x.count_symbols(), SymbolCount::<Protein>::count_symbols(&y));
+
+        let data = SamplerData::new(&striped);
+
+        let rng = rand::rngs::mock::StepRng::new(1, 42);
+        let gen = Sampler::_new(&data, 17, rng, SamplerMode::Zoops, 5, 10);
+
+        let result = gen.skip(20).next().unwrap();
+        assert_eq!(result.pssm.information_content(), 58.852066);
     }
 }
