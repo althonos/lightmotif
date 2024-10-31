@@ -26,13 +26,15 @@ use super::seq::SymbolCount;
 
 #[derive(Debug)]
 pub struct GibbsSampler<A: Alphabet, C: ArrayLength + NonZero> {
+    // The symbol counts for each symbol.
     counts: Vec<GenericArray<usize, A::K>>,
+    // The sequences used by the sampler.
     sequences: RwLock<Vec<StripedSequence<A, C>>>,
 }
 
 impl<A: Alphabet, C: ArrayLength + NonZero> GibbsSampler<A, C> {
     pub fn new(sequences: Vec<StripedSequence<A, C>>) -> Self {
-        // count background positions
+        // count background positions only once
         let counts = sequences
             .iter()
             .map(|seq| SymbolCount::<A>::count_symbols(seq))
@@ -50,14 +52,21 @@ impl<A: Alphabet, C: ArrayLength + NonZero> GibbsSampler<A, C> {
 
 #[derive(Debug)]
 pub struct GibbsGenerator<'a, R: Rng, A: Alphabet, C: ArrayLength + NonZero> {
+    /// A reference to the sampler.
     sampler: &'a GibbsSampler<A, C>,
+    /// The `lightmotif` pipeline used to accelerate computations.
     pli: Pipeline<A, Dispatch>,
+    /// The random number generator.
     rng: R,
+    /// The width of the motif currently being built.
     width: usize,
-    indices: Vec<usize>,
+    /// The temperature used for sampling new sequence positions.
     temperature: f64,
-    /// The current count matrix for the motif
+    /// The start positions of the motif in each sequence.
+    starts: Vec<usize>,
+    /// The current count matrix for the motif.
     motif: DenseMatrix<u32, A::K>,
+    /// The current background counts for the motif.
     background_counts: GenericArray<usize, A::K>,
 }
 
@@ -84,20 +93,16 @@ impl<'a, R: Rng, A: Alphabet, C: ArrayLength + NonZero> GibbsGenerator<'a, R, A,
                 .for_each(|s| s.configure_wrap(width));
         }
         // select initial positions in each sequence randomly
-        let indices = sampler
+        let starts = sampler
             .sequences
             .read()
             .unwrap()
             .iter()
             .map(|seq| rng.sample(Uniform::new(0, seq.len() - width + 1)))
             .collect::<Vec<usize>>();
-        let mut starts = GenericArray::<usize, A::K>::default();
-        for (seq, &start) in sampler.sequences.read().unwrap().iter().zip(&indices) {
-            starts[seq[start].as_index()] += 1;
-        }
         // build motif count with all sequences
         let mut motif = DenseMatrix::new(width);
-        for (seq, &start) in sampler.sequences.read().unwrap().iter().zip(&indices) {
+        for (seq, &start) in sampler.sequences.read().unwrap().iter().zip(&starts) {
             // compute motif counts
             for (i, j) in (start..start + width).enumerate() {
                 motif[MatrixCoordinates::new(i, seq[j].as_index())] += 1;
@@ -110,7 +115,7 @@ impl<'a, R: Rng, A: Alphabet, C: ArrayLength + NonZero> GibbsGenerator<'a, R, A,
             .read()
             .unwrap()
             .iter()
-            .zip(&indices)
+            .zip(&starts)
             .zip(&sampler.counts)
         {
             for symbol in 0..A::K::USIZE {
@@ -125,7 +130,7 @@ impl<'a, R: Rng, A: Alphabet, C: ArrayLength + NonZero> GibbsGenerator<'a, R, A,
             rng,
             sampler,
             width,
-            indices,
+            starts,
             temperature: 1.0,
             motif,
             background_counts,
@@ -134,13 +139,13 @@ impl<'a, R: Rng, A: Alphabet, C: ArrayLength + NonZero> GibbsGenerator<'a, R, A,
     }
 
     fn select_holdout(&mut self) -> usize {
-        self.rng.sample(Uniform::new(0, self.indices.len()))
+        self.rng.sample(Uniform::new(0, self.starts.len()))
     }
 
     fn recount_motifs(&mut self, z: usize, op: Op) {
         let sequences = self.sampler.sequences.read().unwrap();
         let seq = &sequences[z];
-        let start = self.indices[z];
+        let start = self.starts[z];
         for (i, j) in (start..start + self.width).enumerate() {
             match op {
                 Op::Add => self.motif[MatrixCoordinates::new(i, seq[j].as_index())] += 1,
@@ -153,7 +158,7 @@ impl<'a, R: Rng, A: Alphabet, C: ArrayLength + NonZero> GibbsGenerator<'a, R, A,
         let counts = &self.sampler.counts[z];
         let sequences = self.sampler.sequences.read().unwrap();
         let seq = &sequences[z];
-        let start = self.indices[z];
+        let start = self.starts[z];
         match op {
             Op::Sub => {
                 for j in start..start + self.width {
@@ -199,7 +204,7 @@ where
         );
         let weights = scores.iter().map(|&x| (x as f64 / self.temperature).exp());
         if let Ok(dist) = WeightedIndex::new(weights) {
-            self.indices[z] = dist.sample(&mut self.rng);
+            self.starts[z] = dist.sample(&mut self.rng);
         }
     }
 }
