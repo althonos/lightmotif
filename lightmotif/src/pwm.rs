@@ -74,12 +74,12 @@ pub struct CountMatrix<A: Alphabet> {
     data: DenseMatrix<u32, A::K>,
     /// The number of sequences from which this count matrix was obtained.
     #[allow(unused)]
-    n: u32,
+    n: usize,
 }
 
 impl<A: Alphabet> CountMatrix<A> {
     /// Create a new count matrix without checking the contents.
-    fn new_unchecked(data: DenseMatrix<u32, A::K>, n: u32) -> Self {
+    fn new_unchecked(data: DenseMatrix<u32, A::K>, n: usize) -> Self {
         Self {
             alphabet: std::marker::PhantomData,
             n,
@@ -97,7 +97,11 @@ impl<A: Alphabet> CountMatrix<A> {
             return Ok(Self::new_unchecked(data, 0));
         }
         // Check row sums.
-        let n = data.iter().map(|row| row.iter().sum()).max().unwrap();
+        let n = data
+            .iter()
+            .map(|row| row.iter().map(|i| *i as usize).sum())
+            .max()
+            .unwrap();
         // if data.iter().any(|row| row.iter().sum::<u32>() != n) {
         // Err(InvalidData)
         // } else {
@@ -170,6 +174,11 @@ impl<A: Alphabet> CountMatrix<A> {
             }
         }
         FrequencyMatrix::new_unchecked(probas)
+    }
+
+    /// Get the number of sequences used to build the matrix.
+    pub fn n_sequences(&self) -> usize {
+        self.n
     }
 
     /// Compute the entropy of each row of the matrix.
