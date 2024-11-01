@@ -598,10 +598,10 @@ mod test {
         let data = SamplerData::new(&striped);
 
         let rng = rand::rngs::mock::StepRng::new(1, 42);
-        let gen = Sampler::_new(&data, 17, rng, SamplerMode::Oops, 0, 0);
+        let gen = Sampler::_new(&data, 17, rng, SamplerMode::Oops, 0, 0, 10);
 
         let result = gen.skip(20).next().unwrap();
-        assert_eq!(result.pssm.information_content(), 30.054865);
+        assert_eq!(result.pssm.information_content(), 13.143386);
     }
 
     #[test]
@@ -665,9 +665,9 @@ mod test {
         let data = SamplerData::new(&striped);
 
         let rng = rand::rngs::mock::StepRng::new(1, 42);
-        let gen = Sampler::_new(&data, 17, rng, SamplerMode::Zoops, 5, 10);
+        let gen = Sampler::_new(&data, 17, rng, SamplerMode::Zoops, 5, 10, 10);
 
         let result = gen.skip(20).next().unwrap();
-        assert_eq!(result.pssm.information_content(), 58.852066);
+        assert_eq!(result.pssm.information_content(), 20.820202);
     }
 }
