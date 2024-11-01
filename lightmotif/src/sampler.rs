@@ -139,6 +139,7 @@ where
     temperature: f64,
     seeds: usize,
     inertia: Option<usize>,
+    patience: Option<usize>,
 }
 
 impl<'a, A, C, S> SamplerBuilder<'a, A, C, S>
@@ -155,6 +156,7 @@ where
             temperature: 1.0,
             seeds: 0,
             inertia: None,
+            patience: None,
         }
     }
 
@@ -184,6 +186,11 @@ where
         self
     }
 
+    pub fn patience(&mut self, patience: usize) -> &mut Self {
+        self.patience = Some(patience);
+        self
+    }
+
     pub fn sample<R: Rng>(&self, rng: R) -> Sampler<'a, R, A, C, S> {
         Sampler::_new(
             self.data,
@@ -192,6 +199,7 @@ where
             self.mode.clone(),
             self.seeds,
             self.inertia.unwrap_or(0),
+            self.patience.unwrap_or(self.data.sequences.as_ref().len()),
         )
     }
 }
@@ -235,6 +243,12 @@ where
     background_counts: GenericArray<usize, A::K>,
     /// The current step.
     step: usize,
+    /// The number of steps without sequence discovery before convergence.
+    patience: usize,
+    /// The last step where a sequence was added to the motif (in `zoops` mode).
+    last_inclusion: usize,
+    /// Whether the sampler converged.
+    converged: bool,
 }
 
 impl<'a, R, A, C, S> Sampler<'a, R, A, C, S>
@@ -244,8 +258,44 @@ where
     C: ArrayLength + NonZero,
     S: AsRef<[StripedSequence<A, C>]>,
 {
+    /// Create a new sampler in `oops` mode with default parameters.
+    ///
+    /// See `SamplerBuilder` to crate a builder with all possible
+    /// parameters.
     pub fn new(data: &'a SamplerData<A, C, S>, width: usize, rng: R) -> Self {
-        Self::_new(data, width, rng, SamplerMode::Oops, 0, 0)
+        Self::_new(data, width, rng, SamplerMode::Oops, 0, 0, 0)
+    }
+
+    /// Get the indices of active sequences.
+    pub fn active_sequences(&self) -> Vec<usize> {
+        self.active
+            .data
+            .iter()
+            .enumerate()
+            .filter(|&(_, x)| *x)
+            .map(|(i, _)| i)
+            .collect()
+    }
+
+    /// Get the start positions of active sequences.
+    pub fn active_starts(&self) -> Vec<usize> {
+        self.active
+            .data
+            .iter()
+            .enumerate()
+            .filter(|&(_, x)| *x)
+            .map(|(i, _)| self.starts[i])
+            .collect()
+    }
+
+    /// Get the current count matrix of the sampled motif.
+    pub fn count_matrix(&self) -> CountMatrix<A> {
+        CountMatrix::new_unchecked(self.motif.clone(), self.active.count())
+    }
+
+    /// Get the current background of the sampled motif.
+    pub fn background(&self) -> Background<A> {
+        Background::from_counts(&self.background_counts).unwrap()
     }
 
     fn _new(
@@ -255,6 +305,7 @@ where
         mode: SamplerMode,
         initial: usize,
         inertia: usize,
+        patience: usize,
     ) -> Self {
         // make sure the sequences have sufficient wrap rows before starting
         if data.sequences.as_ref().iter().any(|x| x.wrap() < width) {
@@ -323,7 +374,10 @@ where
             active,
             seed,
             inertia,
+            patience,
             step: 0,
+            last_inclusion: 0,
+            converged: false,
         }
     }
 
@@ -376,9 +430,9 @@ where
         }
     }
 
-    fn prepare_pssm(&self, motif: &DenseMatrix<u32, A::K>) -> (CountMatrix<A>, ScoringMatrix<A>) {
-        let background = Background::from_counts(&self.background_counts).unwrap();
-        let counts = CountMatrix::new_unchecked(motif.clone(), self.active.count());
+    fn prepare_pssm(&self) -> (CountMatrix<A>, ScoringMatrix<A>) {
+        let background = self.background();
+        let counts = self.count_matrix();
         let pssm = counts.to_freq(0.1).to_scoring(background);
         (counts, pssm)
     }
@@ -415,25 +469,38 @@ where
 {
     type Item = Iteration<A>;
     fn next(&mut self) -> Option<Self::Item> {
+        if self.converged {
+            return None;
+        }
+
         // step 1: sampling
         // select the holdout sequence
         let z = self.select_holdout();
+        // record whether the sequence was currently active
+        let active = self.active.test(z);
         // remove holdout sequence from motif counts
         self.exclude_sequence(z);
 
         // step 2: update
         // create PSSM from motif
-        let (cm, pssm) = self.prepare_pssm(&self.motif);
+        let (cm, pssm) = self.prepare_pssm();
         // select new start position for sequence Z
         self.update_holdout(z, &pssm);
         // add new holdout sequence position to motif counts
         self.include_sequence(z);
 
         // in Zoops, discard sequences which do not improve information content
-        if self.mode == SamplerMode::Zoops && self.step > self.inertia {
-            let (_, newpssm) = self.prepare_pssm(&self.motif);
+        // unless they were previously active (otherwise we'd start shrinking
+        // our count matrix and never converge)
+        if self.mode == SamplerMode::Zoops && !active {
+            let (_, newpssm) = self.prepare_pssm();
             if newpssm.information_content() < pssm.information_content() {
                 self.exclude_sequence(z);
+            } else {
+                self.last_inclusion = self.step;
+            }
+            if self.step - self.last_inclusion > self.patience {
+                self.converged = true;
             }
         }
 
