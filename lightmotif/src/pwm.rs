@@ -79,7 +79,7 @@ pub struct CountMatrix<A: Alphabet> {
 
 impl<A: Alphabet> CountMatrix<A> {
     /// Create a new count matrix without checking the contents.
-    fn new_unchecked(data: DenseMatrix<u32, A::K>, n: usize) -> Self {
+    pub(crate) fn new_unchecked(data: DenseMatrix<u32, A::K>, n: usize) -> Self {
         Self {
             alphabet: std::marker::PhantomData,
             n,
@@ -499,7 +499,13 @@ impl<A: Alphabet> ScoringMatrix<A> {
             .map(|row| {
                 row.iter()
                     .zip(&self.background.frequencies()[..A::K::USIZE - 1])
-                    .map(|(x, b)| if *b == 0.0 { 0.0 } else { (x.exp() * b) * x })
+                    .map(|(x, b)| {
+                        if *b == 0.0 {
+                            0.0
+                        } else {
+                            (2f32.powf(*x) * b) * x
+                        }
+                    })
                     .sum::<f32>()
             })
             .sum()

@@ -26,6 +26,57 @@ use super::scores::StripedScores;
 use super::seq::StripedSequence;
 use super::seq::SymbolCount;
 
+#[derive(Debug)]
+struct BitVec {
+    data: Vec<bool>,
+    count: usize,
+    len: usize,
+}
+
+impl BitVec {
+    fn zeros(n: usize) -> Self {
+        Self {
+            data: vec![false; n],
+            count: 0,
+            len: n,
+        }
+    }
+
+    fn ones(n: usize) -> Self {
+        Self {
+            data: vec![true; n],
+            count: n,
+            len: n,
+        }
+    }
+
+    fn test(&self, i: usize) -> bool {
+        self.data[i]
+    }
+
+    fn set(&mut self, i: usize) {
+        if !self.data[i] {
+            self.data[i] = true;
+            self.count += 1;
+        }
+    }
+
+    fn unset(&mut self, i: usize) {
+        if self.data[i] {
+            self.data[i] = false;
+            self.count -= 1;
+        }
+    }
+
+    fn count(&self) -> usize {
+        self.count
+    }
+
+    fn len(&self) -> usize {
+        self.len
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum SamplerMode {
     Zoops,
@@ -124,7 +175,7 @@ where
 
     pub fn seeds(&mut self, seeds: usize) -> &mut Self {
         self.seeds = seeds;
-        self.inertia.get_or_insert(seeds * 10);
+        self.inertia.get_or_insert(seeds * 50);
         self
     }
 
@@ -175,7 +226,7 @@ where
 
     // -- Internal data -------------------------
     /// Which sequences are currently in the motif.
-    active: Vec<bool>,
+    active: BitVec,
     /// The start positions of the motif in each sequence.
     starts: Vec<usize>,
     /// The current count matrix for the motif.
@@ -220,14 +271,12 @@ where
         // select initial active sequences
         let mut seed = Vec::new();
         let active = match mode {
-            SamplerMode::Oops => {
-                vec![true; starts.len()]
-            }
+            SamplerMode::Oops => BitVec::ones(starts.len()),
             SamplerMode::Zoops => {
-                let mut active = vec![false; starts.len()];
+                let mut active = BitVec::zeros(starts.len());
                 for i in rand::seq::index::sample(&mut rng, active.len(), initial.min(active.len()))
                 {
-                    active[i] = true;
+                    active.set(i);
                     seed.push(i);
                 }
                 active
@@ -237,7 +286,7 @@ where
         // build motif count with active sequences
         let mut motif = DenseMatrix::new(width);
         for (i, seq) in data.sequences.as_ref().iter().enumerate() {
-            if active[i] {
+            if active.test(i) {
                 let start = starts[i];
                 // compute motif counts
                 for (j, k) in (start..start + width).enumerate() {
@@ -249,7 +298,7 @@ where
         // build background counts with active sequences
         let mut background_counts = GenericArray::default();
         for (i, seq) in data.sequences.as_ref().iter().enumerate() {
-            if active[i] {
+            if active.test(i) {
                 let counts = &data.counts[i];
                 let start = starts[i];
                 for symbol in 0..A::K::USIZE {
@@ -293,7 +342,7 @@ where
         let start = self.starts[z];
         let counts = &self.data.counts[z];
 
-        if !self.active[z] {
+        if !self.active.test(z) {
             for (i, j) in (start..start + self.width).enumerate() {
                 self.motif[MatrixCoordinates::new(i, seq[j].as_index())] += 1;
             }
@@ -303,7 +352,7 @@ where
             for j in start..start + self.width {
                 self.background_counts[seq[j].as_index()] -= 1;
             }
-            self.active[z] = true;
+            self.active.set(z);
         }
     }
 
@@ -313,7 +362,7 @@ where
         let start = self.starts[z];
         let counts = &self.data.counts[z];
 
-        if self.active[z] {
+        if self.active.test(z) {
             for (i, j) in (start..start + self.width).enumerate() {
                 self.motif[MatrixCoordinates::new(i, seq[j].as_index())] -= 1;
             }
@@ -323,13 +372,13 @@ where
             for symbol in 0..A::K::USIZE {
                 self.background_counts[symbol] -= counts[symbol];
             }
-            self.active[z] = false;
+            self.active.unset(z);
         }
     }
 
     fn prepare_pssm(&self, motif: &DenseMatrix<u32, A::K>) -> (CountMatrix<A>, ScoringMatrix<A>) {
         let background = Background::from_counts(&self.background_counts).unwrap();
-        let counts = CountMatrix::new(motif.clone()).unwrap();
+        let counts = CountMatrix::new_unchecked(motif.clone(), self.active.count());
         let pssm = counts.to_freq(0.1).to_scoring(background);
         (counts, pssm)
     }
@@ -347,7 +396,9 @@ where
         let mut scores = StripedScores::empty();
         self.pli
             .score_into(&pssm, &self.data.sequences.as_ref()[z], &mut scores);
-        let weights = scores.iter().map(|&x| (x as f64 / self.temperature).exp());
+        let weights = scores
+            .iter()
+            .map(|&x| 2f64.powf(x as f64 / self.temperature));
         if let Ok(dist) = WeightedIndex::new(weights) {
             self.starts[z] = dist.sample(&mut self.rng);
         }
