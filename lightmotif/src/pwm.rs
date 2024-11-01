@@ -177,11 +177,11 @@ impl<A: Alphabet> CountMatrix<A> {
     }
 
     /// Get the number of sequences used to build the matrix.
-    pub fn n_sequences(&self) -> usize {
+    pub fn sequence_count(&self) -> usize {
         self.n
     }
 
-    /// Compute the entropy of each row of the matrix.
+    /// Compute the Shannon entropy of each row of the matrix.
     ///
     /// The entropy of a row, sometimes refered to as "uncertainty", is
     /// computed by treating each motif position as a random variable taking
@@ -191,8 +191,7 @@ impl<A: Alphabet> CountMatrix<A> {
             .iter()
             .map(|row| {
                 let sum = row.iter().sum::<u32>();
-                -row[..A::K::USIZE - 1]
-                    .iter()
+                -row.iter()
                     .map(|&n| n as f32 / sum as f32)
                     .map(|p| if p > 0.0 { p * p.log2() } else { 0.0 })
                     .sum::<f32>()
