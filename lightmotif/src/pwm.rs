@@ -181,6 +181,15 @@ impl<A: Alphabet> CountMatrix<A> {
         self.n
     }
 
+    /// Compute the Shannon entropy of a single row.
+    fn row_entropy(row: &[u32]) -> f32 {
+        let sum = row.iter().sum::<u32>();
+        -row.iter()
+            .map(|&n| n as f32 / sum as f32)
+            .map(|p| if p > 0.0 { p * p.log2() } else { 0.0 })
+            .sum::<f32>()
+    }
+
     /// Compute the Shannon entropy of each row of the matrix.
     ///
     /// The entropy of a row, sometimes refered to as "uncertainty", is
@@ -189,14 +198,32 @@ impl<A: Alphabet> CountMatrix<A> {
     pub fn entropy(&self) -> Vec<f32> {
         self.matrix()
             .iter()
-            .map(|row| {
-                let sum = row.iter().sum::<u32>();
-                -row.iter()
-                    .map(|&n| n as f32 / sum as f32)
-                    .map(|p| if p > 0.0 { p * p.log2() } else { 0.0 })
-                    .sum::<f32>()
-            })
+            .map(|row| Self::row_entropy(row))
             .collect()
+    }
+
+    /// Build the consensus sequence for the matrix.
+    ///
+    /// For each row of the matrix, the symbol with the highest occurence
+    /// is extracted. Symbols as position with entropy higher than 1.0 are
+    /// shown in lowercase.
+    pub fn consensus(&self) -> String {
+        let mut consensus = String::with_capacity(self.matrix().rows());
+        self.matrix().iter().for_each(|row| {
+            let entropy = Self::row_entropy(row);
+            let symbol = row
+                .iter()
+                .zip(A::symbols())
+                .max_by_key(|(count, _)| **count)
+                .unwrap()
+                .1;
+            if entropy >= 1.0 {
+                consensus.push(symbol.as_char().to_ascii_lowercase());
+            } else {
+                consensus.push(symbol.as_char().to_ascii_uppercase());
+            }
+        });
+        consensus
     }
 }
 
