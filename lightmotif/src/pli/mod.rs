@@ -417,7 +417,7 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Avx2> {
     }
 }
 
-impl Score<f32, Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
+impl<A: Alphabet> Score<f32, A, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
     #[inline]
     fn score_rows_into<S, M>(
         &self,
@@ -426,26 +426,10 @@ impl Score<f32, Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
         rows: Range<usize>,
         scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
     ) where
-        S: AsRef<StripedSequence<Dna, <Avx2 as Backend>::LANES>>,
-        M: AsRef<DenseMatrix<f32, <Dna as Alphabet>::K>>,
+        S: AsRef<StripedSequence<A, <Avx2 as Backend>::LANES>>,
+        M: AsRef<DenseMatrix<f32, <A as Alphabet>::K>>,
     {
-        Avx2::score_f32_rows_into_permute(pssm, seq, rows, scores)
-    }
-}
-
-impl Score<f32, Protein, <Avx2 as Backend>::LANES> for Pipeline<Protein, Avx2> {
-    #[inline]
-    fn score_rows_into<S, M>(
-        &self,
-        pssm: M,
-        seq: S,
-        rows: Range<usize>,
-        scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
-    ) where
-        S: AsRef<StripedSequence<Protein, <Avx2 as Backend>::LANES>>,
-        M: AsRef<DenseMatrix<f32, <Protein as Alphabet>::K>>,
-    {
-        Avx2::score_f32_rows_into_gather(pssm, seq, rows, scores)
+        Avx2::score_f32_rows_into(pssm, seq, rows, scores)
     }
 }
 

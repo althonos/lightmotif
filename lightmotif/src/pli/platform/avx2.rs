@@ -108,8 +108,6 @@ unsafe fn score_f32_avx2_permute<A>(
     scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
 ) where
     A: Alphabet,
-    <A as Alphabet>::K: IsLessOrEqual<U8>,
-    <<A as Alphabet>::K as IsLessOrEqual<U8>>::Output: NonZero,
 {
     use crate::dense::DenseMatrix;
 
@@ -795,18 +793,18 @@ impl Avx2 {
     }
 
     #[allow(unused)]
-    pub fn score_f32_rows_into_permute<A, S, M>(
+    fn score_f32_rows_into_permute<A, S, M>(
         pssm: M,
         seq: S,
         rows: Range<usize>,
         scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
     ) where
         A: Alphabet,
-        <A as Alphabet>::K: IsLessOrEqual<U8>,
-        <<A as Alphabet>::K as IsLessOrEqual<U8>>::Output: NonZero,
         S: AsRef<StripedSequence<A, <Avx2 as Backend>::LANES>>,
         M: AsRef<DenseMatrix<f32, A::K>>,
     {
+        assert!(A::K::USIZE <= 8);
+
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
 
@@ -832,7 +830,7 @@ impl Avx2 {
     }
 
     #[allow(unused)]
-    pub fn score_f32_rows_into_gather<A, S, M>(
+    fn score_f32_rows_into_gather<A, S, M>(
         pssm: M,
         seq: S,
         rows: Range<usize>,
@@ -864,6 +862,24 @@ impl Avx2 {
         };
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
         panic!("attempting to run AVX2 code on a non-x86 host")
+    }
+
+    #[allow(unused)]
+    pub fn score_f32_rows_into<A, S, M>(
+        pssm: M,
+        seq: S,
+        rows: Range<usize>,
+        scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
+    ) where
+        A: Alphabet,
+        S: AsRef<StripedSequence<A, <Avx2 as Backend>::LANES>>,
+        M: AsRef<DenseMatrix<f32, A::K>>,
+    {
+        if A::K::USIZE <= 8 {
+            Self::score_f32_rows_into_permute(pssm, seq, rows, scores);
+        } else {
+            Self::score_f32_rows_into_gather(pssm, seq, rows, scores);
+        }
     }
 
     #[allow(unused)]
