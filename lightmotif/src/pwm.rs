@@ -526,7 +526,7 @@ impl<A: Alphabet> ScoringMatrix<A> {
                 row.iter()
                     .zip(self.background.frequencies())
                     .map(|(x, b)| {
-                        if *b == 0.0 {
+                        if *b == 0.0 || *x == f32::NEG_INFINITY {
                             0.0
                         } else {
                             (2f32.powf(*x) * b) * x
