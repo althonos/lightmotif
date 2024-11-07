@@ -303,6 +303,8 @@ where
     motif: DenseMatrix<u32, A::K>,
     /// The current background counts for the motif.
     background_counts: GenericArray<usize, A::K>,
+    /// The buffer where scores are computed.
+    scores: StripedScores<f32, C>,
     /// The current step.
     step: usize,
     /// The number of steps without sequence discovery before convergence.
@@ -432,6 +434,7 @@ where
             motif,
             background_counts,
             pli: Pipeline::dispatch(),
+            scores: StripedScores::empty(),
             mode,
             active,
             seed,
@@ -509,10 +512,10 @@ where
     Pipeline<A, Dispatch>: Score<f32, A, C>,
 {
     fn update_holdout(&mut self, z: usize, pssm: &ScoringMatrix<A>) {
-        let mut scores = StripedScores::empty();
         self.pli
-            .score_into(&pssm, &self.data.sequences.as_ref()[z], &mut scores);
-        let weights = scores
+            .score_into(&pssm, &self.data.sequences.as_ref()[z], &mut self.scores);
+        let weights = self
+            .scores
             .iter()
             .map(|&x| 2f64.powf(x as f64 / self.temperature));
         if let Ok(dist) = WeightedIndex::new(weights) {
