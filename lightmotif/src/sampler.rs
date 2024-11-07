@@ -1,6 +1,32 @@
-use std::borrow::Cow;
+//! Motif discovery using Gibbs sampling.
+//!
+//! Gibbs sampling is a general algorithm for sampling from high-dimensional
+//! probability distributions. Charles E. Lawrence *et al.* proposed the use
+//! of Gibbs sampling in 1993[\[1\]](#ref1) to identify optimal local alignments in a set
+//! of biological sequences.
+//!
+//! Given a set of sequences, the Gibbs sampler attempts to identify the
+//! starting positions of a conserved motif. The positions in each sequences
+//! are initialized at random and used to build a [`CountMatrix`], [`Background`]
+//! counts outside the motif location, and then a [`ScoringMatrix`].
+//!
+//! The algorithm then iterates the two following steps until convergence:
+//!
+//! - an *update* step: one of the sequences is chosen at random, and the
+//!   current motif is rebuilt without that sequence.
+//! - a *sampling* step: the updated motif is used to score the hold-out
+//!   sequence, and the resulting scores are used as weights to draw a new
+//!   motif start position randomly.
+//!
+//! ## 📚 References
+//!
+//! - <a id="ref1">\[1\]</a> Lawrence CE, Altschul SF, Boguski MS, Liu JS,
+//!   Neuwald AF, Wootton JC. *Detecting subtle sequence signals: a Gibbs
+//!   sampling strategy for multiple alignment.* Science. 1993
+//!   Oct 8;262(5131):208-14. [PMID:8211139](https://pubmed.ncbi.nlm.nih.gov/8211139/).
+//!   [doi:10.1126/science.8211139](https://doi.org/10.1126/science.8211139).
+
 use std::iter::Iterator;
-use std::sync::RwLock;
 
 use generic_array::GenericArray;
 use rand::distributions::Distribution;

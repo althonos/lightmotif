@@ -1,4 +1,15 @@
 //! Storage types for the different stages of a PSSM construction.
+//!
+//! A position-specific scoring matrix (PSSM) can be used to compute the
+//! *log-likelihood ration* of a motif occurence in a sequence, relative
+//! to a background sequence model.
+//!
+//! ## 📚 References
+//!
+//! - <a id="ref1">\[1\]</a> Bailey TL. *Discovering sequence motifs.*
+//!   Methods Mol Biol. 2008;452:231-51.
+//!   [PMID:18566768](https://pubmed.ncbi.nlm.nih.gov/18566768/).
+//!   [doi:10.1007/978-1-60327-159-2_12](https://doi.org/10.1007/978-1-60327-159-2_12)
 
 use std::ops::Index;
 
