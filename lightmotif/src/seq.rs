@@ -8,11 +8,11 @@ use std::ops::Index;
 use std::str::FromStr;
 
 use generic_array::GenericArray;
-#[cfg(feature = "sample")]
+#[cfg(feature = "sampling")]
 use rand::Rng;
 
 use super::abc::Alphabet;
-#[cfg(feature = "sample")]
+#[cfg(feature = "sampling")]
 use super::abc::Background;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
@@ -232,7 +232,7 @@ impl<A: Alphabet, C: StrictlyPositive + ArrayLength> StripedSequence<A, C> {
     }
 
     /// Sample a new random sequence from the given background frequencies.
-    #[cfg(feature = "sample")]
+    #[cfg(feature = "sampling")]
     pub fn sample<R: Rng>(mut rng: R, background: Background<A>, length: usize) -> Self {
         let symbols = <A as Alphabet>::symbols();
         let dist = rand_distr::WeightedAliasIndex::new(background.frequencies().into())

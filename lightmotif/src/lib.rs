@@ -13,7 +13,7 @@ pub mod scan;
 pub mod scores;
 pub mod seq;
 
-#[cfg(feature = "sample")]
+#[cfg(feature = "sampling")]
 pub mod sampler;
 
 pub use abc::Alphabet;
