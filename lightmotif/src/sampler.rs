@@ -26,6 +26,7 @@
 //!   Oct 8;262(5131):208-14. [PMID:8211139](https://pubmed.ncbi.nlm.nih.gov/8211139/).
 //!   [doi:10.1126/science.8211139](https://doi.org/10.1126/science.8211139).
 
+use std::iter::FusedIterator;
 use std::iter::Iterator;
 
 use generic_array::GenericArray;
@@ -103,12 +104,19 @@ impl BitVec {
     }
 }
 
+/// The discovery mode of the sampler.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SamplerMode {
     Zoops,
     Oops,
 }
 
+/// A specialized collection for storing [`Sampler`] data.
+///
+/// To allow a sampler to update the background sequences in an efficient
+/// way during the update step, this collection pre-computes the symbol
+/// counts for each sequence in the dataset. Updating the background then
+/// only requires subtracting the counts for the motif window.
 #[derive(Debug)]
 pub struct SamplerData<A, C, S>
 where
@@ -153,6 +161,7 @@ where
     }
 }
 
+/// A builder for sampler objects.
 pub struct SamplerBuilder<'a, A, C, S>
 where
     A: Alphabet,
@@ -174,10 +183,11 @@ where
     C: ArrayLength + NonZero,
     S: AsRef<[StripedSequence<A, C>]>,
 {
-    pub fn new(data: &'a SamplerData<A, C, S>, width: usize) -> Self {
+    /// Create a new sampler builder for the given data.
+    pub fn new(data: &'a SamplerData<A, C, S>) -> Self {
         Self {
             data,
-            width,
+            width: 10,
             mode: SamplerMode::Oops,
             temperature: 1.0,
             seeds: 0,
@@ -186,37 +196,59 @@ where
         }
     }
 
+    /// Set the width of the motif to be searched for.
     pub fn width(&mut self, width: usize) -> &mut Self {
         self.width = width;
         self
     }
 
+    /// Set the mode of the sampler.
     pub fn mode(&mut self, mode: SamplerMode) -> &mut Self {
         self.mode = mode;
         self
     }
 
+    /// Set the temperature parameter of the sampler.
     pub fn temperature(&mut self, temperature: f64) -> &mut Self {
         self.temperature = temperature;
         self
     }
 
+    /// Set the number of sequences used to seed the motif.
+    ///
+    /// In [`SamplerMode::Zoops`] mode, this controls the number of sequences
+    /// to choose randomly to create the initial motif.
     pub fn seeds(&mut self, seeds: usize) -> &mut Self {
         self.seeds = seeds;
         self.inertia.get_or_insert(seeds * 50);
         self
     }
 
+    /// Set the inertia used to seed the motif.
+    ///
+    /// The inertia parameter is the number of steps where only seed sequences
+    /// are used to create the motif in [`SamplerMode::Zoops`] mode. Once this
+    /// number of steps has been reached, additional sequences from the rest
+    /// of the dataset can be selected randomly as well.
     pub fn inertia(&mut self, inertia: usize) -> &mut Self {
         self.inertia = Some(inertia);
         self
     }
 
+    /// Set the patience of the sampler.
+    ///
+    /// In [`SamplerMode::Zoops`] mode, the patience is the number of steps to
+    /// wait for recruiting new sequences in the motif. If no new sequences have
+    /// been added after this many steps, the sampler will stop.
     pub fn patience(&mut self, patience: usize) -> &mut Self {
         self.patience = Some(patience);
         self
     }
 
+    /// Create a new sampler with the given random number generator.
+    ///
+    /// This method does not consume the builder, so a fully initialized builder
+    /// can be used to repeatedly sample new motifs with different random states.
     pub fn sample<R: Rng>(&self, rng: R) -> Sampler<'a, R, A, C, S> {
         Sampler::_new(
             self.data,
@@ -230,6 +262,10 @@ where
     }
 }
 
+/// A generic Gibbs sampler.
+///
+/// The sampler is implemented as an iterator to allow the consumer to control
+/// iterations and allow interrupting progress.
 #[derive(Debug)]
 pub struct Sampler<'a, R, A, C, S>
 where
@@ -284,9 +320,9 @@ where
     C: ArrayLength + NonZero,
     S: AsRef<[StripedSequence<A, C>]>,
 {
-    /// Create a new sampler in `oops` mode with default parameters.
+    /// Create a new sampler in [`SamplerMode::Oops`] mode with default parameters.
     ///
-    /// See `SamplerBuilder` to crate a builder with all possible
+    /// See [`SamplerBuilder`] to create a builder with all possible
     /// parameters.
     pub fn new(data: &'a SamplerData<A, C, S>, width: usize, rng: R) -> Self {
         Self::_new(data, width, rng, SamplerMode::Oops, 0, 0, 0)
@@ -538,10 +574,22 @@ where
             counts: cm,
             z,
             step: self.step - 1,
+            _hidden: (),
         })
     }
 }
 
+impl<'a, R, A, C, S> FusedIterator for Sampler<'a, R, A, C, S>
+where
+    R: Rng,
+    A: Alphabet,
+    C: ArrayLength + NonZero,
+    S: AsRef<[StripedSequence<A, C>]>,
+    Pipeline<A, Dispatch>: Score<f32, A, C>,
+{
+}
+
+/// A single iteration of the sampler.
 #[derive(Debug)]
 pub struct Iteration<A: Alphabet> {
     /// The count matrix built from all sequences but *z*.
@@ -552,6 +600,8 @@ pub struct Iteration<A: Alphabet> {
     pub z: usize,
     /// The current step.
     pub step: usize,
+    #[doc(hidden)]
+    _hidden: (),
 }
 
 #[cfg(test)]
