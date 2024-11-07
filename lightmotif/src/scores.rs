@@ -278,6 +278,11 @@ impl<'a, T: MatrixElement, C: StrictlyPositive + ArrayLength> Iterator for Iter<
     fn next(&mut self) -> Option<Self::Item> {
         self.indices.next().map(|i| self.get(i))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
 }
 
 impl<'a, T: MatrixElement, C: StrictlyPositive + ArrayLength> ExactSizeIterator for Iter<'a, T, C> {
