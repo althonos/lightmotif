@@ -110,6 +110,7 @@ unsafe fn score_f32_avx2_permute<A>(
     A: Alphabet,
 {
     use crate::dense::DenseMatrix;
+    assert!(A::K::USIZE <= 8);
 
     let data = scores.matrix_mut();
     debug_assert!(data.rows() > 0);
@@ -336,10 +337,10 @@ unsafe fn argmax_f32_avx2(
             // the row index for the best score in each column
             // (these are 32-bit integers but for use with `_mm256_blendv_ps`
             // they get stored in 32-bit float vectors).
-            let mut p1 = _mm256_setzero_ps();
-            let mut p2 = _mm256_setzero_ps();
-            let mut p3 = _mm256_setzero_ps();
-            let mut p4 = _mm256_setzero_ps();
+            let mut p1 = _mm256_setzero_si256();
+            let mut p2 = _mm256_setzero_si256();
+            let mut p3 = _mm256_setzero_si256();
+            let mut p4 = _mm256_setzero_si256();
             // store the best scores for each column
             let mut s1 = _mm256_load_ps(dataptr.add(0x00));
             let mut s2 = _mm256_load_ps(dataptr.add(0x08));
@@ -348,7 +349,7 @@ unsafe fn argmax_f32_avx2(
             // process all rows iteratively
             for i in 0..data.rows() {
                 // record the current row index
-                let index = _mm256_castsi256_ps(_mm256_set1_epi32(i as i32));
+                let index = _mm256_set1_epi32(i as i32);
                 // load scores for the current row
                 let r1 = _mm256_load_ps(dataptr.add(0x00));
                 let r2 = _mm256_load_ps(dataptr.add(0x08));
@@ -360,10 +361,10 @@ unsafe fn argmax_f32_avx2(
                 let c3 = _mm256_cmp_ps(s3, r3, _CMP_LE_OS);
                 let c4 = _mm256_cmp_ps(s4, r4, _CMP_LE_OS);
                 // replace indices of new local maximums
-                p1 = _mm256_blendv_ps(p1, index, c1);
-                p2 = _mm256_blendv_ps(p2, index, c2);
-                p3 = _mm256_blendv_ps(p3, index, c3);
-                p4 = _mm256_blendv_ps(p4, index, c4);
+                p1 = _mm256_blendv_epi8(p1, index, _mm256_castps_si256(c1));
+                p2 = _mm256_blendv_epi8(p2, index, _mm256_castps_si256(c2));
+                p3 = _mm256_blendv_epi8(p3, index, _mm256_castps_si256(c3));
+                p4 = _mm256_blendv_epi8(p4, index, _mm256_castps_si256(c4));
                 // replace values of new local maximums
                 s1 = _mm256_blendv_ps(s1, r1, c1);
                 s2 = _mm256_blendv_ps(s2, r2, c2);
@@ -374,10 +375,10 @@ unsafe fn argmax_f32_avx2(
             }
             // find the global maximum across all columns
             let mut x: [u32; 32] = [0; 32];
-            _mm256_storeu_si256(x[0x00..].as_mut_ptr() as *mut _, _mm256_castps_si256(p1));
-            _mm256_storeu_si256(x[0x08..].as_mut_ptr() as *mut _, _mm256_castps_si256(p2));
-            _mm256_storeu_si256(x[0x10..].as_mut_ptr() as *mut _, _mm256_castps_si256(p3));
-            _mm256_storeu_si256(x[0x18..].as_mut_ptr() as *mut _, _mm256_castps_si256(p4));
+            _mm256_storeu_si256(x[0x00..].as_mut_ptr() as *mut _, p1);
+            _mm256_storeu_si256(x[0x08..].as_mut_ptr() as *mut _, p2);
+            _mm256_storeu_si256(x[0x10..].as_mut_ptr() as *mut _, p3);
+            _mm256_storeu_si256(x[0x18..].as_mut_ptr() as *mut _, p4);
 
             let mut best_pos = MatrixCoordinates::default();
             let mut best_score = data[best_pos];
@@ -391,13 +392,6 @@ unsafe fn argmax_f32_avx2(
                 }
             }
 
-            //     if score > best_score || (score == best_score && (row, col) < (best_row, best_col))
-            //     {
-            //         best_score = data[row as usize][col];
-            //         best_row = row;
-            //         best_col = col;
-            //     }
-            // }
             Some(best_pos)
         }
     }
