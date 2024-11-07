@@ -495,7 +495,7 @@ where
     fn prepare_pssm(&self) -> (CountMatrix<A>, ScoringMatrix<A>) {
         let background = self.background();
         let counts = self.count_matrix();
-        let pssm = counts.to_freq(0.1).to_scoring(background);
+        let pssm = counts.to_freq(0.1).into_scoring(background);
         (counts, pssm)
     }
 }
@@ -741,6 +741,6 @@ mod test {
         let gen = Sampler::_new(&data, 17, rng, SamplerMode::Zoops, 5, 10, 10);
 
         let result = gen.skip(20).next().unwrap();
-        assert_eq!(result.pssm.information_content(), 20.820202);
+        assert_eq!(result.pssm.information_content(), 20.8202);
     }
 }

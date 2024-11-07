@@ -320,7 +320,7 @@ impl<A: Alphabet> FrequencyMatrix<A> {
         WeightMatrix::new_unchecked(bg, weight)
     }
 
-    /// Convert to a scoring matrix using the given background frequencies.
+    /// Convert into a scoring matrix using the given background frequencies.
     ///
     /// This uses the base-2 logarithm.
     ///
@@ -331,18 +331,31 @@ impl<A: Alphabet> FrequencyMatrix<A> {
     where
         B: Into<Option<Background<A>>>,
     {
+        self.clone().into_scoring(background)
+    }
+
+    /// Convert into a scoring matrix using the given background frequencies.
+    ///
+    /// This uses the base-2 logarithm.
+    ///
+    /// # Note
+    /// By convention, columns with null background frequencies receive a
+    /// log-odds-ratio of [`f32::NEG_INFINITY`](https://doc.rust-lang.org/std/primitive.f32.html#associatedconstant.NEG_INFINITY).
+    pub fn into_scoring<B>(mut self, background: B) -> ScoringMatrix<A>
+    where
+        B: Into<Option<Background<A>>>,
+    {
         let bg = background.into().unwrap_or_default();
-        let mut scores = DenseMatrix::new(self.data.rows());
-        for (src, dst) in self.data.iter().zip(scores.iter_mut()) {
-            for (j, (&x, &f)) in src.iter().zip(bg.frequencies()).enumerate() {
+        for src in self.data.iter_mut() {
+            for (x, &f) in src.iter_mut().zip(bg.frequencies()) {
                 if f == 0.0 {
-                    dst[j] = f32::NEG_INFINITY;
+                    *x = f32::NEG_INFINITY;
                 } else {
-                    dst[j] = (x / f).log2();
+                    *x = (*x / f).log2();
                 }
             }
         }
-        ScoringMatrix::new(bg, scores)
+        ScoringMatrix::new(bg, self.data)
     }
 }
 
