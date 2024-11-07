@@ -37,11 +37,14 @@ of sequences:
 - Striped sequence matrices to process several positions in parallel,
   inspired by Michael Farrar[\[3\]](#ref3).
 - Vectorized matrix row look-up using `permute` instructions of [AVX2](https://fr.wikipedia.org/wiki/Advanced_Vector_Extensions).
+- High-throughput Gibbs sampler[\[4\]](#ref4) implementation in *oops*
+  and *zoops* modes, featuring deterministic results using randomness from 
+  the [`rand`](https://crates.io/rand) crate.
 
 Other crates from the ecosystem provide additional features if needed:
 
 - [`lightmotif-io`](https://crates.io/crates/lightmotif-io) is a crate with parser implementations for various count matrix, frequency matrix and position-specific scoring matrix formats such as [TRANSFAC](https://en.wikipedia.org/wiki/TRANSFAC) or [JASPAR](https://jaspar.elixir.no/docs/).
-- [`lightmotif-tfmpvalue`](https://crates.io/crates/lightmotif-tfmpvalue) is an exact reimplementation of the TFM-PVALUE[\[4\]](#ref4) algorithm for converting between a score and a *p*-value for a given scoring matrix.
+- [`lightmotif-tfmpvalue`](https://crates.io/crates/lightmotif-tfmpvalue) is an exact reimplementation of the TFM-PVALUE[\[5\]](#ref5) algorithm for converting between a score and a *p*-value for a given scoring matrix.
 
 *This is the Rust version, there is a [Python package](https://pypi.org/project/lightmotif) available as well.*
 
@@ -150,5 +153,6 @@ in the [Zeller team](https://github.com/zellerlab).*
 - <a id="ref1">\[1\]</a> Eddy, Sean R. ‘Accelerated Profile HMM Searches’. PLOS Computational Biology 7, no. 10 (20 October 2011): e1002195. [doi:10.1371/journal.pcbi.1002195](https://doi.org/10.1371/journal.pcbi.1002195).
 - <a id="ref2">\[2\]</a> Grant, Charles E., Timothy L. Bailey, and William Stafford Noble. ‘FIMO: Scanning for Occurrences of a given Motif’. Bioinformatics 27, no. 7 (1 April 2011): 1017–18. [doi:10.1093/bioinformatics/btr064](https://doi.org/10.1093/bioinformatics/btr064).
 - <a id="ref3">\[3\]</a> Farrar, Michael. ‘Striped Smith–Waterman Speeds Database Searches Six Times over Other SIMD Implementations’. Bioinformatics 23, no. 2 (15 January 2007): 156–61. [doi:10.1093/bioinformatics/btl582](https://doi.org/10.1093/bioinformatics/btl582).
-- <a id="ref4">\[4\]</a> Touzet, Hélène, and Jean-Stéphane Varré. ‘Efficient and Accurate P-Value Computation for Position Weight Matrices’. Algorithms for Molecular Biology 2, no. 1 (2007): 1–12. [doi:10.1186/1748-7188-2-15](https://doi.org/10.1186/1748-7188-2-15).
-- <a id="ref5">\[5\]</a> Dudek, Christian-Alexander, and Dieter Jahn. ‘PRODORIC: State-of-the-Art Database of Prokaryotic Gene Regulation’. Nucleic Acids Research 50, no. D1 (7 January 2022): D295–302. [doi:10.1093/nar/gkab1110](https://doi.org/10.1093/nar/gkab1110).
+- <a id="ref4">\[4\]</a> Lawrence, Charles E., Stephen F. Altschul, Mark S. Boguski, Jun S. Liu, Andrew F. Neuwald, and John C. Wootton. ’Detecting subtle sequence signals: a Gibbs sampling strategy for multiple alignment’. Science. 1993 Oct 8;262(5131):208-14. [doi:10.1126/science.8211139](https://doi.org/10.1126/science.8211139).
+- <a id="ref5">\[5\]</a> Touzet, Hélène, and Jean-Stéphane Varré. ‘Efficient and Accurate P-Value Computation for Position Weight Matrices’. Algorithms for Molecular Biology 2, no. 1 (2007): 1–12. [doi:10.1186/1748-7188-2-15](https://doi.org/10.1186/1748-7188-2-15).
+- <a id="ref5">\[6\]</a> Dudek, Christian-Alexander, and Dieter Jahn. ‘PRODORIC: State-of-the-Art Database of Prokaryotic Gene Regulation’. Nucleic Acids Research 50, no. D1 (7 January 2022): D295–302. [doi:10.1093/nar/gkab1110](https://doi.org/10.1093/nar/gkab1110).

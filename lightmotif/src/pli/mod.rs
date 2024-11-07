@@ -7,7 +7,6 @@ use generic_array::ArrayLength;
 
 use crate::abc::Alphabet;
 use crate::abc::Dna;
-use crate::abc::Protein;
 use crate::abc::Symbol;
 use crate::dense::DenseMatrix;
 use crate::dense::MatrixCoordinates;

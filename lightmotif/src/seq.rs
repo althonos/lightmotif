@@ -81,7 +81,7 @@ impl<A: Alphabet> EncodedSequence<A> {
     }
 
     /// Sample a new random sequence from the given background frequencies.
-    #[cfg(feature = "sample")]
+    #[cfg(feature = "sampling")]
     pub fn sample<R: Rng>(rng: R, background: Background<A>, length: usize) -> Self {
         let symbols = <A as Alphabet>::symbols();
         let dist = rand_distr::WeightedAliasIndex::new(background.frequencies().into())

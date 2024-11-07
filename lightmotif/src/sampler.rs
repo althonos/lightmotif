@@ -609,7 +609,6 @@ mod test {
     use std::str::FromStr;
 
     use crate::abc::Protein;
-    use crate::pli::Encode;
     use crate::seq::EncodedSequence;
 
     use super::*;
