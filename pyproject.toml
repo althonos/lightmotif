@@ -36,6 +36,7 @@ classifiers = [
 ]
 
 [project.urls]
+"Homepage" = "https://github.com/althonos/lightmotif/"
 "Bug Tracker" = "https://github.com/althonos/lightmotif/issues"
 "Changelog" = "https://github.com/althonos/lightmotif/blob/master/CHANGELOG.md"
 "Coverage" = "https://codecov.io/gh/althonos/lightmotif/"

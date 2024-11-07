@@ -23,5 +23,5 @@ optional = true
 version = "0.4.3"
 
 [features]
-default = []
-sample = ["rand", "rand_distr"]
+default = ["sampling"]
+sampling = ["rand", "rand_distr"]

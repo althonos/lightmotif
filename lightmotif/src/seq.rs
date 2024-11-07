@@ -7,10 +7,13 @@ use std::fmt::Write;
 use std::ops::Index;
 use std::str::FromStr;
 
-#[cfg(feature = "sample")]
+use generic_array::GenericArray;
+#[cfg(feature = "sampling")]
 use rand::Rng;
 
 use super::abc::Alphabet;
+#[cfg(feature = "sampling")]
+use super::abc::Background;
 use super::abc::Symbol;
 use super::dense::DenseMatrix;
 use super::err::InvalidData;
@@ -28,11 +31,25 @@ use crate::num::ArrayLength;
 /// A trait for counting the number of occurences of a symbol in a sequence.
 pub trait SymbolCount<A: Alphabet> {
     fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize;
+
+    fn count_symbols(&self) -> GenericArray<usize, A::K> {
+        let mut counts = GenericArray::default();
+        for s in A::symbols() {
+            counts[s.as_index()] = self.count_symbol(*s);
+        }
+        counts
+    }
 }
 
-impl<'a, A: Alphabet, T: IntoIterator<Item = &'a A::Symbol> + Copy> SymbolCount<A> for T {
+// impl<'a, A: Alphabet, T: IntoIterator<Item = &'a A::Symbol>> SymbolCount<A> for T {
+//     fn count_symbol(self, symbol: <A as Alphabet>::Symbol) -> usize {
+//         self.into_iter().filter(|&&c| c == symbol).count()
+//     }
+// }
+
+impl<'a, A: Alphabet, T: AsRef<[A::Symbol]>> SymbolCount<A> for T {
     fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize {
-        self.into_iter().filter(|&&c| c == symbol).count()
+        self.as_ref().iter().filter(|&&c| c == symbol).count()
     }
 }
 
@@ -64,7 +81,7 @@ impl<A: Alphabet> EncodedSequence<A> {
     }
 
     /// Sample a new random sequence from the given background frequencies.
-    #[cfg(feature = "sample")]
+    #[cfg(feature = "sampling")]
     pub fn sample<R: Rng>(rng: R, background: Background<A>, length: usize) -> Self {
         let symbols = <A as Alphabet>::symbols();
         let dist = rand_distr::WeightedAliasIndex::new(background.frequencies().into())
@@ -187,7 +204,7 @@ where
 // --- StripedSequence ---------------------------------------------------------
 
 /// An encoded sequence stored in a striped matrix with a fixed column count.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct StripedSequence<A: Alphabet, C: StrictlyPositive + ArrayLength> {
     alphabet: std::marker::PhantomData<A>,
     length: usize,
@@ -215,7 +232,7 @@ impl<A: Alphabet, C: StrictlyPositive + ArrayLength> StripedSequence<A, C> {
     }
 
     /// Sample a new random sequence from the given background frequencies.
-    #[cfg(feature = "sample")]
+    #[cfg(feature = "sampling")]
     pub fn sample<R: Rng>(mut rng: R, background: Background<A>, length: usize) -> Self {
         let symbols = <A as Alphabet>::symbols();
         let dist = rand_distr::WeightedAliasIndex::new(background.frequencies().into())
@@ -298,6 +315,17 @@ impl<A: Alphabet, C: StrictlyPositive + ArrayLength> AsRef<DenseMatrix<A::Symbol
     }
 }
 
+impl<A: Alphabet, C: StrictlyPositive + ArrayLength> std::fmt::Debug for StripedSequence<A, C> {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+        f.debug_struct("StripedSequence")
+            .field("alphabet", &self.alphabet)
+            .field("length", &self.length)
+            .field("wrap", &self.wrap)
+            .field("data", &self.data)
+            .finish()
+    }
+}
+
 impl<A: Alphabet, C: StrictlyPositive + ArrayLength> Default for StripedSequence<A, C> {
     fn default() -> Self {
         Self::new(DenseMatrix::new(0), 0).unwrap()
@@ -333,12 +361,9 @@ impl<A: Alphabet, C: StrictlyPositive + ArrayLength> Index<usize> for StripedSeq
     }
 }
 
-impl<A: Alphabet, C: StrictlyPositive + ArrayLength> SymbolCount<A> for &StripedSequence<A, C> {
+impl<A: Alphabet, C: StrictlyPositive + ArrayLength> SymbolCount<A> for StripedSequence<A, C> {
     fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize {
-        self.data
-            .iter()
-            .map(|row| SymbolCount::<A>::count_symbol(&row, symbol))
-            .sum()
+        (0..self.len()).filter(|&i| self[i] == symbol).count()
     }
 }
 

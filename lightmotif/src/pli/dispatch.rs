@@ -74,7 +74,7 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Dispatch> {
     }
 }
 
-impl Score<f32, Dna, <Dispatch as Backend>::LANES> for Pipeline<Dna, Dispatch> {
+impl<A: Alphabet> Score<f32, A, <Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {
     fn score_rows_into<S, M>(
         &self,
         pssm: M,
@@ -82,46 +82,17 @@ impl Score<f32, Dna, <Dispatch as Backend>::LANES> for Pipeline<Dna, Dispatch> {
         rows: Range<usize>,
         scores: &mut StripedScores<f32, <Dispatch as Backend>::LANES>,
     ) where
-        S: AsRef<StripedSequence<Dna, <Dispatch as Backend>::LANES>>,
-        M: AsRef<DenseMatrix<f32, <Dna as Alphabet>::K>>,
+        S: AsRef<StripedSequence<A, <Dispatch as Backend>::LANES>>,
+        M: AsRef<DenseMatrix<f32, <A as Alphabet>::K>>,
     {
         match self.backend {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            Dispatch::Avx2 => Avx2::score_f32_rows_into_permute(pssm, seq.as_ref(), rows, scores),
+            Dispatch::Avx2 => Avx2::score_f32_rows_into(pssm, seq.as_ref(), rows, scores),
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Sse2 => Sse2::score_rows_into(pssm, seq.as_ref(), rows, scores),
             #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
             Dispatch::Neon => Neon::score_f32_rows_into(pssm, seq.as_ref(), rows, scores),
-            _ => <Generic as Score<f32, Dna, <Dispatch as Backend>::LANES>>::score_rows_into(
-                &Generic,
-                pssm,
-                seq.as_ref(),
-                rows,
-                scores,
-            ),
-        }
-    }
-}
-
-impl Score<f32, Protein, <Dispatch as Backend>::LANES> for Pipeline<Protein, Dispatch> {
-    fn score_rows_into<S, M>(
-        &self,
-        pssm: M,
-        seq: S,
-        rows: Range<usize>,
-        scores: &mut StripedScores<f32, <Dispatch as Backend>::LANES>,
-    ) where
-        S: AsRef<StripedSequence<Protein, <Dispatch as Backend>::LANES>>,
-        M: AsRef<DenseMatrix<f32, <Protein as Alphabet>::K>>,
-    {
-        match self.backend {
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            Dispatch::Avx2 => Avx2::score_f32_rows_into_gather(pssm, seq.as_ref(), rows, scores),
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            Dispatch::Sse2 => Sse2::score_rows_into(pssm, seq.as_ref(), rows, scores),
-            #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-            Dispatch::Neon => Neon::score_f32_rows_into(pssm, seq.as_ref(), rows, scores),
-            _ => <Generic as Score<f32, Protein, <Dispatch as Backend>::LANES>>::score_rows_into(
+            _ => <Generic as Score<f32, A, <Dispatch as Backend>::LANES>>::score_rows_into(
                 &Generic,
                 pssm,
                 seq.as_ref(),

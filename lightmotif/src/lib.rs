@@ -13,6 +13,9 @@ pub mod scan;
 pub mod scores;
 pub mod seq;
 
+#[cfg(feature = "sampling")]
+pub mod sampler;
+
 pub use abc::Alphabet;
 pub use abc::Dna;
 pub use abc::Protein;

@@ -1,5 +1,6 @@
 //! Wrapper types for storing scores.
 
+use std::fmt::Debug;
 use std::iter::FusedIterator;
 use std::ops::Deref;
 use std::ops::Index;
@@ -64,6 +65,12 @@ impl<T: PartialOrd + Clone> Scores<T> {
     }
 }
 
+impl<T> AsRef<Vec<T>> for Scores<T> {
+    fn as_ref(&self) -> &Vec<T> {
+        &self.data
+    }
+}
+
 impl<T> Deref for Scores<T> {
     type Target = Vec<T>;
     fn deref(&self) -> &Self::Target {
@@ -86,7 +93,7 @@ impl<T> From<Scores<T>> for Vec<T> {
 // --- StripedScores -----------------------------------------------------------
 
 /// Striped matrix storing scores for an equally striped sequence.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct StripedScores<T: MatrixElement, C: StrictlyPositive + ArrayLength> {
     /// The raw data matrix storing the scores.
     data: DenseMatrix<T, C>,
@@ -205,6 +212,17 @@ impl<T: MatrixElement, C: StrictlyPositive + ArrayLength> AsMut<DenseMatrix<T, C
 {
     fn as_mut(&mut self) -> &mut DenseMatrix<T, C> {
         self.matrix_mut()
+    }
+}
+
+impl<T: MatrixElement + Debug, C: StrictlyPositive + ArrayLength> std::fmt::Debug
+    for StripedScores<T, C>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        f.debug_struct("StripedSequence")
+            .field("data", &self.data)
+            .field("max_index", &self.max_index)
+            .finish()
     }
 }
 

@@ -6,7 +6,6 @@ use std::fmt::Formatter;
 use std::iter::FusedIterator;
 use std::ops::Index;
 use std::ops::IndexMut;
-use std::ops::Range;
 
 use crate::num::ArrayLength;
 
@@ -42,7 +41,7 @@ struct Row<T: MatrixElement, C: ArrayLength> {
 }
 
 /// A memory-aligned dense matrix with a constant number of columns.
-#[derive(Clone, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DenseMatrix<T: MatrixElement, C: ArrayLength> {
     data: Vec<Row<T, C>>,
     rows: usize,
@@ -200,6 +199,13 @@ impl<T: MatrixElement, C: ArrayLength> Index<MatrixCoordinates> for DenseMatrix<
     }
 }
 
+impl<T: MatrixElement, C: ArrayLength> IndexMut<MatrixCoordinates> for DenseMatrix<T, C> {
+    #[inline]
+    fn index_mut(&mut self, index: MatrixCoordinates) -> &mut Self::Output {
+        &mut self.data[index.row].a[index.col]
+    }
+}
+
 impl<'a, T: MatrixElement, C: ArrayLength> IntoIterator for &'a DenseMatrix<T, C> {
     type Item = &'a [T];
     type IntoIter = Iter<'a, T, C>;
@@ -218,28 +224,6 @@ impl<'a, T: MatrixElement, C: ArrayLength> IntoIterator for &'a mut DenseMatrix<
     }
 }
 
-impl<T: MatrixElement + PartialEq, C: ArrayLength> PartialEq for DenseMatrix<T, C> {
-    fn eq(&self, other: &Self) -> bool {
-        if self.rows() != other.rows() {
-            return false;
-        }
-        unsafe {
-            let mut lptr = self[0].as_ptr();
-            let mut rptr = other[0].as_ptr();
-            for _ in 0..self.rows() {
-                for j in 0..C::USIZE {
-                    if *lptr.add(j) != *rptr.add(j) {
-                        return false;
-                    }
-                }
-                lptr = lptr.add(self.stride());
-                rptr = rptr.add(self.stride());
-            }
-        }
-        true
-    }
-}
-
 // --- Iter --------------------------------------------------------------------
 
 pub struct Iter<'a, T, C>
@@ -247,8 +231,7 @@ where
     T: 'a + MatrixElement,
     C: ArrayLength,
 {
-    matrix: &'a DenseMatrix<T, C>,
-    indices: Range<usize>,
+    it: <&'a Vec<Row<T, C>> as IntoIterator>::IntoIter,
 }
 
 impl<'a, T, C> Iter<'a, T, C>
@@ -258,13 +241,16 @@ where
 {
     #[inline]
     fn new(matrix: &'a DenseMatrix<T, C>) -> Self {
-        let indices = 0..matrix.rows();
-        Self { indices, matrix }
+        // let indices = 0..matrix.rows();
+        // Self { indices, matrix }
+        Self {
+            it: matrix.data.iter(),
+        }
     }
 
     #[inline]
-    fn get(&mut self, i: usize) -> &'a [T] {
-        self.matrix.data[i].a.as_slice()
+    fn get(row: &'a Row<T, C>) -> &'a [T] {
+        row.a.as_slice()
     }
 }
 
@@ -275,8 +261,7 @@ where
     T: 'a + MatrixElement,
     C: ArrayLength,
 {
-    matrix: &'a mut DenseMatrix<T, C>,
-    indices: Range<usize>,
+    it: <&'a mut Vec<Row<T, C>> as IntoIterator>::IntoIter,
 }
 
 impl<'a, T, C> IterMut<'a, T, C>
@@ -286,13 +271,14 @@ where
 {
     #[inline]
     fn new(matrix: &'a mut DenseMatrix<T, C>) -> Self {
-        let indices = 0..matrix.rows();
-        Self { indices, matrix }
+        Self {
+            it: matrix.data.iter_mut(),
+        }
     }
 
     #[inline]
-    fn get(&mut self, i: usize) -> &'a mut [T] {
-        unsafe { std::slice::from_raw_parts_mut(self.matrix.data[i].a.as_mut_ptr(), C::USIZE) }
+    fn get(row: &'a mut Row<T, C>) -> &'a mut [T] {
+        row.a.as_mut_slice()
     }
 }
 
@@ -308,7 +294,7 @@ macro_rules! iterator {
             type Item = &'a $($item)*;
             #[inline]
             fn next(&mut self) -> Option<Self::Item> {
-                self.indices.next().map(|i| self.get(i))
+                self.it.next().map(|row| Self::get(row))
             }
         }
 
@@ -319,7 +305,7 @@ macro_rules! iterator {
         {
             #[inline]
             fn len(&self) -> usize {
-                self.indices.len()
+                self.it.len()
             }
         }
 
@@ -336,7 +322,7 @@ macro_rules! iterator {
         {
             #[inline]
             fn next_back(&mut self) -> Option<Self::Item> {
-                self.indices.next_back().map(|i| self.get(i))
+                self.it.next_back().map(|row| Self::get(row))
             }
         }
     };

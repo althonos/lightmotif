@@ -1,4 +1,15 @@
 //! Storage types for the different stages of a PSSM construction.
+//!
+//! A position-specific scoring matrix (PSSM) can be used to compute the
+//! *log-likelihood ration* of a motif occurence in a sequence, relative
+//! to a background sequence model.
+//!
+//! ## 📚 References
+//!
+//! - <a id="ref1">\[1\]</a> Bailey TL. *Discovering sequence motifs.*
+//!   Methods Mol Biol. 2008;452:231-51.
+//!   [PMID:18566768](https://pubmed.ncbi.nlm.nih.gov/18566768/).
+//!   [doi:10.1007/978-1-60327-159-2_12](https://doi.org/10.1007/978-1-60327-159-2_12)
 
 use std::ops::Index;
 
@@ -74,12 +85,12 @@ pub struct CountMatrix<A: Alphabet> {
     data: DenseMatrix<u32, A::K>,
     /// The number of sequences from which this count matrix was obtained.
     #[allow(unused)]
-    n: u32,
+    n: usize,
 }
 
 impl<A: Alphabet> CountMatrix<A> {
     /// Create a new count matrix without checking the contents.
-    fn new_unchecked(data: DenseMatrix<u32, A::K>, n: u32) -> Self {
+    pub(crate) fn new_unchecked(data: DenseMatrix<u32, A::K>, n: usize) -> Self {
         Self {
             alphabet: std::marker::PhantomData,
             n,
@@ -97,7 +108,11 @@ impl<A: Alphabet> CountMatrix<A> {
             return Ok(Self::new_unchecked(data, 0));
         }
         // Check row sums.
-        let n = data.iter().map(|row| row.iter().sum()).max().unwrap();
+        let n = data
+            .iter()
+            .map(|row| row.iter().map(|i| *i as usize).sum())
+            .max()
+            .unwrap();
         // if data.iter().any(|row| row.iter().sum::<u32>() != n) {
         // Err(InvalidData)
         // } else {
@@ -172,34 +187,54 @@ impl<A: Alphabet> CountMatrix<A> {
         FrequencyMatrix::new_unchecked(probas)
     }
 
-    /// Compute the entropy of each column of the matrix.
+    /// Get the number of sequences used to build the matrix.
+    pub fn sequence_count(&self) -> usize {
+        self.n
+    }
+
+    /// Compute the Shannon entropy of a single row.
+    fn row_entropy(row: &[u32]) -> f32 {
+        let sum = row.iter().sum::<u32>();
+        -row.iter()
+            .map(|&n| n as f32 / sum as f32)
+            .map(|p| if p > 0.0 { p * p.log2() } else { 0.0 })
+            .sum::<f32>()
+    }
+
+    /// Compute the Shannon entropy of each row of the matrix.
     ///
-    /// The entropy of a column, sometimes refered to as "uncertainty", is
+    /// The entropy of a row, sometimes refered to as "uncertainty", is
     /// computed by treating each motif position as a random variable taking
     /// values in alphabet `A`.
     pub fn entropy(&self) -> Vec<f32> {
         self.matrix()
             .iter()
-            .map(|row| {
-                let sum = row.iter().sum::<u32>();
-                -row[..A::K::USIZE - 1]
-                    .iter()
-                    .map(|&n| n as f32 / sum as f32)
-                    .map(|p| if p > 0.0 { p * p.log2() } else { 0.0 })
-                    .sum::<f32>()
-            })
+            .map(|row| Self::row_entropy(row))
             .collect()
     }
 
-    /// Compute the information content of the matrix.
-    pub fn information_content(&self) -> f32 {
-        let entropy = self.entropy();
-        let hmax = entropy
-            .iter()
-            .max_by(|h1, h2| h1.partial_cmp(h2).unwrap())
-            .cloned()
-            .unwrap();
-        entropy.into_iter().map(|h| hmax - h).sum()
+    /// Build the consensus sequence for the matrix.
+    ///
+    /// For each row of the matrix, the symbol with the highest occurence
+    /// is extracted. Symbols as position with entropy higher than 1.0 are
+    /// shown in lowercase.
+    pub fn consensus(&self) -> String {
+        let mut consensus = String::with_capacity(self.matrix().rows());
+        self.matrix().iter().for_each(|row| {
+            let entropy = Self::row_entropy(row);
+            let symbol = row
+                .iter()
+                .zip(A::symbols())
+                .max_by_key(|(count, _)| **count)
+                .unwrap()
+                .1;
+            if entropy >= 1.0 {
+                consensus.push(symbol.as_char().to_ascii_lowercase());
+            } else {
+                consensus.push(symbol.as_char().to_ascii_uppercase());
+            }
+        });
+        consensus
     }
 }
 
@@ -371,6 +406,19 @@ impl<A: Alphabet> WeightMatrix<A> {
         }
     }
 
+    /// Compute the information content of the matrix.
+    pub fn information_content(&self) -> f32 {
+        self.matrix()
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .zip(self.background.frequencies())
+                    .map(|(x, b)| if *b == 0.0 { 0.0 } else { x * (x / b).log2() })
+                    .sum::<f32>()
+            })
+            .sum()
+    }
+
     /// Get a position-specific scoring matrix from this position weight matrix.
     pub fn to_scoring(&self) -> ScoringMatrix<A> {
         self.to_scoring_with_base(2.0)
@@ -477,6 +525,25 @@ impl<A: Alphabet> ScoringMatrix<A> {
                     .iter()
                     .max_by(|a, b| a.partial_cmp(b).unwrap())
                     .unwrap()
+            })
+            .sum()
+    }
+
+    /// Compute the information content of the matrix.
+    pub fn information_content(&self) -> f32 {
+        self.matrix()
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .zip(self.background.frequencies())
+                    .map(|(x, b)| {
+                        if *b == 0.0 || *x == f32::NEG_INFINITY {
+                            0.0
+                        } else {
+                            (2f32.powf(*x) * b) * x
+                        }
+                    })
+                    .sum::<f32>()
             })
             .sum()
     }
