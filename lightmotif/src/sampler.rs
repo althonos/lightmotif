@@ -533,6 +533,7 @@ mod test {
     use std::str::FromStr;
 
     use crate::abc::Protein;
+    use crate::pli::Encode;
     use crate::seq::EncodedSequence;
 
     use super::*;
@@ -639,23 +640,20 @@ mod test {
             "SSILNRIAIRGQRRVADALGINESQISRWRGDFIPRMG",
         ];
 
-        let striped = sequences
-            .iter()
-            .cloned()
-            .map(EncodedSequence::<Protein>::from_str)
-            .map(Result::unwrap)
-            .map(StripedSequence::from)
-            .map(|mut s| {
-                s.configure_wrap(17);
-                s
-            })
-            .collect::<Vec<_>>();
-
         let encoded = sequences
             .iter()
             .cloned()
             .map(EncodedSequence::<Protein>::from_str)
             .map(Result::unwrap)
+            .collect::<Vec<_>>();
+
+        let striped = encoded
+            .iter()
+            .map(EncodedSequence::to_striped)
+            .map(|mut s| {
+                s.configure_wrap(17);
+                s
+            })
             .collect::<Vec<_>>();
 
         let x = &striped[3];
