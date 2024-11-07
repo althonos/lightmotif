@@ -310,7 +310,7 @@ impl<A: Alphabet> FrequencyMatrix<A> {
         let mut weight = DenseMatrix::new(self.data.rows());
         for (src, dst) in self.data.iter().zip(weight.iter_mut()) {
             for (j, (&x, &f)) in src.iter().zip(bg.frequencies()).enumerate() {
-                if f <= 0.0 {
+                if f == 0.0 {
                     dst[j] = 0.0;
                 } else {
                     dst[j] = x / f;
@@ -335,10 +335,10 @@ impl<A: Alphabet> FrequencyMatrix<A> {
         let mut scores = DenseMatrix::new(self.data.rows());
         for (src, dst) in self.data.iter().zip(scores.iter_mut()) {
             for (j, (&x, &f)) in src.iter().zip(bg.frequencies()).enumerate() {
-                if f <= 0.0 {
+                if f == 0.0 {
                     dst[j] = f32::NEG_INFINITY;
                 } else {
-                    dst[j] = x.log2() - f.log2();
+                    dst[j] = (x / f).log2();
                 }
             }
         }
