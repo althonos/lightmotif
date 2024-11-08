@@ -67,18 +67,21 @@ pub struct ScoreDistribution<A: Alphabet> {
 
 impl<A: Alphabet> ScoreDistribution<A> {
     /// Scale the given score to an integer score using the matrix scale.
+    #[inline]
     pub fn scale(&self, score: f32) -> i32 {
         let w = self.data.rows() as i32;
         f64::round((score as f64 - (w * self.offset) as f64) * self.scale) as i32
     }
 
     /// Unscale the given integer score into a score using the matrix scale.
+    #[inline]
     pub fn unscale(&self, score: i32) -> f32 {
         let w = self.data.rows() as i32;
         (score as f32) / (self.scale as f32) + (w * self.offset) as f32
     }
 
     /// Get the *p-value* for the given score.
+    #[inline]
     pub fn pvalue(&self, score: f32) -> f64 {
         let scaled = self.scale(score);
         if scaled < self.min_score {
@@ -91,6 +94,7 @@ impl<A: Alphabet> ScoreDistribution<A> {
     }
 
     /// Get the score for a given *p-value*.
+    #[inline]
     pub fn score(&self, pvalue: f64) -> f32 {
         if pvalue >= 1.0 {
             self.unscale(self.min_score)
@@ -102,6 +106,17 @@ impl<A: Alphabet> ScoreDistribution<A> {
                 Err(x) => self.unscale(x as i32),
             }
         }
+    }
+
+    /// Get the minimum p-value attainable by the PSSM.
+    ///
+    /// The minimum p-value is the p-value of the largest score. It has a lower
+    /// bound set by the distribution of PSSM scores, which depends on the
+    /// width of the scoring matrix `w` and the number of symbols in the
+    /// alphabet `K`, such that `P >= K^-w`.
+    #[inline]
+    pub fn min_pvalue(&self) -> f64 {
+        self.sf[self.max_score as usize]
     }
 }
 
