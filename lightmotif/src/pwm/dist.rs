@@ -9,6 +9,11 @@
 //! ## 📚 References
 //! - <a id="ref1">\[1\]</a> Grant, Charles E., Timothy L. Bailey, and William Stafford Noble. ‘FIMO: Scanning for Occurrences of a given Motif’. Bioinformatics 27, no. 7 (1 April 2011): 1017–18. [doi:10.1093/bioinformatics/btr064](https://doi.org/10.1093/bioinformatics/btr064).
 
+#[cfg(feature = "sampling")]
+use rand::distributions::uniform::Uniform;
+#[cfg(feature = "sampling")]
+use rand::distributions::Distribution;
+
 use crate::abc::Alphabet;
 use crate::abc::Background;
 use crate::abc::Symbol;
@@ -55,7 +60,7 @@ impl<A: Alphabet> ScoreDistribution<A> {
         } else if scaled >= self.max_score {
             0.0
         } else {
-            self.cdf[scaled as usize]
+            self.sf[scaled as usize]
         }
     }
 
@@ -66,10 +71,7 @@ impl<A: Alphabet> ScoreDistribution<A> {
         } else if pvalue <= 0.0 {
             self.unscale(self.max_score)
         } else {
-            match self
-                .cdf
-                .binary_search_by(|x| pvalue.partial_cmp(x).unwrap())
-            {
+            match self.sf.binary_search_by(|x| pvalue.partial_cmp(x).unwrap()) {
                 Ok(x) => self.unscale(x as i32),
                 Err(x) => self.unscale(x as i32),
             }
@@ -77,8 +79,9 @@ impl<A: Alphabet> ScoreDistribution<A> {
     }
 }
 
-impl<A: Alphabet> From<&'_ ScoringMatrix<A>> for ScoreDistribution<A> {
-    fn from(pssm: &'_ ScoringMatrix<A>) -> Self {
+impl<A: Alphabet, S: AsRef<ScoringMatrix<A>>> From<S> for ScoreDistribution<A> {
+    fn from(pssm: S) -> Self {
+        let pssm = pssm.as_ref();
         // scale pssm and set the scale/offset (see scale_score_matrix)
         let mut small = *pssm
             .matrix()
@@ -174,6 +177,15 @@ impl<A: Alphabet> From<&'_ ScoringMatrix<A>> for ScoreDistribution<A> {
             min_score,
             max_score,
         }
+    }
+}
+
+#[cfg(feature = "sampling")]
+impl<A: Alphabet> Distribution<f32> for ScoreDistribution<A> {
+    fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> f32 {
+        let s = Uniform::new_inclusive(0.0, 1.0);
+        let p = s.sample(rng);
+        self.score(p)
     }
 }
 
