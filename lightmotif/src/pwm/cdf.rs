@@ -33,7 +33,6 @@ impl<A: Alphabet> CumulativeDistribution<A> {
 
     /// Unscale a discrete score to float.
     fn unscale(&self, score: i32) -> f32 {
-        println!("unscale(score={:?})", score);
         let w = self.data.rows() as i32;
         (score as f32) / (self.scale as f32) + (w * self.offset) as f32
     }
@@ -41,9 +40,9 @@ impl<A: Alphabet> CumulativeDistribution<A> {
     /// Get the *p-value* for the given score.
     pub fn pvalue(&self, score: f32) -> f64 {
         let scaled = self.scale(score);
-        if scaled < 0 {
+        if scaled <= self.min_score {
             1.0
-        } else if scaled as usize >= self.cdf.len() {
+        } else if scaled >= self.max_score {
             0.0
         } else {
             self.cdf[scaled as usize]
@@ -52,12 +51,18 @@ impl<A: Alphabet> CumulativeDistribution<A> {
 
     /// Get the score for a given *p-value*.
     pub fn score(&self, pvalue: f64) -> f32 {
-        match self
-            .cdf
-            .binary_search_by(|x| pvalue.partial_cmp(x).unwrap())
-        {
-            Ok(x) => self.unscale(x as i32),
-            Err(x) => self.unscale(x as i32),
+        if pvalue >= 1.0 {
+            self.unscale(self.min_score)
+        } else if pvalue <= 0.0 {
+            self.unscale(self.max_score)
+        } else {
+            match self
+                .cdf
+                .binary_search_by(|x| pvalue.partial_cmp(x).unwrap())
+            {
+                Ok(x) => self.unscale(x as i32),
+                Err(x) => self.unscale(x as i32),
+            }
         }
     }
 }
@@ -86,14 +91,6 @@ impl<A: Alphabet> From<&'_ ScoringMatrix<A>> for CumulativeDistribution<A> {
         // compute offset and scale
         let offset = small.floor();
         let scale = ((CDF_RANGE as f64) / (large - offset)).floor();
-
-        // let mut matrix = Self {
-        //     background: pssm.background.clone(),
-        //     scale,
-        //     offset: offset as i32,
-        //     data: DenseMatrix::new(0),
-        //     range: CDF_RANGE,
-        // };
 
         // compute discretized matrix
         let mut data = DenseMatrix::<i32, A::K>::new(pssm.matrix().rows());
