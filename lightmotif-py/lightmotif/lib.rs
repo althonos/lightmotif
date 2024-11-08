@@ -713,9 +713,10 @@ impl From<lightmotif::ScoringMatrix<Protein>> for ScoringMatrixData {
 
 /// A matrix storing position-specific odds-ratio for a motif.
 #[pyclass(module = "lightmotif.lib")]
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ScoringMatrix {
     data: ScoringMatrixData,
+    distribution: Option<Py<ScoreDistribution>>,
     shape: [Py_ssize_t; 2],
     strides: [Py_ssize_t; 2],
 }
@@ -738,6 +739,7 @@ impl ScoringMatrix {
             data,
             shape,
             strides,
+            distribution: None,
         }
     }
 }
@@ -873,6 +875,23 @@ impl ScoringMatrix {
         Ok(())
     }
 
+    #[getter]
+    pub fn score_distribution<'py>(slf: Bound<'py, Self>) -> PyResult<Py<ScoreDistribution>> {
+        let py = slf.py();
+        if slf.borrow().distribution.is_none() {
+            let data = match &slf.borrow().data {
+                ScoringMatrixData::Dna(dna) => {
+                    ScoreDistributionData::from(dna.to_score_distribution())
+                }
+                ScoringMatrixData::Protein(prot) => {
+                    ScoreDistributionData::from(prot.to_score_distribution())
+                }
+            };
+            slf.borrow_mut().distribution = Some(Py::new(py, ScoreDistribution::from(data))?);
+        }
+        Ok(slf.borrow().distribution.as_ref().unwrap().clone_ref(py))
+    }
+
     /// `bool`: `True` if the scoring matrix stores protein scores.
     #[getter]
     pub fn protein(&self) -> bool {
@@ -891,10 +910,10 @@ impl ScoringMatrix {
     ///     prefering AVX2 if available.
     ///
     pub fn calculate(
-        slf: PyRef<'_, Self>,
+        slf: Bound<'_, Self>,
         sequence: &mut StripedSequence,
     ) -> PyResult<StripedScores> {
-        let pssm = &slf.data;
+        let pssm = &slf.borrow().data;
         let seq = &mut sequence.data;
         match (seq, pssm) {
             (StripedSequenceData::Dna(dna), ScoringMatrixData::Dna(pssm)) => {
@@ -913,11 +932,12 @@ impl ScoringMatrix {
 
     /// Translate an absolute score to a P-value for this PSSM.
     #[pyo3(signature=(score, method="meme"))]
-    pub fn pvalue(slf: PyRef<'_, Self>, score: f64, method: &str) -> PyResult<f64> {
+    pub fn pvalue(slf: Bound<'_, Self>, score: f64, method: &str) -> PyResult<f64> {
+        let py = slf.py();
         match method {
             "tfmpvalue" => {
                 #[cfg(feature = "tfmpvalue")]
-                match &slf.data {
+                match &slf.borrow().data {
                     ScoringMatrixData::Dna(dna) => Ok(TfmPvalue::new(&dna).pvalue(score)),
                     ScoringMatrixData::Protein(prot) => Ok(TfmPvalue::new(&prot).pvalue(score)),
                 }
@@ -926,12 +946,13 @@ impl ScoringMatrix {
                     "package compiled without `lightmotif-tfmpvalue`",
                 ))
             }
-            "meme" => match &slf.data {
-                ScoringMatrixData::Dna(dna) => Ok(dna.to_score_distribution().pvalue(score as f32)),
-                ScoringMatrixData::Protein(prot) => {
-                    Ok(prot.to_score_distribution().pvalue(score as f32))
+            "meme" => {
+                let dist = Self::score_distribution(slf)?;
+                match &dist.bind(py).borrow().data {
+                    ScoreDistributionData::Dna(dna) => Ok(dna.pvalue(score as f32)),
+                    ScoreDistributionData::Protein(prot) => Ok(prot.pvalue(score as f32)),
                 }
-            },
+            }
             other => Err(PyValueError::new_err(format!(
                 "invalid pvalue method: {:?}",
                 other
@@ -948,11 +969,12 @@ impl ScoringMatrix {
 
     /// Translate a P-value to an absolute score for this PSSM.
     #[pyo3(signature=(pvalue, method="meme"))]
-    pub fn score(slf: PyRef<'_, Self>, pvalue: f64, method: &str) -> PyResult<f64> {
+    pub fn score(slf: Bound<'_, Self>, pvalue: f64, method: &str) -> PyResult<f64> {
+        let py = slf.py();
         match method {
             "tfmpvalue" => {
                 #[cfg(feature = "tfmpvalue")]
-                match &slf.data {
+                match &slf.borrow().data {
                     ScoringMatrixData::Dna(dna) => Ok(TfmPvalue::new(&dna).score(pvalue)),
                     ScoringMatrixData::Protein(prot) => Ok(TfmPvalue::new(&prot).score(pvalue)),
                 }
@@ -961,12 +983,13 @@ impl ScoringMatrix {
                     "package compiled without `lightmotif-tfmpvalue`",
                 ))
             }
-            "meme" => match &slf.data {
-                ScoringMatrixData::Dna(dna) => Ok(dna.to_score_distribution().score(pvalue) as f64),
-                ScoringMatrixData::Protein(prot) => {
-                    Ok(prot.to_score_distribution().score(pvalue) as f64)
+            "meme" => {
+                let dist = Self::score_distribution(slf)?;
+                match &dist.bind(py).borrow().data {
+                    ScoreDistributionData::Dna(dna) => Ok(dna.score(pvalue) as f64),
+                    ScoreDistributionData::Protein(prot) => Ok(prot.score(pvalue) as f64),
                 }
-            },
+            }
             other => Err(PyValueError::new_err(format!(
                 "invalid pvalue method: {:?}",
                 other
@@ -990,6 +1013,40 @@ impl ScoringMatrix {
 impl From<ScoringMatrixData> for ScoringMatrix {
     fn from(data: ScoringMatrixData) -> Self {
         Self::new(data)
+    }
+}
+
+// --- ScoreDistribution -------------------------------------------------------
+
+/// Actual storage of a score distribution data.
+#[derive(Debug, Clone)]
+enum ScoreDistributionData {
+    Dna(lightmotif::pwm::dist::ScoreDistribution<Dna>),
+    Protein(lightmotif::pwm::dist::ScoreDistribution<Protein>),
+}
+
+impl From<lightmotif::pwm::dist::ScoreDistribution<Dna>> for ScoreDistributionData {
+    fn from(value: lightmotif::pwm::dist::ScoreDistribution<Dna>) -> Self {
+        Self::Dna(value)
+    }
+}
+
+impl From<lightmotif::pwm::dist::ScoreDistribution<Protein>> for ScoreDistributionData {
+    fn from(value: lightmotif::pwm::dist::ScoreDistribution<Protein>) -> Self {
+        Self::Protein(value)
+    }
+}
+
+/// A matrix storing position-specific odds-ratio for a motif.
+#[pyclass(module = "lightmotif.lib")]
+#[derive(Clone, Debug)]
+pub struct ScoreDistribution {
+    data: ScoreDistributionData,
+}
+
+impl From<ScoreDistributionData> for ScoreDistribution {
+    fn from(data: ScoreDistributionData) -> Self {
+        Self { data }
     }
 }
 
@@ -1462,6 +1519,8 @@ pub fn init<'py>(_py: Python<'py>, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<CountMatrix>()?;
     m.add_class::<WeightMatrix>()?;
     m.add_class::<ScoringMatrix>()?;
+
+    m.add_class::<ScoreDistribution>()?;
 
     m.add_class::<StripedScores>()?;
 

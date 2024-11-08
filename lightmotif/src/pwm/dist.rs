@@ -47,6 +47,7 @@ use super::ScoringMatrix;
 const CDF_RANGE: usize = 1000;
 
 /// An approximate distribution of the scores of a [`ScoringMatrix`].
+#[derive(Debug, Clone)]
 pub struct ScoreDistribution<A: Alphabet> {
     /// The column-wise scale for the matrix
     scale: f64,
