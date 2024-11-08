@@ -1040,6 +1040,50 @@ impl From<ScoreDistributionData> for ScoreDistribution {
     }
 }
 
+#[pymethods]
+impl ScoreDistribution {
+    /// Get the underlying memory of the encoded sequence.
+    unsafe fn __getbuffer__(
+        slf: PyRefMut<'_, Self>,
+        view: *mut pyo3::ffi::Py_buffer,
+        flags: std::os::raw::c_int,
+    ) -> PyResult<()> {
+        macro_rules! setup {
+            ($view:ident, $data:ident) => {{
+                let array: &[_] = $data.sf();
+                (*$view).buf = array.as_ptr() as *mut std::os::raw::c_void;
+                (*$view).len = ($data.sf().len() * std::mem::size_of::<f64>()) as isize;
+                (*$view).readonly = 1;
+                (*$view).itemsize = std::mem::size_of::<f64>() as isize;
+            }};
+        }
+
+        if view.is_null() {
+            return Err(PyBufferError::new_err("View is null"));
+        }
+        if (flags & pyo3::ffi::PyBUF_WRITABLE) == pyo3::ffi::PyBUF_WRITABLE {
+            return Err(PyBufferError::new_err("Object is not writable"));
+        }
+
+        match &slf.data {
+            ScoreDistributionData::Dna(dna) => setup!(view, dna),
+            ScoreDistributionData::Protein(protein) => setup!(view, protein),
+        }
+
+        (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
+        let msg = std::ffi::CStr::from_bytes_with_nul(b"d\0").unwrap();
+        (*view).format = msg.as_ptr() as *mut _;
+
+        (*view).ndim = 1;
+        (*view).shape = std::ptr::null_mut();
+        (*view).strides = std::ptr::null_mut();
+        (*view).suboffsets = std::ptr::null_mut();
+        (*view).internal = std::ptr::null_mut();
+
+        Ok(())
+    }
+}
+
 // --- Scores ------------------------------------------------------------------
 
 /// A striped matrix storing scores obtained with a scoring matrix.

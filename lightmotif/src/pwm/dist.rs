@@ -67,6 +67,11 @@ pub struct ScoreDistribution<A: Alphabet> {
 }
 
 impl<A: Alphabet> ScoreDistribution<A> {
+    /// Get the distribution of the survival function.
+    pub fn sf(&self) -> &[f64] {
+        self.sf.as_slice()
+    }
+
     /// Scale the given score to an integer score using the matrix scale.
     #[inline]
     pub fn scale(&self, score: f32) -> i32 {
