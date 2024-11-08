@@ -30,7 +30,7 @@ use crate::scores::StripedScores;
 use crate::seq::EncodedSequence;
 use crate::seq::StripedSequence;
 
-pub mod cdf;
+pub mod dist;
 
 macro_rules! matrix_traits {
     ($mx:ident, $t:ty) => {
