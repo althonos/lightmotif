@@ -2,7 +2,7 @@
 
 extern crate generic_array;
 extern crate lightmotif;
-#[cfg(feature = "pvalues")]
+#[cfg(feature = "tfmpvalue")]
 extern crate lightmotif_tfmpvalue;
 extern crate pyo3;
 
@@ -18,7 +18,7 @@ use lightmotif::dense::DenseMatrix;
 use lightmotif::num::Unsigned;
 use lightmotif::pli::platform::Backend;
 use lightmotif::pli::Score;
-#[cfg(feature = "pvalues")]
+#[cfg(feature = "tfmpvalue")]
 use lightmotif_tfmpvalue::TfmPvalue;
 
 use generic_array::GenericArray;
@@ -912,29 +912,66 @@ impl ScoringMatrix {
     }
 
     /// Translate an absolute score to a P-value for this PSSM.
-    pub fn pvalue(slf: PyRef<'_, Self>, score: f64) -> PyResult<f64> {
-        #[cfg(feature = "pvalues")]
-        match &slf.data {
-            ScoringMatrixData::Dna(dna) => Ok(TfmPvalue::new(&dna).pvalue(score)),
-            ScoringMatrixData::Protein(prot) => Ok(TfmPvalue::new(&prot).pvalue(score)),
+    #[pyo3(signature=(score, method="meme"))]
+    pub fn pvalue(slf: PyRef<'_, Self>, score: f64, method: &str) -> PyResult<f64> {
+        match method {
+            "tfmpvalue" => {
+                #[cfg(feature = "tfmpvalue")]
+                match &slf.data {
+                    ScoringMatrixData::Dna(dna) => Ok(TfmPvalue::new(&dna).pvalue(score)),
+                    ScoringMatrixData::Protein(prot) => Ok(TfmPvalue::new(&prot).pvalue(score)),
+                }
+                #[cfg(not(feature = "tfmpvalue"))]
+                Err(PyRuntimeError::new_err(
+                    "package compiled without `lightmotif-tfmpvalue`",
+                ))
+            }
+            "meme" => match &slf.data {
+                ScoringMatrixData::Dna(dna) => Ok(dna.to_score_distribution().pvalue(score as f32)),
+                ScoringMatrixData::Protein(prot) => {
+                    Ok(prot.to_score_distribution().pvalue(score as f32))
+                }
+            },
+            other => Err(PyValueError::new_err(format!(
+                "invalid pvalue method: {:?}",
+                other
+            ))),
         }
-        #[cfg(not(feature = "pvalues"))]
-        return Err(PyRuntimeError::new_err(
-            "package compiled without p-value support",
-        ));
+    }
+
+    pub fn max_score(slf: PyRef<'_, Self>) -> f32 {
+        match &slf.data {
+            ScoringMatrixData::Dna(dna) => dna.max_score(),
+            ScoringMatrixData::Protein(prot) => prot.max_score(),
+        }
     }
 
     /// Translate a P-value to an absolute score for this PSSM.
-    pub fn score(slf: PyRef<'_, Self>, pvalue: f64) -> PyResult<f64> {
-        #[cfg(feature = "pvalues")]
-        match &slf.data {
-            ScoringMatrixData::Dna(dna) => Ok(TfmPvalue::new(&dna).score(pvalue)),
-            ScoringMatrixData::Protein(prot) => Ok(TfmPvalue::new(&prot).score(pvalue)),
+    #[pyo3(signature=(pvalue, method="meme"))]
+    pub fn score(slf: PyRef<'_, Self>, pvalue: f64, method: &str) -> PyResult<f64> {
+        match method {
+            "tfmpvalue" => {
+                #[cfg(feature = "tfmpvalue")]
+                match &slf.data {
+                    ScoringMatrixData::Dna(dna) => Ok(TfmPvalue::new(&dna).score(pvalue)),
+                    ScoringMatrixData::Protein(prot) => Ok(TfmPvalue::new(&prot).score(pvalue)),
+                }
+                #[cfg(not(feature = "tfmpvalue"))]
+                Err(PyRuntimeError::new_err(
+                    "package compiled without `lightmotif-tfmpvalue`",
+                ))
+            }
+            "meme" => match &slf.data {
+                ScoringMatrixData::Dna(dna) => Ok(dna.to_score_distribution().score(pvalue) as f64),
+                ScoringMatrixData::Protein(prot) => {
+                    Ok(prot.to_score_distribution().score(pvalue) as f64)
+                }
+            },
+            other => Err(PyValueError::new_err(format!(
+                "invalid pvalue method: {:?}",
+                other
+            ))),
         }
-        #[cfg(not(feature = "pvalues"))]
-        return Err(PyRuntimeError::new_err(
-            "package compiled without p-value support",
-        ));
     }
 
     /// Compute the reverse complement of this scoring matrix.

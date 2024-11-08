@@ -15,7 +15,9 @@ class TestMA0045(unittest.TestCase):
         }).normalize(pseudocount=0.25).log_odds()
 
     def test_pvalue(self):
-        self.assertAlmostEqual(self.ma0045.pvalue(8.7708), 0.00032910, places=5)
+        self.assertAlmostEqual(self.ma0045.pvalue(8.7708, method="tfmpvalue"), 0.00032910, places=5)
+        self.assertAlmostEqual(self.ma0045.pvalue(8.7708, method="meme"), 0.00032910, places=5)
 
     def test_score(self):
-        self.assertAlmostEqual(self.ma0045.score(0.00033), 8.756855, places=5)
+        self.assertAlmostEqual(self.ma0045.score(0.00033, method="tfmpvalue"), 8.756855, places=5)
+        self.assertAlmostEqual(self.ma0045.score(0.00033, method="meme"), 8.765, places=3)

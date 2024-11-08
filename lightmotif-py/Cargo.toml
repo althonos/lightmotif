@@ -31,8 +31,8 @@ pyo3 = "0.22.0"
 generic-array = "1.0.0"
 
 [features]
-default = ["pvalues"]
-pvalues = ["lightmotif-tfmpvalue"]
+default = ["tfmpvalue"]
+tfmpvalue = ["lightmotif-tfmpvalue"]
 built = []
 extension-module = ["pyo3/extension-module"]
 nightly = ["pyo3/nightly"]
