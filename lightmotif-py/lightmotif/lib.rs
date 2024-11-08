@@ -70,17 +70,7 @@ macro_rules! impl_matrix_methods {
 
 // --- Compile-time constants --------------------------------------------------
 
-#[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-type C = <lightmotif::pli::platform::Neon as Backend>::LANES;
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-type C = <lightmotif::pli::platform::Avx2 as Backend>::LANES;
-#[cfg(not(any(
-    target_arch = "x86",
-    target_arch = "x86_64",
-    target_arch = "arm",
-    target_arch = "aarch64",
-)))]
-type C = typenum::consts::U1;
+type C = <lightmotif::pli::dispatch::Dispatch as Backend>::LANES;
 
 // --- Helpers -----------------------------------------------------------------
 
