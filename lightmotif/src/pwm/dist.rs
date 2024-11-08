@@ -15,7 +15,6 @@ use rand::distributions::uniform::Uniform;
 use rand::distributions::Distribution;
 
 use crate::abc::Alphabet;
-use crate::abc::Background;
 use crate::abc::Symbol;
 use crate::dense::DenseMatrix;
 use crate::num::Unsigned;
@@ -27,15 +26,22 @@ use super::ScoringMatrix;
 /// The default range for CDF approximation used in MEME.
 const CDF_RANGE: usize = 1000;
 
-/// An approximate cumulative distribution for the scores of a [`ScoringMatrix`].
+/// An approximate distribution of the scores of a [`ScoringMatrix`].
 pub struct ScoreDistribution<A: Alphabet> {
-    background: Background<A>,
+    /// The column-wise scale for the matrix
     scale: f64,
+    /// The column-wise offsets for the matrix.
     offset: i32,
+    /// The score range.
+    #[allow(unused)]
     range: usize,
+    /// The discrete score matrix.
     data: DenseMatrix<i32, A::K>,
+    /// A sampled distribution of the survival function.
     sf: Vec<f64>,
+    /// The minimum score that can reached by the discrete matrix.
     min_score: i32,
+    /// The maximum score that can reached by the discrete matrix.
     max_score: i32,
 }
 
@@ -121,16 +127,14 @@ impl<A: Alphabet, S: AsRef<ScoringMatrix<A>>> From<S> for ScoreDistribution<A> {
             let mut pdf_new = vec![0.0; size];
             pdf_new[0] = 1.0;
 
-            for i in 0..data.rows() {
+            for (i, row) in data.iter().enumerate() {
                 let max = i * range;
 
                 std::mem::swap(&mut pdf_old, &mut pdf_new);
-                for k in 0..=max + range {
-                    pdf_new[k] = 0.0;
-                }
+                pdf_new[..=max + range].fill(0.0);
 
                 for a in A::symbols().iter() {
-                    let s = data[crate::dense::MatrixCoordinates::new(i, a.as_index())];
+                    let s = row[a.as_index()];
                     if s != i32::MIN {
                         for k in 0..=max {
                             let old = pdf_old[k];
@@ -168,7 +172,6 @@ impl<A: Alphabet, S: AsRef<ScoringMatrix<A>>> From<S> for ScoreDistribution<A> {
         };
 
         Self {
-            background: pssm.background.clone(),
             scale,
             offset: offset as i32,
             range: CDF_RANGE,

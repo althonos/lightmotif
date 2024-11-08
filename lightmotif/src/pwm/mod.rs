@@ -32,6 +32,8 @@ use crate::seq::StripedSequence;
 
 pub mod dist;
 
+use self::dist::ScoreDistribution;
+
 macro_rules! matrix_traits {
     ($mx:ident, $t:ty) => {
         impl<A: Alphabet> $mx<A> {
@@ -620,6 +622,13 @@ impl<A: Alphabet> ScoringMatrix<A> {
             offsets,
             offset,
         }
+    }
+
+    /// Get the score distribution for this position-specific scoring matrix.
+    ///
+    /// See [`crate::pwm::dist`] module for more information.
+    pub fn to_score_distribution(&self) -> ScoreDistribution<A> {
+        ScoreDistribution::from(self)
     }
 }
 
