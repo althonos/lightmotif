@@ -627,6 +627,12 @@ impl<A: Alphabet> ScoringMatrix<A> {
     /// Get the score distribution for this position-specific scoring matrix.
     ///
     /// See [`crate::pwm::dist`] module for more information.
+    ///
+    /// # Note
+    /// Generating a [`ScoreDistribution`] takes time, so this method should be
+    /// called only once per [`ScoringMatrix`] and the result cached for
+    /// optimal performance.
+    #[must_use]
     pub fn to_score_distribution(&self) -> ScoreDistribution<A> {
         ScoreDistribution::from(self)
     }

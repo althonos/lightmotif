@@ -6,6 +6,26 @@
 //! a limited range (N=1000 by default). A density is then generated using the
 //! discrete scores, and then used to generate the cumulative distribution.
 //!
+//! # Example
+//! ```
+//! # use lightmotif::*;
+//! # let counts = CountMatrix::<Dna>::from_sequences(
+//! #  ["GTTGACCTTATCAAC", "GTTGATCCAGTCAAC"]
+//! #        .into_iter()
+//! #        .map(|s| EncodedSequence::encode(s).unwrap()),
+//! # )
+//! # .unwrap();
+//! # let pssm = counts.to_freq(0.1).to_scoring(None);
+//! // Create a `ScoreDistribution` from a `ScoringMatrix`
+//! let dist = pssm.to_score_distribution();
+//!
+//! // Get the score corresponding to a *p-value* of 1e-5
+//! let score = dist.pvalue(1e-5);
+//!
+//! // Get the *p-value* for a score of 13.1
+//! let pvalue = dist.score(13.1);
+//! ```
+//!
 //! ## 📚 References
 //! - <a id="ref1">\[1\]</a> Grant, Charles E., Timothy L. Bailey, and William Stafford Noble. ‘FIMO: Scanning for Occurrences of a given Motif’. Bioinformatics 27, no. 7 (1 April 2011): 1017–18. [doi:10.1093/bioinformatics/btr064](https://doi.org/10.1093/bioinformatics/btr064).
 
@@ -61,9 +81,9 @@ impl<A: Alphabet> ScoreDistribution<A> {
     /// Get the *p-value* for the given score.
     pub fn pvalue(&self, score: f32) -> f64 {
         let scaled = self.scale(score);
-        if scaled <= self.min_score {
+        if scaled < self.min_score {
             1.0
-        } else if scaled >= self.max_score {
+        } else if scaled as usize >= self.sf.len() {
             0.0
         } else {
             self.sf[scaled as usize]
