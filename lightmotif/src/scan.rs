@@ -63,8 +63,8 @@ impl<T: Default> Default for CowMut<'_, T> {
 /// A hit describing a scored position somewhere in the sequence.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Hit {
-    pub position: usize,
-    pub score: f32,
+    position: usize,
+    score: f32,
 }
 
 impl Hit {
@@ -72,6 +72,16 @@ impl Hit {
     pub fn new(position: usize, score: f32) -> Self {
         assert!(!score.is_nan());
         Self { position, score }
+    }
+
+    /// The position of the hit.
+    pub fn position(&self) -> usize {
+        self.position
+    }
+
+    /// The score of the hit.
+    pub fn score(&self) -> f32 {
+        self.score
     }
 }
 

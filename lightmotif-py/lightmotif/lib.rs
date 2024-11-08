@@ -1253,8 +1253,8 @@ pub struct Hit {
 impl From<lightmotif::scan::Hit> for Hit {
     fn from(value: lightmotif::scan::Hit) -> Self {
         Hit {
-            position: value.position,
-            score: value.score,
+            position: value.position(),
+            score: value.score(),
         }
     }
 }

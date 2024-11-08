@@ -102,8 +102,8 @@ mod dispatch {
             .unwrap();
 
         let m = Scanner::new(&pssm, &striped).max().unwrap();
-        assert_eq!(m.position, best.0);
-        assert_eq!(m.score, best.1);
+        assert_eq!(m.position(), best.0);
+        assert_eq!(m.score(), best.1);
     }
 }
 
