@@ -76,6 +76,7 @@ impl<A: Alphabet> ComplementableAlphabet for A
 where
     <A as Alphabet>::Symbol: ComplementableSymbol,
 {
+    #[inline]
     fn complement(s: Self::Symbol) -> Self::Symbol {
         s.complement()
     }
@@ -91,6 +92,7 @@ impl Alphabet for Dna {
     type Symbol = Nucleotide;
     type K = U5;
 
+    #[inline]
     fn symbols() -> &'static [Nucleotide] {
         &[
             Nucleotide::A,
@@ -101,6 +103,7 @@ impl Alphabet for Dna {
         ]
     }
 
+    #[inline]
     fn as_str() -> &'static str {
         "ACTGN"
     }
@@ -132,16 +135,19 @@ pub enum Nucleotide {
 }
 
 impl From<Nucleotide> for char {
+    #[inline]
     fn from(n: Nucleotide) -> char {
         n.as_char()
     }
 }
 
 impl Symbol for Nucleotide {
+    #[inline]
     fn as_index(&self) -> usize {
         *self as usize
     }
 
+    #[inline]
     fn as_ascii(&self) -> u8 {
         match self {
             Nucleotide::A => b'A',
@@ -152,6 +158,7 @@ impl Symbol for Nucleotide {
         }
     }
 
+    #[inline]
     fn from_ascii(c: u8) -> Result<Self, InvalidSymbol> {
         match c {
             b'A' => Ok(Nucleotide::A),
@@ -165,6 +172,7 @@ impl Symbol for Nucleotide {
 }
 
 impl ComplementableSymbol for Nucleotide {
+    #[inline]
     fn complement(&self) -> Self {
         match *self {
             Nucleotide::A => Nucleotide::T,
@@ -186,6 +194,7 @@ impl Alphabet for Protein {
     type Symbol = AminoAcid;
     type K = U21;
 
+    #[inline]
     fn symbols() -> &'static [AminoAcid] {
         &[
             AminoAcid::A,
@@ -212,6 +221,7 @@ impl Alphabet for Protein {
         ]
     }
 
+    #[inline]
     fn as_str() -> &'static str {
         "ACDEFGHIKLMNPQRSTVWYX"
     }
@@ -246,16 +256,19 @@ pub enum AminoAcid {
 }
 
 impl From<AminoAcid> for char {
+    #[inline]
     fn from(aa: AminoAcid) -> char {
         aa.as_char()
     }
 }
 
 impl Symbol for AminoAcid {
+    #[inline]
     fn as_index(&self) -> usize {
         *self as usize
     }
 
+    #[inline]
     fn as_ascii(&self) -> u8 {
         match self {
             AminoAcid::A => b'A',
@@ -282,6 +295,7 @@ impl Symbol for AminoAcid {
         }
     }
 
+    #[inline]
     fn from_ascii(c: u8) -> Result<Self, InvalidSymbol> {
         match c {
             b'A' => Ok(AminoAcid::A),
@@ -461,24 +475,28 @@ impl<A: Alphabet> Background<A> {
     }
 
     /// A reference to the raw background frequencies.
+    #[inline]
     pub fn frequencies(&self) -> &[f32] {
         &self.frequencies
     }
 }
 
 impl<A: Alphabet> AsRef<[f32]> for Background<A> {
+    #[inline]
     fn as_ref(&self) -> &[f32] {
         self.frequencies()
     }
 }
 
 impl<A: Alphabet> AsRef<GenericArray<f32, A::K>> for Background<A> {
+    #[inline]
     fn as_ref(&self) -> &GenericArray<f32, A::K> {
         &self.frequencies
     }
 }
 
 impl<A: Alphabet> Default for Background<A> {
+    #[inline]
     fn default() -> Self {
         Self::uniform()
     }
@@ -502,18 +520,21 @@ pub struct Pseudocounts<A: Alphabet> {
 }
 
 impl<A: Alphabet> Pseudocounts<A> {
+    #[inline]
     pub fn counts(&self) -> &GenericArray<f32, A::K> {
         &self.counts
     }
 }
 
 impl<A: Alphabet> Default for Pseudocounts<A> {
+    #[inline]
     fn default() -> Self {
         Self::from(0.0)
     }
 }
 
 impl<A: Alphabet> From<GenericArray<f32, A::K>> for Pseudocounts<A> {
+    #[inline]
     fn from(counts: GenericArray<f32, A::K>) -> Self {
         Self {
             alphabet: std::marker::PhantomData,
@@ -541,12 +562,14 @@ impl<A: Alphabet> From<f32> for Pseudocounts<A> {
 }
 
 impl<A: Alphabet> AsRef<[f32]> for Pseudocounts<A> {
+    #[inline]
     fn as_ref(&self) -> &[f32] {
         &self.counts
     }
 }
 
 impl<A: Alphabet> AsMut<[f32]> for Pseudocounts<A> {
+    #[inline]
     fn as_mut(&mut self) -> &mut [f32] {
         &mut self.counts
     }

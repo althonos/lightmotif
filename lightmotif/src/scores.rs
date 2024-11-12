@@ -29,6 +29,7 @@ pub struct Scores<T> {
 
 impl<T> Scores<T> {
     /// Create a new collection from an array of scores.
+    #[inline]
     pub fn new(data: Vec<T>) -> Self {
         Self { data }
     }
@@ -66,6 +67,7 @@ impl<T: PartialOrd + Clone> Scores<T> {
 }
 
 impl<T> AsRef<Vec<T>> for Scores<T> {
+    #[inline]
     fn as_ref(&self) -> &Vec<T> {
         &self.data
     }
@@ -73,18 +75,21 @@ impl<T> AsRef<Vec<T>> for Scores<T> {
 
 impl<T> Deref for Scores<T> {
     type Target = Vec<T>;
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.data
     }
 }
 
 impl<T> From<Vec<T>> for Scores<T> {
+    #[inline]
     fn from(data: Vec<T>) -> Self {
         Self::new(data)
     }
 }
 
 impl<T> From<Scores<T>> for Vec<T> {
+    #[inline]
     fn from(scores: Scores<T>) -> Self {
         scores.data
     }
@@ -103,36 +108,43 @@ pub struct StripedScores<T: MatrixElement, C: PositiveLength = DefaultColumns> {
 
 impl<T: MatrixElement, C: PositiveLength> StripedScores<T, C> {
     /// Create a new striped score matrix with the given length and data.
+    #[inline]
     fn new(data: DenseMatrix<T, C>, max_index: usize) -> Result<Self, InvalidData> {
         Ok(Self { data, max_index })
     }
 
     /// Create an empty buffer to store striped scores.
+    #[inline]
     pub fn empty() -> Self {
         Self::new(DenseMatrix::new(0), 0).unwrap()
     }
 
     /// The maximum sequence index (the length of the scored sequence).
+    #[inline]
     pub fn max_index(&self) -> usize {
         self.max_index
     }
 
     /// Return whether the scores are empty.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.data.rows() == 0
     }
 
     /// Return a reference to the striped matrix storing the scores.
+    #[inline]
     pub fn matrix(&self) -> &DenseMatrix<T, C> {
         &self.data
     }
 
     /// Return a mutable reference to the striped matrix storing the scores.
+    #[inline]
     pub fn matrix_mut(&mut self) -> &mut DenseMatrix<T, C> {
         &mut self.data
     }
 
     /// Resize the striped scores storage for the given range of rows.
+    #[inline]
     pub fn resize(&mut self, rows: usize, max_index: usize) {
         self.data.resize(rows);
         self.max_index = max_index;
@@ -165,6 +177,7 @@ where
     ///
     /// # Note
     /// Uses platform-accelerated implementation when available.
+    #[inline]
     pub fn max(&self) -> Option<T> {
         Pipeline::dispatch().max(self)
     }
@@ -173,6 +186,7 @@ where
     ///
     /// # Note
     /// Uses platform-accelerated implementation when available.
+    #[inline]
     pub fn argmax(&self) -> Option<usize> {
         Pipeline::dispatch().argmax(self).map(|mc| self.offset(mc))
     }
@@ -200,12 +214,14 @@ where
 }
 
 impl<T: MatrixElement, C: PositiveLength> AsRef<DenseMatrix<T, C>> for StripedScores<T, C> {
+    #[inline]
     fn as_ref(&self) -> &DenseMatrix<T, C> {
         self.matrix()
     }
 }
 
 impl<T: MatrixElement, C: PositiveLength> AsMut<DenseMatrix<T, C>> for StripedScores<T, C> {
+    #[inline]
     fn as_mut(&mut self) -> &mut DenseMatrix<T, C> {
         self.matrix_mut()
     }
@@ -221,6 +237,7 @@ impl<T: MatrixElement + Debug, C: PositiveLength> std::fmt::Debug for StripedSco
 }
 
 impl<T: MatrixElement, C: PositiveLength> Default for StripedScores<T, C> {
+    #[inline]
     fn default() -> Self {
         StripedScores::empty()
     }
@@ -237,6 +254,7 @@ impl<T: MatrixElement, C: PositiveLength> Index<usize> for StripedScores<T, C> {
 }
 
 impl<T: MatrixElement, C: PositiveLength> From<StripedScores<T, C>> for Vec<T> {
+    #[inline]
     fn from(scores: StripedScores<T, C>) -> Self {
         scores.iter().cloned().collect()
     }
@@ -250,6 +268,7 @@ pub struct Iter<'a, T: MatrixElement, C: PositiveLength> {
 }
 
 impl<'a, T: MatrixElement, C: PositiveLength> Iter<'a, T, C> {
+    #[inline]
     fn new(scores: &'a StripedScores<T, C>) -> Self {
         // Compute the last index
         let end = scores
@@ -260,6 +279,7 @@ impl<'a, T: MatrixElement, C: PositiveLength> Iter<'a, T, C> {
         Self { scores, indices }
     }
 
+    #[inline]
     fn get(&self, i: usize) -> &'a T {
         let col = i / self.scores.data.rows();
         let row = i % self.scores.data.rows();
@@ -269,10 +289,12 @@ impl<'a, T: MatrixElement, C: PositiveLength> Iter<'a, T, C> {
 
 impl<'a, T: MatrixElement, C: PositiveLength> Iterator for Iter<'a, T, C> {
     type Item = &'a T;
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.indices.next().map(|i| self.get(i))
     }
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = self.len();
         (len, Some(len))
@@ -280,6 +302,7 @@ impl<'a, T: MatrixElement, C: PositiveLength> Iterator for Iter<'a, T, C> {
 }
 
 impl<'a, T: MatrixElement, C: PositiveLength> ExactSizeIterator for Iter<'a, T, C> {
+    #[inline]
     fn len(&self) -> usize {
         self.indices.len()
     }
@@ -288,6 +311,7 @@ impl<'a, T: MatrixElement, C: PositiveLength> ExactSizeIterator for Iter<'a, T, 
 impl<'a, T: MatrixElement, C: PositiveLength> FusedIterator for Iter<'a, T, C> {}
 
 impl<'a, T: MatrixElement, C: PositiveLength> DoubleEndedIterator for Iter<'a, T, C> {
+    #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         self.indices.next_back().map(|i| self.get(i))
     }

@@ -248,8 +248,6 @@ where
 {
     #[inline]
     fn new(matrix: &'a DenseMatrix<T, C>) -> Self {
-        // let indices = 0..matrix.rows();
-        // Self { indices, matrix }
         Self {
             it: matrix.data.iter(),
         }

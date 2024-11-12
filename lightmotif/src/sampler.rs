@@ -62,6 +62,7 @@ struct BitVec {
 }
 
 impl BitVec {
+    #[inline]
     fn zeros(n: usize) -> Self {
         Self {
             data: vec![false; n],
@@ -70,6 +71,7 @@ impl BitVec {
         }
     }
 
+    #[inline]
     fn ones(n: usize) -> Self {
         Self {
             data: vec![true; n],
@@ -78,10 +80,12 @@ impl BitVec {
         }
     }
 
+    #[inline]
     fn test(&self, i: usize) -> bool {
         self.data[i]
     }
 
+    #[inline]
     fn set(&mut self, i: usize) {
         if !self.data[i] {
             self.data[i] = true;
@@ -89,6 +93,7 @@ impl BitVec {
         }
     }
 
+    #[inline]
     fn unset(&mut self, i: usize) {
         if self.data[i] {
             self.data[i] = false;
@@ -96,10 +101,12 @@ impl BitVec {
         }
     }
 
+    #[inline]
     fn count(&self) -> usize {
         self.count
     }
 
+    #[inline]
     fn len(&self) -> usize {
         self.len
     }

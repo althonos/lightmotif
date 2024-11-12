@@ -79,6 +79,7 @@ impl<A: Alphabet> EncodedSequence<A> {
     ///
     /// # Note
     /// Uses platform-accelerated implementation when available.
+    #[inline]
     pub fn encode<S: AsRef<[u8]>>(sequence: S) -> Result<Self, InvalidSymbol> {
         let pli = Pipeline::<A, _>::dispatch();
         pli.encode(sequence.as_ref())
@@ -118,6 +119,7 @@ impl<A: Alphabet> EncodedSequence<A> {
     ///
     /// # Note
     /// Uses platform-accelerated implementation when available.
+    #[inline]
     pub fn to_striped<C>(&self) -> StripedSequence<A, C>
     where
         C: StrictlyPositive + ArrayLength,
@@ -129,24 +131,28 @@ impl<A: Alphabet> EncodedSequence<A> {
 }
 
 impl<A: Alphabet> AsRef<EncodedSequence<A>> for EncodedSequence<A> {
+    #[inline]
     fn as_ref(&self) -> &Self {
         self
     }
 }
 
 impl<A: Alphabet> AsRef<[A::Symbol]> for EncodedSequence<A> {
+    #[inline]
     fn as_ref(&self) -> &[A::Symbol] {
         self.data.as_slice()
     }
 }
 
 impl<A: Alphabet> Default for EncodedSequence<A> {
+    #[inline]
     fn default() -> Self {
         Self::new(Vec::new())
     }
 }
 
 impl<A: Alphabet> Display for EncodedSequence<A> {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         for c in self.data.iter() {
             f.write_char(c.as_char())?;
@@ -156,6 +162,7 @@ impl<A: Alphabet> Display for EncodedSequence<A> {
 }
 
 impl<A: Alphabet> FromIterator<A::Symbol> for EncodedSequence<A> {
+    #[inline]
     fn from_iter<T>(iter: T) -> Self
     where
         T: IntoIterator<Item = A::Symbol>,
@@ -166,12 +173,14 @@ impl<A: Alphabet> FromIterator<A::Symbol> for EncodedSequence<A> {
 
 impl<A: Alphabet> FromStr for EncodedSequence<A> {
     type Err = InvalidSymbol;
+    #[inline]
     fn from_str(seq: &str) -> Result<Self, Self::Err> {
         Self::encode(seq)
     }
 }
 
 impl<A: Alphabet> From<Vec<A::Symbol>> for EncodedSequence<A> {
+    #[inline]
     fn from(data: Vec<A::Symbol>) -> Self {
         Self::new(data)
     }
@@ -179,6 +188,7 @@ impl<A: Alphabet> From<Vec<A::Symbol>> for EncodedSequence<A> {
 
 impl<A: Alphabet> Index<usize> for EncodedSequence<A> {
     type Output = A::Symbol;
+    #[inline]
     fn index(&self, index: usize) -> &Self::Output {
         &self.data[index]
     }
@@ -187,7 +197,7 @@ impl<A: Alphabet> Index<usize> for EncodedSequence<A> {
 impl<'a, A: Alphabet> IntoIterator for &'a EncodedSequence<A> {
     type Item = &'a A::Symbol;
     type IntoIter = std::slice::Iter<'a, A::Symbol>;
-
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.data.iter()
     }
@@ -198,6 +208,7 @@ where
     A: Alphabet,
     S: AsRef<[<A as Alphabet>::Symbol]>,
 {
+    #[inline]
     fn eq(&self, other: &S) -> bool {
         let l = self.data.as_slice();
         let r = other.as_ref();
@@ -281,6 +292,7 @@ impl<A: Alphabet, C: PositiveLength> StripedSequence<A, C> {
     }
 
     /// Reconfigure the striped sequence for searching with a motif.
+    #[inline]
     pub fn configure(&mut self, motif: &ScoringMatrix<A>) {
         if !motif.is_empty() {
             self.configure_wrap(motif.len() - 1);
@@ -304,12 +316,14 @@ impl<A: Alphabet, C: PositiveLength> StripedSequence<A, C> {
 }
 
 impl<A: Alphabet, C: PositiveLength> AsRef<StripedSequence<A, C>> for StripedSequence<A, C> {
+    #[inline]
     fn as_ref(&self) -> &Self {
         self
     }
 }
 
 impl<A: Alphabet, C: PositiveLength> AsRef<DenseMatrix<A::Symbol, C>> for StripedSequence<A, C> {
+    #[inline]
     fn as_ref(&self) -> &DenseMatrix<A::Symbol, C> {
         &self.data
     }
@@ -327,12 +341,14 @@ impl<A: Alphabet, C: PositiveLength> std::fmt::Debug for StripedSequence<A, C> {
 }
 
 impl<A: Alphabet, C: PositiveLength> Default for StripedSequence<A, C> {
+    #[inline]
     fn default() -> Self {
         Self::new(DenseMatrix::new(0), 0).unwrap()
     }
 }
 
 impl<A: Alphabet, C: PositiveLength> From<StripedSequence<A, C>> for DenseMatrix<A::Symbol, C> {
+    #[inline]
     fn from(striped: StripedSequence<A, C>) -> Self {
         striped.into_matrix()
     }
@@ -342,6 +358,7 @@ impl<A: Alphabet, C: PositiveLength> From<EncodedSequence<A>> for StripedSequenc
 where
     Pipeline<A, Dispatch>: Stripe<A, C>,
 {
+    #[inline]
     fn from(encoded: EncodedSequence<A>) -> Self {
         encoded.to_striped()
     }
@@ -359,6 +376,7 @@ impl<A: Alphabet, C: PositiveLength> Index<usize> for StripedSequence<A, C> {
 }
 
 impl<A: Alphabet, C: PositiveLength> SymbolCount<A> for StripedSequence<A, C> {
+    #[inline]
     fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize {
         (0..self.len()).filter(|&i| self[i] == symbol).count()
     }

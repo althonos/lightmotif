@@ -23,6 +23,7 @@ enum CowMut<'a, T> {
 
 impl<T> std::ops::Deref for CowMut<'_, T> {
     type Target = T;
+    #[inline]
     fn deref(&self) -> &T {
         match self {
             CowMut::Owned(it) => it,
@@ -32,6 +33,7 @@ impl<T> std::ops::Deref for CowMut<'_, T> {
 }
 
 impl<T> std::ops::DerefMut for CowMut<'_, T> {
+    #[inline]
     fn deref_mut(&mut self) -> &mut T {
         match self {
             CowMut::Owned(it) => it,
@@ -41,6 +43,7 @@ impl<T> std::ops::DerefMut for CowMut<'_, T> {
 }
 
 impl<T: Default> Default for CowMut<'_, T> {
+    #[inline]
     fn default() -> Self {
         CowMut::Owned(T::default())
     }
@@ -133,18 +136,21 @@ where
     }
 
     /// Use the given `StripedScores` as a buffer.
+    #[inline]
     pub fn scores(&mut self, scores: &'a mut StripedScores<f32, C>) -> &mut Self {
         self.scores = CowMut::Borrowed(scores);
         self
     }
 
     /// Change the block size for the scanner.
+    #[inline]
     pub fn block_size(&mut self, block_size: usize) -> &mut Self {
         self.block_size = block_size;
         self
     }
 
     /// Change the threshold for the scanner.
+    #[inline]
     pub fn threshold(&mut self, threshold: f32) -> &mut Self {
         self.threshold = threshold;
         self
