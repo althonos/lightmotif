@@ -15,7 +15,7 @@ mod dna {
     const SEQUENCE: &str = include_str!("ecoli.txt");
 
     fn bench<P: Encode<Dna>>(bencher: &mut test::Bencher, pli: &P) {
-        let mut dst = vec![Dna::default_symbol(); SEQUENCE.len()];
+        let mut dst = vec![<Dna as Alphabet>::Symbol::default(); SEQUENCE.len()];
         bencher.iter(|| {
             test::black_box(pli.encode_into(SEQUENCE, &mut dst).unwrap());
         });
@@ -64,7 +64,7 @@ mod protein {
     const SEQUENCE: &str = include_str!("abyB1.txt");
 
     fn bench<P: Encode<Protein>>(bencher: &mut test::Bencher, pli: &P) {
-        let mut dst = vec![Protein::default_symbol(); SEQUENCE.len()];
+        let mut dst = vec![<Protein as Alphabet>::Symbol::default(); SEQUENCE.len()];
         bencher.iter(|| {
             test::black_box(pli.encode_into(SEQUENCE, &mut dst).unwrap());
         });

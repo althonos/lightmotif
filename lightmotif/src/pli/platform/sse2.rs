@@ -32,7 +32,7 @@ use generic_array::ArrayLength;
 pub struct Sse2;
 
 impl Backend for Sse2 {
-    type LANES = U16;
+    type Lanes = U16;
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -104,7 +104,7 @@ where
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES> + ArrayLength>(
+unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::Lanes> + ArrayLength>(
     pssm: &DenseMatrix<f32, A::K>,
     seq: &StripedSequence<A, C>,
     rows: Range<usize>,
@@ -114,7 +114,7 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES> + Arra
     let zero = _mm_setzero_si128();
     // process columns of the striped matrix, any multiple of 16 is supported
     let data = scores.matrix_mut();
-    for offset in (0..C::Quotient::USIZE).map(|i| i * <Sse2 as Backend>::LANES::USIZE) {
+    for offset in (0..C::Quotient::USIZE).map(|i| i * <Sse2 as Backend>::Lanes::USIZE) {
         let mut rowptr = data[0].as_mut_ptr().add(offset);
         // process every position of the sequence data
         for i in rows.clone() {
@@ -170,7 +170,7 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::LANES> + Arra
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn argmax_sse2<C: MultipleOf<<Sse2 as Backend>::LANES> + ArrayLength>(
+unsafe fn argmax_sse2<C: MultipleOf<<Sse2 as Backend>::Lanes> + ArrayLength>(
     scores: &StripedScores<f32, C>,
 ) -> Option<MatrixCoordinates> {
     use generic_array::{ArrayLength, GenericArray};
@@ -190,7 +190,7 @@ unsafe fn argmax_sse2<C: MultipleOf<<Sse2 as Backend>::LANES> + ArrayLength>(
             let mut best_row = 0;
             let mut best_score = -f32::INFINITY;
 
-            for offset in (0..C::Quotient::USIZE).map(|i| i * <Sse2 as Backend>::LANES::USIZE) {
+            for offset in (0..C::Quotient::USIZE).map(|i| i * <Sse2 as Backend>::Lanes::USIZE) {
                 let mut dataptr = data[0].as_ptr().add(offset);
                 let mut outptr = output.as_mut_ptr().add(offset);
                 // the row index for the best score in each column
@@ -278,7 +278,7 @@ impl Sse2 {
         scores: &mut StripedScores<f32, C>,
     ) where
         A: Alphabet,
-        C: MultipleOf<<Sse2 as Backend>::LANES> + ArrayLength,
+        C: MultipleOf<<Sse2 as Backend>::Lanes> + ArrayLength,
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<DenseMatrix<f32, A::K>>,
     {
@@ -307,7 +307,7 @@ impl Sse2 {
     }
 
     #[allow(unused)]
-    pub fn argmax<C: MultipleOf<<Sse2 as Backend>::LANES> + ArrayLength>(
+    pub fn argmax<C: MultipleOf<<Sse2 as Backend>::Lanes> + ArrayLength>(
         scores: &StripedScores<f32, C>,
     ) -> Option<MatrixCoordinates> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]

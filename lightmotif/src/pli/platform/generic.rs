@@ -19,7 +19,7 @@ use super::Backend;
 pub struct Generic;
 
 impl Backend for Generic {
-    type LANES = U1;
+    type Lanes = U1;
 }
 
 impl<A: Alphabet> Encode<A> for Generic {}

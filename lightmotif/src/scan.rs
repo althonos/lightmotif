@@ -5,6 +5,7 @@ use super::abc::Alphabet;
 use super::pli::dispatch::Dispatch;
 use super::pwm::ScoringMatrix;
 use super::seq::StripedSequence;
+use crate::dense::DefaultColumns;
 use crate::num::ArrayLength;
 use crate::num::StrictlyPositive;
 use crate::pli::Maximum;
@@ -13,21 +14,6 @@ use crate::pli::Score;
 use crate::pli::Threshold;
 use crate::pwm::DiscreteMatrix;
 use crate::scores::StripedScores;
-
-#[cfg(target_arch = "x86_64")]
-type _DefaultColumns = typenum::consts::U32;
-#[cfg(any(target_arch = "x86", target_arch = "arm", target_arch = "aarch64"))]
-type _DefaultColumns = typenum::consts::U16;
-#[cfg(not(any(
-    target_arch = "x86",
-    target_arch = "x86_64",
-    target_arch = "arm",
-    target_arch = "aarch64"
-)))]
-type _DefaultColumns = typenum::consts::U1;
-
-/// The default column number used in scanners.
-pub type DefaultColumns = _DefaultColumns;
 
 #[derive(Debug)]
 enum CowMut<'a, T> {

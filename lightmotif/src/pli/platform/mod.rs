@@ -16,5 +16,6 @@ use typenum::marker_traits::Unsigned;
 
 /// A marker trait for backends.
 pub trait Backend {
-    type LANES: Unsigned + NonZero;
+    /// The number of vector lanes in the SIMD vector type.
+    type Lanes: Unsigned + NonZero;
 }

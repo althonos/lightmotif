@@ -34,7 +34,7 @@ use crate::seq::StripedSequence;
 pub struct Neon;
 
 impl Backend for Neon {
-    type LANES = U16;
+    type Lanes = U16;
 }
 
 #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
@@ -135,7 +135,7 @@ unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
 ) {
     // process columns of the striped matrix, any multiple of 16 is supported
     let data = scores.matrix_mut();
-    for offset in (0..C::Quotient::USIZE).map(|i| i * <Neon as Backend>::LANES::USIZE) {
+    for offset in (0..C::Quotient::USIZE).map(|i| i * <Neon as Backend>::Lanes::USIZE) {
         let mut rowptr = data[0].as_mut_ptr().add(offset);
         // process every position of the sequence data
         for i in rows.clone() {
@@ -195,7 +195,7 @@ unsafe fn score_u8_neon<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
 ) {
     // process columns of the striped matrix, any multiple of 16 is supported
     let data = scores.matrix_mut();
-    for offset in (0..C::Quotient::USIZE).map(|i| i * <Neon as Backend>::LANES::USIZE) {
+    for offset in (0..C::Quotient::USIZE).map(|i| i * <Neon as Backend>::Lanes::USIZE) {
         let mut rowptr = data[0].as_mut_ptr().add(offset);
         // process every position of the sequence data
         for i in rows.clone() {

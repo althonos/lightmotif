@@ -52,6 +52,7 @@ pub trait Alphabet: Debug + Copy + Default + 'static {
     type K: Unsigned + NonZero + ArrayLength + Debug;
 
     /// Get the default symbol for this alphabet.
+    #[inline]
     fn default_symbol() -> Self::Symbol {
         Default::default()
     }
@@ -396,7 +397,7 @@ impl<A: Alphabet> Background<A> {
     where
         S: SymbolCount<A>,
     {
-        let n = A::default_symbol();
+        let n = A::Symbol::default();
         let mut base_counts = GenericArray::<usize, A::K>::default();
         for &c in A::symbols() {
             if unknown || c != n {
@@ -416,7 +417,7 @@ impl<A: Alphabet> Background<A> {
         I: IntoIterator,
         <I as IntoIterator>::Item: SymbolCount<A>,
     {
-        let n = A::default_symbol();
+        let n = A::Symbol::default();
         let mut base_counts = GenericArray::<usize, A::K>::default();
         for seq in sequences {
             for &c in A::symbols() {
@@ -446,7 +447,7 @@ impl<A: Alphabet> Background<A> {
     pub fn uniform() -> Self {
         let frequencies = (0..A::K::USIZE)
             .map(|i| {
-                if i != A::default_symbol().as_index() {
+                if i != A::Symbol::default().as_index() {
                     1.0 / ((A::K::USIZE - 1) as f32)
                 } else {
                     0.0
@@ -525,7 +526,7 @@ impl<A: Alphabet> From<f32> for Pseudocounts<A> {
     fn from(count: f32) -> Self {
         let counts = (0..A::K::USIZE)
             .map(|i| {
-                if i != A::default_symbol().as_index() {
+                if i != A::Symbol::default().as_index() {
                     count
                 } else {
                     0.0

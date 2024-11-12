@@ -40,16 +40,16 @@ pub enum Dispatch {
 
 impl Backend for Dispatch {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    type LANES = <Avx2 as Backend>::LANES;
+    type Lanes = <Avx2 as Backend>::Lanes;
     #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-    type LANES = <Neon as Backend>::LANES;
+    type Lanes = <Neon as Backend>::Lanes;
     #[cfg(not(any(
         target_arch = "arm",
         target_arch = "aarch64",
         target_arch = "x86",
         target_arch = "x86_64"
     )))]
-    type LANES = U1;
+    type Lanes = U1;
 }
 
 impl Dispatch {
@@ -74,15 +74,15 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Dispatch> {
     }
 }
 
-impl<A: Alphabet> Score<f32, A, <Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {
+impl<A: Alphabet> Score<f32, A, <Dispatch as Backend>::Lanes> for Pipeline<A, Dispatch> {
     fn score_rows_into<S, M>(
         &self,
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<f32, <Dispatch as Backend>::LANES>,
+        scores: &mut StripedScores<f32, <Dispatch as Backend>::Lanes>,
     ) where
-        S: AsRef<StripedSequence<A, <Dispatch as Backend>::LANES>>,
+        S: AsRef<StripedSequence<A, <Dispatch as Backend>::Lanes>>,
         M: AsRef<DenseMatrix<f32, <A as Alphabet>::K>>,
     {
         match self.backend {
@@ -92,7 +92,7 @@ impl<A: Alphabet> Score<f32, A, <Dispatch as Backend>::LANES> for Pipeline<A, Di
             Dispatch::Sse2 => Sse2::score_rows_into(pssm, seq.as_ref(), rows, scores),
             #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
             Dispatch::Neon => Neon::score_f32_rows_into(pssm, seq.as_ref(), rows, scores),
-            _ => <Generic as Score<f32, A, <Dispatch as Backend>::LANES>>::score_rows_into(
+            _ => <Generic as Score<f32, A, <Dispatch as Backend>::Lanes>>::score_rows_into(
                 &Generic,
                 pssm,
                 seq.as_ref(),
@@ -103,15 +103,15 @@ impl<A: Alphabet> Score<f32, A, <Dispatch as Backend>::LANES> for Pipeline<A, Di
     }
 }
 
-impl Score<u8, Dna, <Dispatch as Backend>::LANES> for Pipeline<Dna, Dispatch> {
+impl Score<u8, Dna, <Dispatch as Backend>::Lanes> for Pipeline<Dna, Dispatch> {
     fn score_rows_into<S, M>(
         &self,
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<u8, <Dispatch as Backend>::LANES>,
+        scores: &mut StripedScores<u8, <Dispatch as Backend>::Lanes>,
     ) where
-        S: AsRef<StripedSequence<Dna, <Dispatch as Backend>::LANES>>,
+        S: AsRef<StripedSequence<Dna, <Dispatch as Backend>::Lanes>>,
         M: AsRef<DenseMatrix<u8, <Dna as Alphabet>::K>>,
     {
         match self.backend {
@@ -121,7 +121,7 @@ impl Score<u8, Dna, <Dispatch as Backend>::LANES> for Pipeline<Dna, Dispatch> {
             // Dispatch::Sse2 => Sse2::score_rows_into(pssm, seq.as_ref(), rows, scores),
             #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
             Dispatch::Neon => Neon::score_u8_rows_into(pssm, seq.as_ref(), rows, scores),
-            _ => <Generic as Score<u8, Dna, <Dispatch as Backend>::LANES>>::score_rows_into(
+            _ => <Generic as Score<u8, Dna, <Dispatch as Backend>::Lanes>>::score_rows_into(
                 &Generic,
                 pssm,
                 seq.as_ref(),
@@ -132,72 +132,72 @@ impl Score<u8, Dna, <Dispatch as Backend>::LANES> for Pipeline<Dna, Dispatch> {
     }
 }
 
-impl<A: Alphabet> Stripe<A, <Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {
+impl<A: Alphabet> Stripe<A, <Dispatch as Backend>::Lanes> for Pipeline<A, Dispatch> {
     fn stripe_into<S: AsRef<[A::Symbol]>>(
         &self,
         seq: S,
-        matrix: &mut StripedSequence<A, <Dispatch as Backend>::LANES>,
+        matrix: &mut StripedSequence<A, <Dispatch as Backend>::Lanes>,
     ) {
         match self.backend {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Avx2 => Avx2::stripe_into(seq, matrix),
-            _ => <Generic as Stripe<A, <Dispatch as Backend>::LANES>>::stripe_into(
+            _ => <Generic as Stripe<A, <Dispatch as Backend>::Lanes>>::stripe_into(
                 &Generic, seq, matrix,
             ),
         }
     }
 }
 
-impl<A: Alphabet> Maximum<f32, <Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {
+impl<A: Alphabet> Maximum<f32, <Dispatch as Backend>::Lanes> for Pipeline<A, Dispatch> {
     fn argmax(
         &self,
-        scores: &StripedScores<f32, <Dispatch as Backend>::LANES>,
+        scores: &StripedScores<f32, <Dispatch as Backend>::Lanes>,
     ) -> Option<MatrixCoordinates> {
         match self.backend {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Avx2 => Avx2::argmax_f32(scores),
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Sse2 => Sse2::argmax(scores),
-            _ => <Generic as Maximum<f32, <Dispatch as Backend>::LANES>>::argmax(&Generic, scores),
+            _ => <Generic as Maximum<f32, <Dispatch as Backend>::Lanes>>::argmax(&Generic, scores),
         }
     }
 
-    fn max(&self, scores: &StripedScores<f32, <Dispatch as Backend>::LANES>) -> Option<f32> {
+    fn max(&self, scores: &StripedScores<f32, <Dispatch as Backend>::Lanes>) -> Option<f32> {
         match self.backend {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Avx2 => Avx2::max_f32(scores),
             // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             // Dispatch::Sse2 => Sse2::argmax(scores),
-            _ => <Generic as Maximum<f32, <Dispatch as Backend>::LANES>>::max(&Generic, scores),
+            _ => <Generic as Maximum<f32, <Dispatch as Backend>::Lanes>>::max(&Generic, scores),
         }
     }
 }
 
-impl<A: Alphabet> Maximum<u8, <Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {
+impl<A: Alphabet> Maximum<u8, <Dispatch as Backend>::Lanes> for Pipeline<A, Dispatch> {
     fn argmax(
         &self,
-        scores: &StripedScores<u8, <Dispatch as Backend>::LANES>,
+        scores: &StripedScores<u8, <Dispatch as Backend>::Lanes>,
     ) -> Option<MatrixCoordinates> {
         match self.backend {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Avx2 => Avx2::argmax_u8(scores),
             // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             // Dispatch::Sse2 => Sse2::argmax(scores),
-            _ => <Generic as Maximum<u8, <Dispatch as Backend>::LANES>>::argmax(&Generic, scores),
+            _ => <Generic as Maximum<u8, <Dispatch as Backend>::Lanes>>::argmax(&Generic, scores),
         }
     }
 
-    fn max(&self, scores: &StripedScores<u8, <Dispatch as Backend>::LANES>) -> Option<u8> {
+    fn max(&self, scores: &StripedScores<u8, <Dispatch as Backend>::Lanes>) -> Option<u8> {
         match self.backend {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Avx2 => Avx2::max_u8(scores),
             // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             // Dispatch::Sse2 => Sse2::argmax(scores),
-            _ => <Generic as Maximum<u8, <Dispatch as Backend>::LANES>>::max(&Generic, scores),
+            _ => <Generic as Maximum<u8, <Dispatch as Backend>::Lanes>>::max(&Generic, scores),
         }
     }
 }
 
-impl<A: Alphabet> Threshold<f32, <Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {}
+impl<A: Alphabet> Threshold<f32, <Dispatch as Backend>::Lanes> for Pipeline<A, Dispatch> {}
 
-impl<A: Alphabet> Threshold<u8, <Dispatch as Backend>::LANES> for Pipeline<A, Dispatch> {}
+impl<A: Alphabet> Threshold<u8, <Dispatch as Backend>::Lanes> for Pipeline<A, Dispatch> {}

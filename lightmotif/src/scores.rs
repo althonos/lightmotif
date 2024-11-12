@@ -7,6 +7,7 @@ use std::ops::Index;
 use std::ops::Range;
 
 use crate::abc::Dna;
+use crate::dense::DefaultColumns;
 use crate::dense::DenseMatrix;
 use crate::dense::MatrixCoordinates;
 use crate::dense::MatrixElement;
@@ -93,7 +94,7 @@ impl<T> From<Scores<T>> for Vec<T> {
 
 /// Striped matrix storing scores for an equally striped sequence.
 #[derive(Clone)]
-pub struct StripedScores<T: MatrixElement, C: PositiveLength> {
+pub struct StripedScores<T: MatrixElement, C: PositiveLength = DefaultColumns> {
     /// The raw data matrix storing the scores.
     data: DenseMatrix<T, C>,
     /// The total length of the `StripedSequence` these scores were obtained from.

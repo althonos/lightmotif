@@ -15,6 +15,7 @@ use super::abc::Alphabet;
 #[cfg(feature = "sampling")]
 use super::abc::Background;
 use super::abc::Symbol;
+use super::dense::DefaultColumns;
 use super::dense::DenseMatrix;
 use super::err::InvalidData;
 use super::err::InvalidSymbol;
@@ -41,12 +42,6 @@ pub trait SymbolCount<A: Alphabet> {
         counts
     }
 }
-
-// impl<'a, A: Alphabet, T: IntoIterator<Item = &'a A::Symbol>> SymbolCount<A> for T {
-//     fn count_symbol(self, symbol: <A as Alphabet>::Symbol) -> usize {
-//         self.into_iter().filter(|&&c| c == symbol).count()
-//     }
-// }
 
 impl<'a, A: Alphabet, T: AsRef<[A::Symbol]>> SymbolCount<A> for T {
     fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize {
@@ -214,7 +209,7 @@ where
 
 /// An encoded sequence stored in a striped matrix with a fixed column count.
 #[derive(Clone)]
-pub struct StripedSequence<A: Alphabet, C: PositiveLength> {
+pub struct StripedSequence<A: Alphabet, C: PositiveLength = DefaultColumns> {
     alphabet: std::marker::PhantomData<A>,
     length: usize,
     wrap: usize,

@@ -188,7 +188,7 @@ pub trait Stripe<A: Alphabet, C: PositiveLength> {
             data[i % rows][i / rows] = x;
         }
         for i in s.len()..data.rows() * data.columns() {
-            data[i % rows][i / rows] = A::default_symbol();
+            data[i % rows][i / rows] = A::Symbol::default();
         }
 
         // replace the original matrix with a new one
@@ -414,79 +414,79 @@ impl<A: Alphabet> Encode<A> for Pipeline<A, Avx2> {
     }
 }
 
-impl<A: Alphabet> Score<f32, A, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
+impl<A: Alphabet> Score<f32, A, <Avx2 as Backend>::Lanes> for Pipeline<A, Avx2> {
     #[inline]
     fn score_rows_into<S, M>(
         &self,
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
+        scores: &mut StripedScores<f32, <Avx2 as Backend>::Lanes>,
     ) where
-        S: AsRef<StripedSequence<A, <Avx2 as Backend>::LANES>>,
+        S: AsRef<StripedSequence<A, <Avx2 as Backend>::Lanes>>,
         M: AsRef<DenseMatrix<f32, <A as Alphabet>::K>>,
     {
         Avx2::score_f32_rows_into(pssm, seq, rows, scores)
     }
 }
 
-impl Score<u8, Dna, <Avx2 as Backend>::LANES> for Pipeline<Dna, Avx2> {
+impl Score<u8, Dna, <Avx2 as Backend>::Lanes> for Pipeline<Dna, Avx2> {
     #[inline]
     fn score_rows_into<S, M>(
         &self,
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<u8, <Avx2 as Backend>::LANES>,
+        scores: &mut StripedScores<u8, <Avx2 as Backend>::Lanes>,
     ) where
-        S: AsRef<StripedSequence<Dna, <Avx2 as Backend>::LANES>>,
+        S: AsRef<StripedSequence<Dna, <Avx2 as Backend>::Lanes>>,
         M: AsRef<DenseMatrix<u8, <Dna as Alphabet>::K>>,
     {
         Avx2::score_u8_rows_into_shuffle(pssm, seq, rows, scores)
     }
 }
 
-impl<A: Alphabet> Stripe<A, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
+impl<A: Alphabet> Stripe<A, <Avx2 as Backend>::Lanes> for Pipeline<A, Avx2> {
     /// Stripe a sequence into the given striped matrix.
     #[inline]
     fn stripe_into<S: AsRef<[A::Symbol]>>(
         &self,
         seq: S,
-        matrix: &mut StripedSequence<A, <Avx2 as Backend>::LANES>,
+        matrix: &mut StripedSequence<A, <Avx2 as Backend>::Lanes>,
     ) {
         Avx2::stripe_into(seq, matrix)
     }
 }
 
-impl<A: Alphabet> Maximum<f32, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
+impl<A: Alphabet> Maximum<f32, <Avx2 as Backend>::Lanes> for Pipeline<A, Avx2> {
     fn argmax(
         &self,
-        scores: &StripedScores<f32, <Avx2 as Backend>::LANES>,
+        scores: &StripedScores<f32, <Avx2 as Backend>::Lanes>,
     ) -> Option<MatrixCoordinates> {
         Avx2::argmax_f32(scores)
     }
 
-    fn max(&self, scores: &StripedScores<f32, <Avx2 as Backend>::LANES>) -> Option<f32> {
+    fn max(&self, scores: &StripedScores<f32, <Avx2 as Backend>::Lanes>) -> Option<f32> {
         Avx2::max_f32(scores)
     }
 }
 
-impl<A: Alphabet> Maximum<u8, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {
+impl<A: Alphabet> Maximum<u8, <Avx2 as Backend>::Lanes> for Pipeline<A, Avx2> {
     fn argmax(
         &self,
-        scores: &StripedScores<u8, <Avx2 as Backend>::LANES>,
+        scores: &StripedScores<u8, <Avx2 as Backend>::Lanes>,
     ) -> Option<MatrixCoordinates> {
         Avx2::argmax_u8(scores)
     }
 
-    fn max(&self, scores: &StripedScores<u8, <Avx2 as Backend>::LANES>) -> Option<u8> {
+    fn max(&self, scores: &StripedScores<u8, <Avx2 as Backend>::Lanes>) -> Option<u8> {
         Avx2::max_u8(scores)
     }
 }
 
-impl<A: Alphabet> Threshold<f32, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {}
+impl<A: Alphabet> Threshold<f32, <Avx2 as Backend>::Lanes> for Pipeline<A, Avx2> {}
 
-impl<A: Alphabet> Threshold<u8, <Avx2 as Backend>::LANES> for Pipeline<A, Avx2> {}
+impl<A: Alphabet> Threshold<u8, <Avx2 as Backend>::Lanes> for Pipeline<A, Avx2> {}
 
 // --- NEON pipeline -----------------------------------------------------------
 

@@ -8,6 +8,13 @@ use std::ops::Index;
 use std::ops::IndexMut;
 
 use crate::num::ArrayLength;
+use crate::pli::dispatch::Dispatch;
+use crate::pli::platform::Backend;
+
+// --- Default Columns ---------------------------------------------------------
+
+/// The default number of columns.
+pub type DefaultColumns = <Dispatch as Backend>::Lanes;
 
 // --- MatrixElement -----------------------------------------------------------
 
@@ -36,13 +43,13 @@ impl MatrixCoordinates {
 #[cfg_attr(target_arch = "x86_64", repr(align(32)))]
 #[cfg_attr(not(target_arch = "x86_64"), repr(align(16)))]
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-struct Row<T: MatrixElement, C: ArrayLength> {
+struct Row<T: MatrixElement, C: ArrayLength = DefaultColumns> {
     a: generic_array::GenericArray<T, C>,
 }
 
 /// A memory-aligned dense matrix with a constant number of columns.
 #[derive(Clone, PartialEq, Eq)]
-pub struct DenseMatrix<T: MatrixElement, C: ArrayLength> {
+pub struct DenseMatrix<T: MatrixElement, C: ArrayLength = DefaultColumns> {
     data: Vec<Row<T, C>>,
     rows: usize,
 }

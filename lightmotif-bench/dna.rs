@@ -44,7 +44,7 @@ mod scanner {
 
         striped.configure(&pssm);
         bencher.iter(|| {
-            Scanner::new(&pssm, &striped).max_by(|x, y| x.score.partial_cmp(&y.score).unwrap());
+            Scanner::new(&pssm, &striped).max_by(|x, y| x.score().partial_cmp(&y.score()).unwrap());
         });
         bencher.bytes = seq.len() as u64;
     }

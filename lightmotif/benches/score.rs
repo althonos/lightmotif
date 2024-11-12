@@ -11,7 +11,6 @@ use lightmotif::pli::Pipeline;
 use lightmotif::pli::Score;
 use lightmotif::pli::Stripe;
 use lightmotif::pwm::CountMatrix;
-use lightmotif::scan::DefaultColumns;
 use lightmotif::scores::StripedScores;
 use lightmotif::seq::EncodedSequence;
 

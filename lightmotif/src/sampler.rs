@@ -39,6 +39,7 @@ use rand_distr::WeightedIndex;
 use super::abc::Alphabet;
 use super::abc::Background;
 use super::abc::Symbol;
+use super::dense::DefaultColumns;
 use super::dense::DenseMatrix;
 use super::dense::MatrixCoordinates;
 use super::num::ArrayLength;
@@ -118,18 +119,18 @@ pub enum SamplerMode {
 /// counts for each sequence in the dataset. Updating the background then
 /// only requires subtracting the counts for the motif window.
 #[derive(Debug)]
-pub struct SamplerData<A, C, S>
+pub struct SamplerData<A, S, C = DefaultColumns>
 where
     A: Alphabet,
-    C: ArrayLength + NonZero,
     S: AsRef<[StripedSequence<A, C>]>,
+    C: ArrayLength + NonZero,
 {
     sequences: S,
     counts: Vec<GenericArray<usize, A::K>>,
     c: std::marker::PhantomData<C>,
 }
 
-impl<A, C, S> SamplerData<A, C, S>
+impl<A, S, C> SamplerData<A, S, C>
 where
     A: Alphabet,
     C: ArrayLength + NonZero,
@@ -150,7 +151,7 @@ where
     }
 }
 
-impl<A, C, S> From<S> for SamplerData<A, C, S>
+impl<A, S, C> From<S> for SamplerData<A, S, C>
 where
     A: Alphabet,
     C: ArrayLength + NonZero,
@@ -162,13 +163,13 @@ where
 }
 
 /// A builder for sampler objects.
-pub struct SamplerBuilder<'a, A, C, S>
+pub struct SamplerBuilder<'a, A, S, C = DefaultColumns>
 where
     A: Alphabet,
-    C: ArrayLength + NonZero,
     S: AsRef<[StripedSequence<A, C>]>,
+    C: ArrayLength + NonZero,
 {
-    data: &'a SamplerData<A, C, S>,
+    data: &'a SamplerData<A, S, C>,
     width: usize,
     mode: SamplerMode,
     temperature: f64,
@@ -177,14 +178,14 @@ where
     patience: Option<usize>,
 }
 
-impl<'a, A, C, S> SamplerBuilder<'a, A, C, S>
+impl<'a, A, S, C> SamplerBuilder<'a, A, S, C>
 where
     A: Alphabet,
     C: ArrayLength + NonZero,
     S: AsRef<[StripedSequence<A, C>]>,
 {
     /// Create a new sampler builder for the given data.
-    pub fn new(data: &'a SamplerData<A, C, S>) -> Self {
+    pub fn new(data: &'a SamplerData<A, S, C>) -> Self {
         Self {
             data,
             width: 10,
@@ -249,7 +250,7 @@ where
     ///
     /// This method does not consume the builder, so a fully initialized builder
     /// can be used to repeatedly sample new motifs with different random states.
-    pub fn sample<R: Rng>(&self, rng: R) -> Sampler<'a, R, A, C, S> {
+    pub fn sample<R: Rng>(&self, rng: R) -> Sampler<'a, R, A, S, C> {
         Sampler::_new(
             self.data,
             self.width,
@@ -267,7 +268,7 @@ where
 /// The sampler is implemented as an iterator to allow the consumer to control
 /// iterations and allow interrupting progress.
 #[derive(Debug)]
-pub struct Sampler<'a, R, A, C, S>
+pub struct Sampler<'a, R, A, S, C = DefaultColumns>
 where
     R: Rng,
     A: Alphabet,
@@ -276,7 +277,7 @@ where
 {
     // -- References ----------------------------
     /// A reference to the sampler data.
-    data: &'a SamplerData<A, C, S>,
+    data: &'a SamplerData<A, S, C>,
     /// The `lightmotif` pipeline used to accelerate computations.
     pli: Pipeline<A, Dispatch>,
     /// The random number generator.
@@ -315,18 +316,18 @@ where
     converged: bool,
 }
 
-impl<'a, R, A, C, S> Sampler<'a, R, A, C, S>
+impl<'a, R, A, C, S> Sampler<'a, R, A, S, C>
 where
     R: Rng,
     A: Alphabet,
-    C: ArrayLength + NonZero,
     S: AsRef<[StripedSequence<A, C>]>,
+    C: ArrayLength + NonZero,
 {
     /// Create a new sampler in [`SamplerMode::Oops`] mode with default parameters.
     ///
     /// See [`SamplerBuilder`] to create a builder with all possible
     /// parameters.
-    pub fn new(data: &'a SamplerData<A, C, S>, width: usize, rng: R) -> Self {
+    pub fn new(data: &'a SamplerData<A, S, C>, width: usize, rng: R) -> Self {
         Self::_new(data, width, rng, SamplerMode::Oops, 0, 0, 0)
     }
 
@@ -363,7 +364,7 @@ where
     }
 
     fn _new(
-        data: &'a SamplerData<A, C, S>,
+        data: &'a SamplerData<A, S, C>,
         width: usize,
         mut rng: R,
         mode: SamplerMode,
@@ -503,12 +504,12 @@ where
     }
 }
 
-impl<'a, R, A, C, S> Sampler<'a, R, A, C, S>
+impl<'a, R, A, S, C> Sampler<'a, R, A, S, C>
 where
     R: Rng,
     A: Alphabet,
-    C: ArrayLength + NonZero,
     S: AsRef<[StripedSequence<A, C>]>,
+    C: ArrayLength + NonZero,
     Pipeline<A, Dispatch>: Score<f32, A, C>,
 {
     fn update_holdout(&mut self, z: usize, pssm: &ScoringMatrix<A>) {
@@ -524,12 +525,12 @@ where
     }
 }
 
-impl<'a, R, A, C, S> Iterator for Sampler<'a, R, A, C, S>
+impl<'a, R, A, S, C> Iterator for Sampler<'a, R, A, S, C>
 where
     R: Rng,
     A: Alphabet,
-    C: ArrayLength + NonZero,
     S: AsRef<[StripedSequence<A, C>]>,
+    C: ArrayLength + NonZero,
     Pipeline<A, Dispatch>: Score<f32, A, C>,
 {
     type Item = Iteration<A>;
@@ -582,12 +583,12 @@ where
     }
 }
 
-impl<'a, R, A, C, S> FusedIterator for Sampler<'a, R, A, C, S>
+impl<'a, R, A, S, C> FusedIterator for Sampler<'a, R, A, S, C>
 where
     R: Rng,
     A: Alphabet,
-    C: ArrayLength + NonZero,
     S: AsRef<[StripedSequence<A, C>]>,
+    C: ArrayLength + NonZero,
     Pipeline<A, Dispatch>: Score<f32, A, C>,
 {
 }

@@ -3,10 +3,10 @@
 extern crate lightmotif;
 extern crate test;
 
+use lightmotif::dense::DefaultColumns;
 use lightmotif::num::U32;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Stripe;
-use lightmotif::scan::DefaultColumns;
 use lightmotif::seq::EncodedSequence;
 
 mod dna {

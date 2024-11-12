@@ -31,7 +31,7 @@ use super::Backend;
 pub struct Avx2;
 
 impl Backend for Avx2 {
-    type LANES = U32;
+    type Lanes = U32;
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -103,9 +103,9 @@ where
 #[allow(overflowing_literals)]
 unsafe fn score_f32_avx2_permute<A>(
     pssm: &DenseMatrix<f32, A::K>,
-    seq: &StripedSequence<A, <Avx2 as Backend>::LANES>,
+    seq: &StripedSequence<A, <Avx2 as Backend>::Lanes>,
     rows: Range<usize>,
-    scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
+    scores: &mut StripedScores<f32, <Avx2 as Backend>::Lanes>,
 ) where
     A: Alphabet,
 {
@@ -200,9 +200,9 @@ unsafe fn score_f32_avx2_permute<A>(
 #[allow(overflowing_literals)]
 unsafe fn score_f32_avx2_gather<A>(
     pssm: &DenseMatrix<f32, A::K>,
-    seq: &StripedSequence<A, <Avx2 as Backend>::LANES>,
+    seq: &StripedSequence<A, <Avx2 as Backend>::Lanes>,
     rows: Range<usize>,
-    scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
+    scores: &mut StripedScores<f32, <Avx2 as Backend>::Lanes>,
 ) where
     A: Alphabet,
 {
@@ -285,9 +285,9 @@ unsafe fn score_f32_avx2_gather<A>(
 #[target_feature(enable = "avx2")]
 pub unsafe fn score_u8_avx2_shuffle<A>(
     pssm: &DenseMatrix<u8, A::K>,
-    seq: &StripedSequence<A, <Avx2 as Backend>::LANES>,
+    seq: &StripedSequence<A, <Avx2 as Backend>::Lanes>,
     rows: Range<usize>,
-    scores: &mut StripedScores<u8, <Avx2 as Backend>::LANES>,
+    scores: &mut StripedScores<u8, <Avx2 as Backend>::Lanes>,
 ) where
     A: Alphabet,
 {
@@ -326,7 +326,7 @@ pub unsafe fn score_u8_avx2_shuffle<A>(
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 unsafe fn argmax_f32_avx2(
-    scores: &StripedScores<f32, <Avx2 as Backend>::LANES>,
+    scores: &StripedScores<f32, <Avx2 as Backend>::Lanes>,
 ) -> Option<MatrixCoordinates> {
     if scores.max_index() > u32::MAX as usize {
         panic!(
@@ -404,7 +404,7 @@ unsafe fn argmax_f32_avx2(
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
-unsafe fn max_f32_avx2(scores: &StripedScores<f32, <Avx2 as Backend>::LANES>) -> Option<f32> {
+unsafe fn max_f32_avx2(scores: &StripedScores<f32, <Avx2 as Backend>::Lanes>) -> Option<f32> {
     if scores.is_empty() {
         None
     } else {
@@ -446,7 +446,7 @@ unsafe fn max_f32_avx2(scores: &StripedScores<f32, <Avx2 as Backend>::LANES>) ->
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 unsafe fn argmax_u8_avx2(
-    scores: &StripedScores<u8, <Avx2 as Backend>::LANES>,
+    scores: &StripedScores<u8, <Avx2 as Backend>::Lanes>,
 ) -> Option<MatrixCoordinates> {
     if scores.matrix().rows() > u16::MAX as usize + 1 {
         panic!(
@@ -509,7 +509,7 @@ unsafe fn argmax_u8_avx2(
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
-unsafe fn max_u8_avx2(scores: &StripedScores<u8, <Avx2 as Backend>::LANES>) -> Option<u8> {
+unsafe fn max_u8_avx2(scores: &StripedScores<u8, <Avx2 as Backend>::Lanes>) -> Option<u8> {
     if scores.is_empty() {
         None
     } else {
@@ -540,7 +540,7 @@ unsafe fn max_u8_avx2(scores: &StripedScores<u8, <Avx2 as Backend>::LANES>) -> O
 #[allow(clippy::erasing_op, clippy::identity_op)]
 unsafe fn stripe_avx2<A>(
     seq: &[A::Symbol],
-    striped: &mut StripedSequence<A, <Avx2 as Backend>::LANES>,
+    striped: &mut StripedSequence<A, <Avx2 as Backend>::Lanes>,
 ) where
     A: Alphabet,
 {
@@ -577,7 +577,7 @@ unsafe fn stripe_avx2<A>(
     let length = s.len();
     let mut src = s.as_ptr() as *const u8;
     let src_stride =
-        (length + (<Avx2 as Backend>::LANES::USIZE - 1)) / <Avx2 as Backend>::LANES::USIZE;
+        (length + (<Avx2 as Backend>::Lanes::USIZE - 1)) / <Avx2 as Backend>::Lanes::USIZE;
 
     // Get the matrix from the given striped sequence and resize it
     let mut matrix = std::mem::take(striped).into_matrix();
@@ -595,7 +595,7 @@ unsafe fn stripe_avx2<A>(
 
     // Process sequence block by block
     let mut i = 0;
-    while i + <Avx2 as Backend>::LANES::USIZE <= src_stride {
+    while i + <Avx2 as Backend>::Lanes::USIZE <= src_stride {
         let mut r00 = _mm256_loadu_si256(src.add(0x00 * src_stride) as _);
         let mut r01 = _mm256_loadu_si256(src.add(0x01 * src_stride) as _);
         let mut r02 = _mm256_loadu_si256(src.add(0x02 * src_stride) as _);
@@ -749,7 +749,7 @@ unsafe fn stripe_avx2<A>(
 
         out = out.add(0x20 * out_stride);
         src = src.add(0x20);
-        i += <Avx2 as Backend>::LANES::USIZE;
+        i += <Avx2 as Backend>::Lanes::USIZE;
     }
 
     // Required before returning to code that may set atomic flags that invite concurrent reads,
@@ -769,7 +769,7 @@ unsafe fn stripe_avx2<A>(
 
     // Fill end of the matrix after the sequence end.
     for k in s.len()..matrix.columns() * matrix.rows() {
-        matrix[k % src_stride][k / src_stride] = A::default_symbol();
+        matrix[k % src_stride][k / src_stride] = A::Symbol::default();
     }
 
     // Replace original striped sequence.
@@ -796,10 +796,10 @@ impl Avx2 {
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
+        scores: &mut StripedScores<f32, <Avx2 as Backend>::Lanes>,
     ) where
         A: Alphabet,
-        S: AsRef<StripedSequence<A, <Avx2 as Backend>::LANES>>,
+        S: AsRef<StripedSequence<A, <Avx2 as Backend>::Lanes>>,
         M: AsRef<DenseMatrix<f32, A::K>>,
     {
         assert!(A::K::USIZE <= 8);
@@ -833,10 +833,10 @@ impl Avx2 {
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
+        scores: &mut StripedScores<f32, <Avx2 as Backend>::Lanes>,
     ) where
         A: Alphabet,
-        S: AsRef<StripedSequence<A, <Avx2 as Backend>::LANES>>,
+        S: AsRef<StripedSequence<A, <Avx2 as Backend>::Lanes>>,
         M: AsRef<DenseMatrix<f32, A::K>>,
     {
         let seq = seq.as_ref();
@@ -868,10 +868,10 @@ impl Avx2 {
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<f32, <Avx2 as Backend>::LANES>,
+        scores: &mut StripedScores<f32, <Avx2 as Backend>::Lanes>,
     ) where
         A: Alphabet,
-        S: AsRef<StripedSequence<A, <Avx2 as Backend>::LANES>>,
+        S: AsRef<StripedSequence<A, <Avx2 as Backend>::Lanes>>,
         M: AsRef<DenseMatrix<f32, A::K>>,
     {
         if A::K::USIZE <= 8 {
@@ -886,12 +886,12 @@ impl Avx2 {
         pssm: M,
         seq: S,
         rows: Range<usize>,
-        scores: &mut StripedScores<u8, <Avx2 as Backend>::LANES>,
+        scores: &mut StripedScores<u8, <Avx2 as Backend>::Lanes>,
     ) where
         A: Alphabet,
         <A as Alphabet>::K: IsLessOrEqual<U16>,
         <<A as Alphabet>::K as IsLessOrEqual<U16>>::Output: NonZero,
-        S: AsRef<StripedSequence<A, <Avx2 as Backend>::LANES>>,
+        S: AsRef<StripedSequence<A, <Avx2 as Backend>::Lanes>>,
         M: AsRef<DenseMatrix<u8, A::K>>,
     {
         let seq = seq.as_ref();
@@ -920,7 +920,7 @@ impl Avx2 {
 
     #[allow(unused)]
     pub fn argmax_f32(
-        scores: &StripedScores<f32, <Avx2 as Backend>::LANES>,
+        scores: &StripedScores<f32, <Avx2 as Backend>::Lanes>,
     ) -> Option<MatrixCoordinates> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
@@ -931,7 +931,7 @@ impl Avx2 {
     }
 
     #[allow(unused)]
-    pub fn max_f32(scores: &StripedScores<f32, <Avx2 as Backend>::LANES>) -> Option<f32> {
+    pub fn max_f32(scores: &StripedScores<f32, <Avx2 as Backend>::Lanes>) -> Option<f32> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             max_f32_avx2(scores)
@@ -942,7 +942,7 @@ impl Avx2 {
 
     #[allow(unused)]
     pub fn argmax_u8(
-        scores: &StripedScores<u8, <Avx2 as Backend>::LANES>,
+        scores: &StripedScores<u8, <Avx2 as Backend>::Lanes>,
     ) -> Option<MatrixCoordinates> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
@@ -953,7 +953,7 @@ impl Avx2 {
     }
 
     #[allow(unused)]
-    pub fn max_u8(scores: &StripedScores<u8, <Avx2 as Backend>::LANES>) -> Option<u8> {
+    pub fn max_u8(scores: &StripedScores<u8, <Avx2 as Backend>::Lanes>) -> Option<u8> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         unsafe {
             max_u8_avx2(scores)
@@ -963,7 +963,7 @@ impl Avx2 {
     }
 
     #[allow(unused)]
-    pub fn stripe_into<A, S>(seq: S, matrix: &mut StripedSequence<A, <Avx2 as Backend>::LANES>)
+    pub fn stripe_into<A, S>(seq: S, matrix: &mut StripedSequence<A, <Avx2 as Backend>::Lanes>)
     where
         A: Alphabet,
         S: AsRef<[A::Symbol]>,

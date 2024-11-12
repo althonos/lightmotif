@@ -16,7 +16,6 @@ use lightmotif::abc::Protein;
 use lightmotif::abc::Symbol;
 use lightmotif::dense::DenseMatrix;
 use lightmotif::num::Unsigned;
-use lightmotif::pli::platform::Backend;
 use lightmotif::pli::Score;
 #[cfg(feature = "tfmpvalue")]
 use lightmotif_tfmpvalue::TfmPvalue;
@@ -70,7 +69,7 @@ macro_rules! impl_matrix_methods {
 
 // --- Compile-time constants --------------------------------------------------
 
-type C = <lightmotif::pli::dispatch::Dispatch as Backend>::LANES;
+// type C = <lightmotif::pli::dispatch::Dispatch as Backend>::LANES;
 
 // --- Helpers -----------------------------------------------------------------
 
@@ -271,8 +270,8 @@ impl From<EncodedSequenceData> for EncodedSequence {
 /// Actual storage of a striped sequence data.
 #[derive(Clone, Debug)]
 enum StripedSequenceData {
-    Dna(lightmotif::seq::StripedSequence<Dna, C>),
-    Protein(lightmotif::seq::StripedSequence<Protein, C>),
+    Dna(lightmotif::seq::StripedSequence<Dna>),
+    Protein(lightmotif::seq::StripedSequence<Protein>),
 }
 
 impl_matrix_methods!(StripedSequenceData);
@@ -283,14 +282,14 @@ impl StripedSequenceData {
     }
 }
 
-impl From<lightmotif::seq::StripedSequence<Dna, C>> for StripedSequenceData {
-    fn from(dna: lightmotif::seq::StripedSequence<Dna, C>) -> Self {
+impl From<lightmotif::seq::StripedSequence<Dna>> for StripedSequenceData {
+    fn from(dna: lightmotif::seq::StripedSequence<Dna>) -> Self {
         Self::Dna(dna)
     }
 }
 
-impl From<lightmotif::seq::StripedSequence<Protein, C>> for StripedSequenceData {
-    fn from(prot: lightmotif::seq::StripedSequence<Protein, C>) -> Self {
+impl From<lightmotif::seq::StripedSequence<Protein>> for StripedSequenceData {
+    fn from(prot: lightmotif::seq::StripedSequence<Protein>) -> Self {
         Self::Protein(prot)
     }
 }
@@ -1085,7 +1084,7 @@ impl ScoreDistribution {
 #[pyclass(module = "lightmotif.lib", sequence)]
 #[derive(Clone, Debug)]
 pub struct StripedScores {
-    scores: lightmotif::scores::StripedScores<f32, C>,
+    scores: lightmotif::scores::StripedScores<f32>,
     shape: [Py_ssize_t; 2],
     strides: [Py_ssize_t; 2],
 }
@@ -1181,8 +1180,8 @@ impl StripedScores {
     }
 }
 
-impl From<lightmotif::scores::StripedScores<f32, C>> for StripedScores {
-    fn from(scores: lightmotif::scores::StripedScores<f32, C>) -> Self {
+impl From<lightmotif::scores::StripedScores<f32>> for StripedScores {
+    fn from(scores: lightmotif::scores::StripedScores<f32>) -> Self {
         // assert_eq!(scores.range().start, 0);
         // extract the matrix shape
         let cols = scores.matrix().columns();
@@ -1305,8 +1304,7 @@ pub struct Scanner {
         'static,
         Dna,
         &'static lightmotif::pwm::ScoringMatrix<Dna>,
-        &'static lightmotif::seq::StripedSequence<Dna, C>,
-        C,
+        &'static lightmotif::seq::StripedSequence<Dna>,
     >,
 }
 
@@ -1332,7 +1330,7 @@ impl Scanner {
                 // struct and self.scanner.next() will only be called with
                 // the GIL held...
                 let scanner = unsafe {
-                    let mut scanner = lightmotif::scan::Scanner::<Dna, _, _, C>::new(p, s);
+                    let mut scanner = lightmotif::scan::Scanner::<Dna, _, _>::new(p, s);
                     scanner.threshold(threshold);
                     scanner.block_size(block_size);
                     std::mem::transmute(scanner)
