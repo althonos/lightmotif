@@ -30,7 +30,7 @@ use self::platform::Sse2;
 pub mod dispatch;
 pub mod platform;
 
-// --- Score -------------------------------------------------------------------
+// --- Traits ------------------------------------------------------------------
 
 /// Used for encoding a sequence into rank-based encoding.
 pub trait Encode<A: Alphabet> {

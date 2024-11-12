@@ -51,6 +51,14 @@ impl<'a, A: Alphabet, T: AsRef<[A::Symbol]>> SymbolCount<A> for T {
     fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize {
         self.as_ref().iter().filter(|&&c| c == symbol).count()
     }
+
+    fn count_symbols(&self) -> GenericArray<usize, A::K> {
+        let mut counts = GenericArray::default();
+        for c in self.as_ref().iter() {
+            counts[c.as_index()] += 1;
+        }
+        counts
+    }
 }
 
 // --- EncodedSequence ---------------------------------------------------------
@@ -130,8 +138,8 @@ impl<A: Alphabet> AsRef<EncodedSequence<A>> for EncodedSequence<A> {
     }
 }
 
-impl<A: Alphabet> AsRef<[<A as Alphabet>::Symbol]> for EncodedSequence<A> {
-    fn as_ref(&self) -> &[<A as Alphabet>::Symbol] {
+impl<A: Alphabet> AsRef<[A::Symbol]> for EncodedSequence<A> {
+    fn as_ref(&self) -> &[A::Symbol] {
         self.data.as_slice()
     }
 }
@@ -452,5 +460,22 @@ mod test {
         assert_eq!(striped[2], G);
         assert_eq!(striped[3], C);
         assert_eq!(striped[4], A);
+    }
+
+    #[test]
+    fn count_symbols() {
+        let seq = EncodedSequence::<Dna>::from_str("ATGCAAGGAGATTCTAGAT").unwrap();
+        let striped: StripedSequence<Dna, _> = seq.to_striped();
+
+        let seq_counts = SymbolCount::<Dna>::count_symbols(&seq);
+        let striped_counts = SymbolCount::<Dna>::count_symbols(&striped);
+
+        for s in Dna::symbols() {
+            let seq_count = SymbolCount::<Dna>::count_symbol(&seq, *s);
+            let striped_count = SymbolCount::<Dna>::count_symbol(&seq, *s);
+            assert_eq!(seq_count, striped_count);
+            assert_eq!(seq_count, seq_counts[s.as_index()]);
+            assert_eq!(striped_count, striped_counts[s.as_index()]);
+        }
     }
 }
