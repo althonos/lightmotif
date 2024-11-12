@@ -680,7 +680,7 @@ mod test {
 
         let x = &striped[3];
         let y = &encoded[3];
-        assert_eq!(x.count_symbols(), SymbolCount::<Protein>::count_symbols(&y));
+        assert_eq!(x.count_symbols(), y.count_symbols());
 
         let data = SamplerData::new(&striped);
 
@@ -744,7 +744,7 @@ mod test {
 
         let x = &striped[3];
         let y = &encoded[3];
-        assert_eq!(x.count_symbols(), SymbolCount::<Protein>::count_symbols(&y));
+        assert_eq!(x.count_symbols(), y.count_symbols());
 
         let data = SamplerData::new(&striped);
 

@@ -400,8 +400,8 @@ impl<A: Alphabet> Background<A> {
     /// # use lightmotif::abc::Background;
     /// # use lightmotif::abc::Dna;
     /// # use lightmotif::abc::Nucleotide::*;
-    /// let sequence = &[ T, T, A, T, G, T, T, A, C, C ];
-    /// let background = Background::<Dna>::from_sequence(sequence, false).unwrap();
+    /// let sequence = [ T, T, A, T, G, T, T, A, C, C ];
+    /// let background = Background::<Dna>::from_sequence(&sequence[..], false).unwrap();
     /// assert_eq!(background[A], 0.2);
     /// assert_eq!(background[C], 0.2);
     /// assert_eq!(background[T], 0.5);

@@ -43,7 +43,7 @@ pub trait SymbolCount<A: Alphabet> {
     }
 }
 
-impl<'a, A: Alphabet, T: AsRef<[A::Symbol]>> SymbolCount<A> for T {
+impl<'a, A: Alphabet> SymbolCount<A> for &[A::Symbol] {
     fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize {
         self.as_ref().iter().filter(|&&c| c == symbol).count()
     }
@@ -216,6 +216,20 @@ where
     }
 }
 
+impl<'a, A: Alphabet> SymbolCount<A> for EncodedSequence<A> {
+    fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize {
+        self.data.iter().filter(|&&c| c == symbol).count()
+    }
+
+    fn count_symbols(&self) -> GenericArray<usize, A::K> {
+        let mut counts = GenericArray::default();
+        for c in self.data.iter() {
+            counts[c.as_index()] += 1;
+        }
+        counts
+    }
+}
+
 // --- StripedSequence ---------------------------------------------------------
 
 /// An encoded sequence stored in a striped matrix with a fixed column count.
@@ -378,7 +392,41 @@ impl<A: Alphabet, C: PositiveLength> Index<usize> for StripedSequence<A, C> {
 impl<A: Alphabet, C: PositiveLength> SymbolCount<A> for StripedSequence<A, C> {
     #[inline]
     fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize {
-        (0..self.len()).filter(|&i| self[i] == symbol).count()
+        let mut count = 0;
+
+        let rows = self.data.rows() - self.wrap;
+        let l = self.len();
+
+        for i in 0..rows {
+            let row = &self.data[i];
+            for j in 0..self.data.columns() {
+                let index = j * rows + i;
+                if index < l && row[j] == symbol {
+                    count += 1
+                }
+            }
+        }
+
+        count
+    }
+
+    fn count_symbols(&self) -> GenericArray<usize, <A as Alphabet>::K> {
+        let mut counts = GenericArray::default();
+
+        let rows = self.data.rows() - self.wrap;
+        let l = self.len();
+
+        for i in 0..rows {
+            let row = &self.data[i];
+            for j in 0..self.data.columns() {
+                let index = j * rows + i;
+                if index < l {
+                    counts[row[j].as_index()] += 1;
+                }
+            }
+        }
+
+        counts
     }
 }
 
@@ -472,11 +520,22 @@ mod test {
     #[test]
     fn count_symbols() {
         let seq = EncodedSequence::<Dna>::from_str("ATGCAAGGAGATTCTAGAT").unwrap();
-        let striped: StripedSequence<Dna, _> = seq.to_striped();
+        let mut striped: StripedSequence<Dna, _> = seq.to_striped();
 
         let seq_counts = SymbolCount::<Dna>::count_symbols(&seq);
         let striped_counts = SymbolCount::<Dna>::count_symbols(&striped);
+        for s in Dna::symbols() {
+            let seq_count = SymbolCount::<Dna>::count_symbol(&seq, *s);
+            let striped_count = SymbolCount::<Dna>::count_symbol(&seq, *s);
+            assert_eq!(seq_count, striped_count);
+            assert_eq!(seq_count, seq_counts[s.as_index()]);
+            assert_eq!(striped_count, striped_counts[s.as_index()]);
+        }
 
+        striped.configure_wrap(32);
+
+        let seq_counts = SymbolCount::<Dna>::count_symbols(&seq);
+        let striped_counts = SymbolCount::<Dna>::count_symbols(&striped);
         for s in Dna::symbols() {
             let seq_count = SymbolCount::<Dna>::count_symbol(&seq, *s);
             let striped_count = SymbolCount::<Dna>::count_symbol(&seq, *s);
