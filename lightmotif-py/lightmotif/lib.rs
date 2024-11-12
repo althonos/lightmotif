@@ -38,31 +38,31 @@ mod pyfile;
 
 // --- Macros ------------------------------------------------------------------
 
+macro_rules! apply_self {
+    ($self:expr, |$x:ident| $e:expr) => {
+        match &$self {
+            Self::Dna($x) => $e,
+            Self::Protein($x) => $e,
+        }
+    };
+}
+
 macro_rules! impl_matrix_methods {
     ($datatype:ident) => {
         impl $datatype {
             #[allow(unused)]
             fn rows(&self) -> usize {
-                match self {
-                    Self::Dna(dna) => dna.matrix().rows(),
-                    Self::Protein(protein) => protein.matrix().rows(),
-                }
+                apply_self!(self, |x| x.matrix().rows())
             }
 
             #[allow(unused)]
             fn columns(&self) -> usize {
-                match self {
-                    Self::Dna(dna) => dna.matrix().columns(),
-                    Self::Protein(protein) => protein.matrix().columns(),
-                }
+                apply_self!(self, |x| x.matrix().columns())
             }
 
             #[allow(unused)]
             fn stride(&self) -> usize {
-                match self {
-                    Self::Dna(dna) => dna.matrix().stride(),
-                    Self::Protein(protein) => protein.matrix().stride(),
-                }
+                apply_self!(self, |x| x.matrix().stride())
             }
         }
     };
@@ -108,20 +108,29 @@ enum EncodedSequenceData {
 }
 
 impl EncodedSequenceData {
-    pub fn len(&self) -> usize {
-        match self {
-            Self::Dna(dna) => dna.len(),
-            Self::Protein(dna) => dna.len(),
-        }
+    unsafe fn as_ptr(&self) -> *const u8 {
+        apply_self!(self, |x| {
+            let data: &[_] = x.as_ref();
+            data.as_ptr() as *const u8
+        })
+    }
+
+    fn len(&self) -> usize {
+        apply_self!(self, |x| x.len())
+    }
+
+    fn get(&self, index: usize) -> u8 {
+        apply_self!(self, |x| x[index] as u8)
+    }
+
+    fn stripe(&self) -> StripedSequenceData {
+        apply_self!(self, |x| x.to_striped().into())
     }
 }
 
 impl Display for EncodedSequenceData {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Dna(dna) => dna.fmt(f),
-            Self::Protein(prot) => prot.fmt(f),
-        }
+        apply_self!(self, |x| x.fmt(f))
     }
 }
 
@@ -195,29 +204,16 @@ impl EncodedSequence {
         if index < 0 || index >= length as Py_ssize_t {
             Err(PyIndexError::new_err("sequence index out of range"))
         } else {
-            match &self.data {
-                EncodedSequenceData::Dna(dna) => Ok(dna[index as usize] as u8),
-                EncodedSequenceData::Protein(prot) => Ok(prot[index as usize] as u8),
-            }
+            Ok(self.data.get(index as usize))
         }
     }
 
     /// Get the underlying memory of the encoded sequence.
     unsafe fn __getbuffer__(
-        slf: PyRefMut<'_, Self>,
+        slf: PyRef<'_, Self>,
         view: *mut pyo3::ffi::Py_buffer,
         flags: std::os::raw::c_int,
     ) -> PyResult<()> {
-        macro_rules! setup {
-            ($view:ident, $data:ident) => {{
-                let array: &[_] = $data.as_ref();
-                (*$view).buf = array.as_ptr() as *mut std::os::raw::c_void;
-                (*$view).len = $data.len() as isize;
-                (*$view).readonly = 1;
-                (*$view).itemsize = std::mem::size_of::<u8>() as isize;
-            }};
-        }
-
         if view.is_null() {
             return Err(PyBufferError::new_err("View is null"));
         }
@@ -225,11 +221,10 @@ impl EncodedSequence {
             return Err(PyBufferError::new_err("Object is not writable"));
         }
 
-        match &slf.data {
-            EncodedSequenceData::Dna(dna) => setup!(view, dna),
-            EncodedSequenceData::Protein(protein) => setup!(view, protein),
-        }
-
+        (*view).buf = slf.data.as_ptr() as *mut std::os::raw::c_void;
+        (*view).len = slf.data.len() as isize;
+        (*view).readonly = 1;
+        (*view).itemsize = std::mem::size_of::<u8>() as isize;
         (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
         let msg = std::ffi::CStr::from_bytes_with_nul(b"B\0").unwrap();
         (*view).format = msg.as_ptr() as *mut _;
@@ -260,13 +255,8 @@ impl EncodedSequence {
     ///     `~lightmotif.StripedSequence`: The input sequence, stored in a
     ///     column-major matrix.
     ///
-    pub fn stripe(&self) -> PyResult<StripedSequence> {
-        match &self.data {
-            EncodedSequenceData::Dna(dna) => Ok(StripedSequenceData::from(dna.to_striped()).into()),
-            EncodedSequenceData::Protein(protein) => {
-                Ok(StripedSequenceData::from(protein.to_striped()).into())
-            }
-        }
+    pub fn stripe(&self) -> StripedSequence {
+        self.data.stripe().into()
     }
 }
 
@@ -286,6 +276,12 @@ enum StripedSequenceData {
 }
 
 impl_matrix_methods!(StripedSequenceData);
+
+impl StripedSequenceData {
+    unsafe fn as_ptr(&self) -> *const u8 {
+        apply_self!(self, |x| x.matrix()[0].as_ptr() as *const u8)
+    }
+}
 
 impl From<lightmotif::seq::StripedSequence<Dna, C>> for StripedSequenceData {
     fn from(dna: lightmotif::seq::StripedSequence<Dna, C>) -> Self {
@@ -351,11 +347,7 @@ impl StripedSequence {
         }
 
         (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
-        let data = match &slf.data {
-            StripedSequenceData::Dna(dna) => dna.matrix()[0].as_ptr() as *const i8,
-            StripedSequenceData::Protein(prot) => prot.matrix()[0].as_ptr() as *const i8,
-        };
-
+        let data = slf.data.as_ptr();
         (*view).buf = data as *mut std::os::raw::c_void;
         (*view).len = (slf.data.rows() * slf.data.columns()) as isize;
         (*view).readonly = 1;
@@ -390,6 +382,12 @@ pub enum CountMatrixData {
 }
 
 impl_matrix_methods!(CountMatrixData);
+
+impl CountMatrixData {
+    fn get(&self, index: usize) -> &[u32] {
+        apply_self!(self, |x| &x.matrix()[index])
+    }
+}
 
 impl From<lightmotif::CountMatrix<Dna>> for CountMatrixData {
     fn from(data: lightmotif::CountMatrix<Dna>) -> Self {
@@ -479,6 +477,8 @@ impl CountMatrix {
     }
 
     pub fn __getitem__<'py>(slf: PyRef<'py, Self>, index: isize) -> PyResult<PyObject> {
+        let py = slf.py();
+
         let mut index_ = index;
         if index_ < 0 {
             index_ += slf.data.rows() as isize;
@@ -487,13 +487,8 @@ impl CountMatrix {
             return Err(PyIndexError::new_err(index));
         }
 
-        let py = slf.py();
-        let row = match &slf.data {
-            CountMatrixData::Dna(dna) => dna.matrix()[index_ as usize].to_object(py),
-            CountMatrixData::Protein(prot) => prot.matrix()[index_ as usize].to_object(py),
-        };
-
-        Ok(row)
+        let row = slf.data.get(index as usize);
+        Ok(row.to_object(py))
     }
 
     /// `bool`: `True` if the count matrix stores protein counts.
@@ -565,6 +560,12 @@ pub enum WeightMatrixData {
 
 impl_matrix_methods!(WeightMatrixData);
 
+impl WeightMatrixData {
+    fn get(&self, index: usize) -> &[f32] {
+        apply_self!(self, |x| &x.matrix()[index])
+    }
+}
+
 impl From<lightmotif::WeightMatrix<Dna>> for WeightMatrixData {
     fn from(data: lightmotif::WeightMatrix<Dna>) -> Self {
         Self::Dna(data)
@@ -608,6 +609,8 @@ impl WeightMatrix {
     }
 
     pub fn __getitem__<'py>(slf: PyRef<'py, Self>, index: isize) -> PyResult<PyObject> {
+        let py = slf.py();
+
         let mut index_ = index;
         if index_ < 0 {
             index_ += slf.data.rows() as isize;
@@ -616,13 +619,8 @@ impl WeightMatrix {
             return Err(PyIndexError::new_err(index));
         }
 
-        let py = slf.py();
-        let row = match &slf.data {
-            WeightMatrixData::Dna(dna) => dna.matrix()[index_ as usize].to_object(py),
-            WeightMatrixData::Protein(prot) => prot.matrix()[index_ as usize].to_object(py),
-        };
-
-        Ok(row)
+        let row = slf.data.get(index as usize);
+        Ok(row.to_object(py))
     }
 
     /// `bool`: `True` if the weight matrix stores protein weights.
@@ -688,6 +686,16 @@ enum ScoringMatrixData {
 }
 
 impl_matrix_methods!(ScoringMatrixData);
+
+impl ScoringMatrixData {
+    fn get(&self, index: usize) -> &[f32] {
+        apply_self!(self, |x| &x[index])
+    }
+
+    unsafe fn as_ptr(&self) -> *const f32 {
+        apply_self!(self, |x| x.matrix()[0].as_ptr())
+    }
+}
 
 impl From<lightmotif::ScoringMatrix<Dna>> for ScoringMatrixData {
     fn from(value: lightmotif::ScoringMatrix<Dna>) -> Self {
@@ -811,6 +819,7 @@ impl ScoringMatrix {
     }
 
     pub fn __getitem__<'py>(slf: PyRef<'py, Self>, index: isize) -> PyResult<PyObject> {
+        let py = slf.py();
         let mut index_ = index;
         if index_ < 0 {
             index_ += slf.data.rows() as isize;
@@ -818,14 +827,7 @@ impl ScoringMatrix {
         if index_ < 0 || (index_ as usize) >= slf.data.rows() {
             return Err(PyIndexError::new_err(index));
         }
-
-        let py = slf.py();
-        let row = match &slf.data {
-            ScoringMatrixData::Dna(dna) => dna.matrix()[index_ as usize].to_object(py),
-            ScoringMatrixData::Protein(prot) => prot.matrix()[index_ as usize].to_object(py),
-        };
-
-        Ok(row)
+        Ok(slf.data.get(index as usize).to_object(py))
     }
 
     unsafe fn __getbuffer__(
@@ -842,11 +844,7 @@ impl ScoringMatrix {
 
         (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
 
-        let data = match &slf.data {
-            ScoringMatrixData::Dna(dna) => dna.matrix()[0].as_ptr() as *const f32,
-            ScoringMatrixData::Protein(prot) => prot.matrix()[0].as_ptr() as *const f32,
-        };
-
+        let data = slf.data.as_ptr();
         (*view).buf = data as *mut std::os::raw::c_void;
         (*view).len = -1;
         (*view).readonly = 1;
@@ -1015,6 +1013,12 @@ enum ScoreDistributionData {
     Protein(lightmotif::pwm::dist::ScoreDistribution<Protein>),
 }
 
+impl ScoreDistributionData {
+    fn sf(&self) -> &[f64] {
+        apply_self!(self, |x| x.sf())
+    }
+}
+
 impl From<lightmotif::pwm::dist::ScoreDistribution<Dna>> for ScoreDistributionData {
     fn from(value: lightmotif::pwm::dist::ScoreDistribution<Dna>) -> Self {
         Self::Dna(value)
@@ -1048,16 +1052,6 @@ impl ScoreDistribution {
         view: *mut pyo3::ffi::Py_buffer,
         flags: std::os::raw::c_int,
     ) -> PyResult<()> {
-        macro_rules! setup {
-            ($view:ident, $data:ident) => {{
-                let array: &[_] = $data.sf();
-                (*$view).buf = array.as_ptr() as *mut std::os::raw::c_void;
-                (*$view).len = ($data.sf().len() * std::mem::size_of::<f64>()) as isize;
-                (*$view).readonly = 1;
-                (*$view).itemsize = std::mem::size_of::<f64>() as isize;
-            }};
-        }
-
         if view.is_null() {
             return Err(PyBufferError::new_err("View is null"));
         }
@@ -1065,10 +1059,11 @@ impl ScoreDistribution {
             return Err(PyBufferError::new_err("Object is not writable"));
         }
 
-        match &slf.data {
-            ScoreDistributionData::Dna(dna) => setup!(view, dna),
-            ScoreDistributionData::Protein(protein) => setup!(view, protein),
-        }
+        let array: &[_] = slf.data.sf();
+        (*view).buf = array.as_ptr() as *mut std::os::raw::c_void;
+        (*view).len = (array.len() * std::mem::size_of::<f64>()) as isize;
+        (*view).readonly = 1;
+        (*view).itemsize = std::mem::size_of::<f64>() as isize;
 
         (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
         let msg = std::ffi::CStr::from_bytes_with_nul(b"d\0").unwrap();
@@ -1121,15 +1116,13 @@ impl StripedScores {
             return Err(PyBufferError::new_err("Object is not writable"));
         }
 
-        (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
-
         let data = slf.scores.matrix()[0].as_ptr();
-
         (*view).buf = data as *mut std::os::raw::c_void;
         (*view).len = -1;
         (*view).readonly = 1;
         (*view).itemsize = std::mem::size_of::<f32>() as isize;
 
+        (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
         let msg = std::ffi::CStr::from_bytes_with_nul(b"f\0").unwrap();
         (*view).format = msg.as_ptr() as *mut _;
 
@@ -1469,7 +1462,7 @@ pub fn stripe(sequence: Bound<PyString>, protein: bool) -> PyResult<StripedSeque
     let py = sequence.py();
     let encoded = EncodedSequence::__init__(sequence, protein).and_then(|e| Py::new(py, e))?;
     let striped = encoded.borrow(py).stripe();
-    striped
+    Ok(striped)
 }
 
 /// Scan a sequence using a fast scanner implementation to identify hits.
