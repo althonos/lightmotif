@@ -13,6 +13,11 @@ pub trait StrictlyPositive: Unsigned + NonZero {}
 
 impl<N: Unsigned + NonZero> StrictlyPositive for N {}
 
+/// A marker trait for type numbers that are positive array lengths.
+pub trait PositiveLength: StrictlyPositive + ArrayLength {}
+
+impl<N: StrictlyPositive + ArrayLength> PositiveLength for N {}
+
 /// A marker trait for type numbers that are multiple of another number.
 pub trait MultipleOf<N: StrictlyPositive>: StrictlyPositive + Div<N> + Rem<N> {
     type Quotient: Unsigned;

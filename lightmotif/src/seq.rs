@@ -25,6 +25,7 @@ use super::pli::Pipeline;
 use super::pli::Stripe;
 use super::pwm::ScoringMatrix;
 use crate::num::ArrayLength;
+use crate::num::PositiveLength;
 
 // --- SymbolCount -------------------------------------------------------------
 
@@ -213,14 +214,14 @@ where
 
 /// An encoded sequence stored in a striped matrix with a fixed column count.
 #[derive(Clone)]
-pub struct StripedSequence<A: Alphabet, C: StrictlyPositive + ArrayLength> {
+pub struct StripedSequence<A: Alphabet, C: PositiveLength> {
     alphabet: std::marker::PhantomData<A>,
     length: usize,
     wrap: usize,
     data: DenseMatrix<A::Symbol, C>,
 }
 
-impl<A: Alphabet, C: StrictlyPositive + ArrayLength> StripedSequence<A, C> {
+impl<A: Alphabet, C: PositiveLength> StripedSequence<A, C> {
     /// Create a new striped sequence from the given dense matrix.
     ///
     /// # Errors
@@ -307,23 +308,19 @@ impl<A: Alphabet, C: StrictlyPositive + ArrayLength> StripedSequence<A, C> {
     }
 }
 
-impl<A: Alphabet, C: StrictlyPositive + ArrayLength> AsRef<StripedSequence<A, C>>
-    for StripedSequence<A, C>
-{
+impl<A: Alphabet, C: PositiveLength> AsRef<StripedSequence<A, C>> for StripedSequence<A, C> {
     fn as_ref(&self) -> &Self {
         self
     }
 }
 
-impl<A: Alphabet, C: StrictlyPositive + ArrayLength> AsRef<DenseMatrix<A::Symbol, C>>
-    for StripedSequence<A, C>
-{
+impl<A: Alphabet, C: PositiveLength> AsRef<DenseMatrix<A::Symbol, C>> for StripedSequence<A, C> {
     fn as_ref(&self) -> &DenseMatrix<A::Symbol, C> {
         &self.data
     }
 }
 
-impl<A: Alphabet, C: StrictlyPositive + ArrayLength> std::fmt::Debug for StripedSequence<A, C> {
+impl<A: Alphabet, C: PositiveLength> std::fmt::Debug for StripedSequence<A, C> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
         f.debug_struct("StripedSequence")
             .field("alphabet", &self.alphabet)
@@ -334,22 +331,19 @@ impl<A: Alphabet, C: StrictlyPositive + ArrayLength> std::fmt::Debug for Striped
     }
 }
 
-impl<A: Alphabet, C: StrictlyPositive + ArrayLength> Default for StripedSequence<A, C> {
+impl<A: Alphabet, C: PositiveLength> Default for StripedSequence<A, C> {
     fn default() -> Self {
         Self::new(DenseMatrix::new(0), 0).unwrap()
     }
 }
 
-impl<A: Alphabet, C: StrictlyPositive + ArrayLength> From<StripedSequence<A, C>>
-    for DenseMatrix<A::Symbol, C>
-{
+impl<A: Alphabet, C: PositiveLength> From<StripedSequence<A, C>> for DenseMatrix<A::Symbol, C> {
     fn from(striped: StripedSequence<A, C>) -> Self {
         striped.into_matrix()
     }
 }
 
-impl<A: Alphabet, C: StrictlyPositive + ArrayLength> From<EncodedSequence<A>>
-    for StripedSequence<A, C>
+impl<A: Alphabet, C: PositiveLength> From<EncodedSequence<A>> for StripedSequence<A, C>
 where
     Pipeline<A, Dispatch>: Stripe<A, C>,
 {
@@ -358,7 +352,7 @@ where
     }
 }
 
-impl<A: Alphabet, C: StrictlyPositive + ArrayLength> Index<usize> for StripedSequence<A, C> {
+impl<A: Alphabet, C: PositiveLength> Index<usize> for StripedSequence<A, C> {
     type Output = <A as Alphabet>::Symbol;
     #[inline]
     fn index(&self, index: usize) -> &Self::Output {
@@ -369,7 +363,7 @@ impl<A: Alphabet, C: StrictlyPositive + ArrayLength> Index<usize> for StripedSeq
     }
 }
 
-impl<A: Alphabet, C: StrictlyPositive + ArrayLength> SymbolCount<A> for StripedSequence<A, C> {
+impl<A: Alphabet, C: PositiveLength> SymbolCount<A> for StripedSequence<A, C> {
     fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize {
         (0..self.len()).filter(|&i| self[i] == symbol).count()
     }
