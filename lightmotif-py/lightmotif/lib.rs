@@ -67,9 +67,31 @@ macro_rules! impl_matrix_methods {
     };
 }
 
-// --- Compile-time constants --------------------------------------------------
+macro_rules! alphabet_data_enum {
+    (
+        #[derive($($t:ident),*)]
+        enum $name:ident($($p:ident)::*)
+    ) => {
 
-// type C = <lightmotif::pli::dispatch::Dispatch as Backend>::LANES;
+        #[derive($($t),*)]
+        enum $name {
+            Dna($($p)::*<Dna>),
+            Protein($($p)::*<Protein>)
+        }
+
+        impl From<$($p)::*<Dna>> for $name {
+            fn from(value: $($p)::*<Dna>) -> Self {
+                $name::Dna(value)
+            }
+        }
+
+        impl From<$($p)::*<Protein>> for $name {
+            fn from(value: $($p)::*<Protein>) -> Self {
+                $name::Protein(value)
+            }
+        }
+    }
+}
 
 // --- Helpers -----------------------------------------------------------------
 
@@ -99,12 +121,10 @@ fn dict_to_alphabet_array<'py, A: lightmotif::Alphabet>(
 
 // --- EncodedSequence ---------------------------------------------------------
 
-/// Actual storage of an encoded sequence data.
-#[derive(Clone, Debug)]
-enum EncodedSequenceData {
-    Dna(lightmotif::seq::EncodedSequence<Dna>),
-    Protein(lightmotif::seq::EncodedSequence<Protein>),
-}
+alphabet_data_enum!(
+    #[derive(Clone, Debug)]
+    enum EncodedSequenceData(lightmotif::seq::EncodedSequence)
+);
 
 impl EncodedSequenceData {
     unsafe fn as_ptr(&self) -> *const u8 {
@@ -130,18 +150,6 @@ impl EncodedSequenceData {
 impl Display for EncodedSequenceData {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         apply_self!(self, |x| x.fmt(f))
-    }
-}
-
-impl From<lightmotif::seq::EncodedSequence<Dna>> for EncodedSequenceData {
-    fn from(dna: lightmotif::seq::EncodedSequence<Dna>) -> Self {
-        Self::Dna(dna)
-    }
-}
-
-impl From<lightmotif::seq::EncodedSequence<Protein>> for EncodedSequenceData {
-    fn from(prot: lightmotif::seq::EncodedSequence<Protein>) -> Self {
-        Self::Protein(prot)
     }
 }
 
@@ -267,30 +275,16 @@ impl From<EncodedSequenceData> for EncodedSequence {
 
 // --- StripedSequence ---------------------------------------------------------
 
-/// Actual storage of a striped sequence data.
-#[derive(Clone, Debug)]
-enum StripedSequenceData {
-    Dna(lightmotif::seq::StripedSequence<Dna>),
-    Protein(lightmotif::seq::StripedSequence<Protein>),
-}
+alphabet_data_enum!(
+    #[derive(Clone, Debug)]
+    enum StripedSequenceData(lightmotif::seq::StripedSequence)
+);
 
 impl_matrix_methods!(StripedSequenceData);
 
 impl StripedSequenceData {
     unsafe fn as_ptr(&self) -> *const u8 {
         apply_self!(self, |x| x.matrix()[0].as_ptr() as *const u8)
-    }
-}
-
-impl From<lightmotif::seq::StripedSequence<Dna>> for StripedSequenceData {
-    fn from(dna: lightmotif::seq::StripedSequence<Dna>) -> Self {
-        Self::Dna(dna)
-    }
-}
-
-impl From<lightmotif::seq::StripedSequence<Protein>> for StripedSequenceData {
-    fn from(prot: lightmotif::seq::StripedSequence<Protein>) -> Self {
-        Self::Protein(prot)
     }
 }
 
@@ -373,30 +367,16 @@ impl StripedSequence {
 
 // --- CountMatrix -------------------------------------------------------------
 
-/// Actual storage of a count matrix data.
-#[derive(Clone, Debug, PartialEq)]
-pub enum CountMatrixData {
-    Dna(lightmotif::CountMatrix<Dna>),
-    Protein(lightmotif::CountMatrix<Protein>),
-}
+alphabet_data_enum!(
+    #[derive(Clone, Debug, PartialEq)]
+    enum CountMatrixData(lightmotif::pwm::CountMatrix)
+);
 
 impl_matrix_methods!(CountMatrixData);
 
 impl CountMatrixData {
     fn get(&self, index: usize) -> &[u32] {
         apply_self!(self, |x| &x.matrix()[index])
-    }
-}
-
-impl From<lightmotif::CountMatrix<Dna>> for CountMatrixData {
-    fn from(data: lightmotif::CountMatrix<Dna>) -> Self {
-        Self::Dna(data)
-    }
-}
-
-impl From<lightmotif::CountMatrix<Protein>> for CountMatrixData {
-    fn from(data: lightmotif::CountMatrix<Protein>) -> Self {
-        Self::Protein(data)
     }
 }
 
@@ -550,30 +530,16 @@ impl From<CountMatrixData> for CountMatrix {
 
 // --- WeightMatrix ------------------------------------------------------------
 
-/// Actual storage of a weight matrix data.
-#[derive(Clone, Debug, PartialEq)]
-pub enum WeightMatrixData {
-    Dna(lightmotif::WeightMatrix<Dna>),
-    Protein(lightmotif::WeightMatrix<Protein>),
-}
+alphabet_data_enum!(
+    #[derive(Clone, Debug, PartialEq)]
+    enum WeightMatrixData(lightmotif::pwm::WeightMatrix)
+);
 
 impl_matrix_methods!(WeightMatrixData);
 
 impl WeightMatrixData {
     fn get(&self, index: usize) -> &[f32] {
         apply_self!(self, |x| &x.matrix()[index])
-    }
-}
-
-impl From<lightmotif::WeightMatrix<Dna>> for WeightMatrixData {
-    fn from(data: lightmotif::WeightMatrix<Dna>) -> Self {
-        Self::Dna(data)
-    }
-}
-
-impl From<lightmotif::WeightMatrix<Protein>> for WeightMatrixData {
-    fn from(data: lightmotif::WeightMatrix<Protein>) -> Self {
-        Self::Protein(data)
     }
 }
 
@@ -677,12 +643,10 @@ impl From<WeightMatrixData> for WeightMatrix {
 
 // --- ScoringMatrix -----------------------------------------------------------
 
-/// Actual storage of a scoring matrix data.
-#[derive(Clone, Debug, PartialEq)]
-enum ScoringMatrixData {
-    Dna(lightmotif::ScoringMatrix<Dna>),
-    Protein(lightmotif::ScoringMatrix<Protein>),
-}
+alphabet_data_enum!(
+    #[derive(Clone, Debug, PartialEq)]
+    enum ScoringMatrixData(lightmotif::pwm::ScoringMatrix)
+);
 
 impl_matrix_methods!(ScoringMatrixData);
 
@@ -693,18 +657,6 @@ impl ScoringMatrixData {
 
     unsafe fn as_ptr(&self) -> *const f32 {
         apply_self!(self, |x| x.matrix()[0].as_ptr())
-    }
-}
-
-impl From<lightmotif::ScoringMatrix<Dna>> for ScoringMatrixData {
-    fn from(value: lightmotif::ScoringMatrix<Dna>) -> Self {
-        Self::Dna(value)
-    }
-}
-
-impl From<lightmotif::ScoringMatrix<Protein>> for ScoringMatrixData {
-    fn from(value: lightmotif::ScoringMatrix<Protein>) -> Self {
-        Self::Protein(value)
     }
 }
 
@@ -1005,28 +957,14 @@ impl From<ScoringMatrixData> for ScoringMatrix {
 
 // --- ScoreDistribution -------------------------------------------------------
 
-/// Actual storage of a score distribution data.
-#[derive(Debug, Clone)]
-enum ScoreDistributionData {
-    Dna(lightmotif::pwm::dist::ScoreDistribution<Dna>),
-    Protein(lightmotif::pwm::dist::ScoreDistribution<Protein>),
-}
+alphabet_data_enum!(
+    #[derive(Clone, Debug)]
+    enum ScoreDistributionData(lightmotif::pwm::dist::ScoreDistribution)
+);
 
 impl ScoreDistributionData {
     fn sf(&self) -> &[f64] {
         apply_self!(self, |x| x.sf())
-    }
-}
-
-impl From<lightmotif::pwm::dist::ScoreDistribution<Dna>> for ScoreDistributionData {
-    fn from(value: lightmotif::pwm::dist::ScoreDistribution<Dna>) -> Self {
-        Self::Dna(value)
-    }
-}
-
-impl From<lightmotif::pwm::dist::ScoreDistribution<Protein>> for ScoreDistributionData {
-    fn from(value: lightmotif::pwm::dist::ScoreDistribution<Protein>) -> Self {
-        Self::Protein(value)
     }
 }
 

@@ -3,8 +3,6 @@
 extern crate lightmotif;
 extern crate test;
 
-use lightmotif::pli::Pipeline;
-
 mod dna {
 
     use super::*;
