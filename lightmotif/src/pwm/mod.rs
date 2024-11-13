@@ -62,12 +62,14 @@ macro_rules! matrix_traits {
                 self
             }
         }
+
         impl<A: Alphabet> AsRef<DenseMatrix<$t, A::K>> for $mx<A> {
             #[inline]
             fn as_ref(&self) -> &DenseMatrix<$t, A::K> {
                 &self.data
             }
         }
+
         impl<A: Alphabet> Index<usize> for $mx<A> {
             type Output = <DenseMatrix<$t, A::K> as Index<usize>>::Output;
             #[inline]
@@ -75,7 +77,70 @@ macro_rules! matrix_traits {
                 self.data.index(index)
             }
         }
+
+        impl<A: Alphabet> Correlation for $mx<A> {
+            #[inline]
+            fn num_rows(&self) -> usize {
+                self.matrix().rows()
+            }
+
+            #[inline]
+            fn dot(&self, other: &Self, i: usize, j: usize) -> f32 {
+                self.data[i]
+                    .iter()
+                    .zip(&other.data[j])
+                    .map(|(&x, &y)| (x as f32) * (y as f32))
+                    .sum()
+            }
+        }
     };
+}
+
+// --- Correlation -------------------------------------------------------------
+
+/// A trait for computing matrix correlations.
+pub trait Correlation {
+    /// The number of rows in the matrix.
+    fn num_rows(&self) -> usize;
+
+    /// Compute the dot product between row `i` of `self` and row `j` of `other`.
+    fn dot(&self, other: &Self, i: usize, j: usize) -> f32;
+
+    /// Compute the Euclidean norm of row `i`.
+    #[inline]
+    fn norm(&self, i: usize) -> f32 {
+        self.dot(self, i, i).sqrt()
+    }
+
+    /// Compute the auto-correlation with the given delay.
+    fn auto_correlation(&self, delay: usize) -> f32 {
+        if delay >= self.num_rows() {
+            return 0.0;
+        }
+
+        let norms = (0..self.num_rows())
+            .map(|i| self.norm(i))
+            .collect::<Vec<_>>();
+
+        let mut c = 0.0;
+        for (i, j) in (delay..self.num_rows()).enumerate() {
+            let dot = self.dot(self, i, j);
+            c += dot / (norms[i] * norms[j]);
+        }
+
+        c / (self.num_rows() - delay) as f32
+    }
+
+    /// Compute the cross-correlation between two matrices.
+    fn cross_correlation(&self, other: &Self) -> f32 {
+        let rows = self.num_rows().min(other.num_rows());
+        let mut c = 0.0;
+        for i in 0..rows {
+            let dot = self.dot(other, i, i);
+            c += dot / (self.norm(i) * other.norm(i));
+        }
+        c / (rows as f32)
+    }
 }
 
 // --- CountMatrix -------------------------------------------------------------
@@ -732,3 +797,26 @@ impl<A: Alphabet> From<&ScoringMatrix<A>> for DiscreteMatrix<A> {
 }
 
 matrix_traits!(DiscreteMatrix, u8);
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::abc::Dna;
+
+    #[test]
+    fn auto_correlation() {
+        let counts = DenseMatrix::<u32, <Dna as Alphabet>::K>::from_rows([
+            [1, 3, 3, 1, 0],
+            [8, 0, 0, 0, 0],
+            [1, 7, 0, 0, 0],
+            [3, 2, 2, 1, 0],
+            [1, 3, 3, 1, 0],
+            [8, 0, 0, 0, 0],
+            [1, 7, 0, 0, 0],
+            [3, 2, 2, 1, 0],
+        ]);
+        let counts = CountMatrix::<Dna>::new(counts).unwrap();
+        assert_eq!(counts.auto_correlation(0), 1.0);
+        assert_eq!(counts.auto_correlation(4), 1.0);
+    }
+}
