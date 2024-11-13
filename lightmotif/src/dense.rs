@@ -146,27 +146,25 @@ impl<T: MatrixElement, C: ArrayLength> DenseMatrix<T, C> {
 
     /// Return the matrix content as a flat slice, including padding.
     #[inline]
-    pub fn ravel(&self) -> &[T] {
-        unsafe {
-            std::slice::from_raw_parts(self.data.as_ptr() as *mut T, self.rows() * self.stride())
-        }
+    pub unsafe fn ravel(&self) -> &[T] {
+        std::slice::from_raw_parts(self.data.as_ptr() as *mut T, self.rows() * self.stride())
     }
 
     /// Return the matrix content as a flat mutable slice, including padding.
     #[inline]
-    pub fn ravel_mut(&mut self) -> &mut [T] {
-        unsafe {
-            std::slice::from_raw_parts_mut(
-                self.data.as_mut_ptr() as *mut T,
-                self.rows() * self.stride(),
-            )
-        }
+    pub unsafe fn ravel_mut(&mut self) -> &mut [T] {
+        std::slice::from_raw_parts_mut(
+            self.data.as_mut_ptr() as *mut T,
+            self.rows() * self.stride(),
+        )
     }
 
     /// Fill the entire matrix with a constant value.
     #[inline]
     pub fn fill(&mut self, value: T) {
-        self.ravel_mut().fill(value);
+        unsafe {
+            self.ravel_mut().fill(value);
+        }
     }
 }
 
