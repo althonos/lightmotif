@@ -167,7 +167,9 @@ pub trait Stripe<A: Alphabet, C: PositiveLength> {
         let s = seq.as_ref();
         let length = s.len();
         let rows = (length / C::USIZE) + ((length % C::USIZE > 0) as usize);
-        let mut striped = StripedSequence::new(DenseMatrix::new(rows), length).unwrap();
+        let capacity = rows + crate::seq::DEFAULT_EXTRA_ROWS;
+        let mut striped =
+            StripedSequence::new(DenseMatrix::with_capacity(rows, capacity), length).unwrap();
         self.stripe_into(s, &mut striped);
         striped
     }
@@ -178,9 +180,11 @@ pub trait Stripe<A: Alphabet, C: PositiveLength> {
         let s = seq.as_ref();
         let length = s.len();
         let rows = (length + (C::USIZE - 1)) / C::USIZE;
+        let capacity = rows + crate::seq::DEFAULT_EXTRA_ROWS;
 
         // get the data out of the given buffer
         let mut data = std::mem::take(striped).into_matrix();
+        data.reserve(capacity);
         data.resize(rows);
 
         // stripe the sequence
