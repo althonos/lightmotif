@@ -232,6 +232,13 @@ impl<'a, A: Alphabet> SymbolCount<A> for EncodedSequence<A> {
 
 // --- StripedSequence ---------------------------------------------------------
 
+/// Number of extra rows to add when creating a striped sequence.
+///
+/// The higher this number, the less frequent the sequence matrix
+/// matrix needs to be reallocated when `StripedSequence.configure`
+/// is called.
+pub(crate) const DEFAULT_EXTRA_ROWS: usize = 32;
+
 /// An encoded sequence stored in a striped matrix with a fixed column count.
 #[derive(Clone)]
 pub struct StripedSequence<A: Alphabet, C: PositiveLength = DefaultColumns> {

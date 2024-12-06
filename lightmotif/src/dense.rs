@@ -63,6 +63,14 @@ impl<T: MatrixElement, C: ArrayLength> DenseMatrix<T, C> {
         matrix
     }
 
+    /// Create a new matrix with the given number of rows and the given capacity.
+    pub fn with_capacity(rows: usize, capacity: usize) -> Self {
+        let data = Vec::with_capacity(capacity);
+        let mut matrix = Self { data, rows: 0 };
+        matrix.resize(rows);
+        matrix
+    }
+
     /// Create a new *uninitialized* matrix with the given number of rows.
     #[allow(clippy::uninit_vec)]
     pub unsafe fn uninitialized(rows: usize) -> Self {
@@ -119,6 +127,12 @@ impl<T: MatrixElement, C: ArrayLength> DenseMatrix<T, C> {
         std::mem::size_of::<Row<T, C>>() / std::mem::size_of::<T>()
     }
 
+    /// The row capacity of the matrix.
+    #[inline]
+    pub fn capacity(&self) -> usize {
+        self.data.capacity()
+    }
+
     /// The number of rows of the matrix.
     #[inline]
     pub const fn rows(&self) -> usize {
@@ -130,6 +144,12 @@ impl<T: MatrixElement, C: ArrayLength> DenseMatrix<T, C> {
     pub fn resize(&mut self, rows: usize) {
         self.data.resize_with(rows, Default::default);
         self.rows = rows;
+    }
+
+    /// Reserve a number of rows in the matrix.
+    #[inline]
+    pub fn reserve(&mut self, capacity: usize) {
+        self.data.reserve(capacity);
     }
 
     /// Iterate over the rows of the matrix.
