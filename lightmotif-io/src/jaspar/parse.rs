@@ -49,6 +49,7 @@ use nom::sequence::preceded;
 use nom::sequence::separated_pair;
 use nom::sequence::terminated;
 use nom::IResult;
+use nom::Parser;
 
 use super::Record;
 
@@ -56,11 +57,12 @@ pub fn counts(input: &str) -> IResult<&str, Vec<u32>> {
     preceded(
         opt(space1),
         separated_list0(space1, nom::character::complete::u32),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn matrix_column(input: &str) -> IResult<&str, Vec<u32>> {
-    terminated(counts, line_ending)(input)
+    terminated(counts, line_ending).parse(input)
 }
 
 pub fn build_matrix(
@@ -101,7 +103,8 @@ pub fn header(input: &str) -> IResult<&str, (&str, Option<&str>)> {
     let (input, id) = preceded(
         tag(">"),
         nom::bytes::complete::take_while(|c: char| !c.is_ascii_whitespace()),
-    )(input)?;
+    )
+    .parse(input)?;
 
     let (input, accession) = nom::bytes::complete::take_until("\n")(input)?;
     let (input, _) = line_ending(input)?;
@@ -116,7 +119,7 @@ pub fn header(input: &str) -> IResult<&str, (&str, Option<&str>)> {
 
 pub fn record(input: &str) -> IResult<&str, Record> {
     let (input, (id, description)) = header(input)?;
-    let (input, matrix) = map_res(matrix, CountMatrix::new)(input)?;
+    let (input, matrix) = map_res(matrix, CountMatrix::new).parse(input)?;
 
     Ok((
         input,

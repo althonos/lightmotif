@@ -24,13 +24,14 @@ use nom::sequence::preceded;
 use nom::sequence::separated_pair;
 use nom::sequence::terminated;
 use nom::IResult;
+use nom::Parser;
 
 pub fn symbol<A: Alphabet>(input: &str) -> IResult<&str, A::Symbol> {
-    map_res(anychar, A::Symbol::from_char)(input)
+    map_res(anychar, A::Symbol::from_char).parse(input)
 }
 
 pub fn frequencies(input: &str) -> IResult<&str, Vec<f32>> {
-    many1(preceded(tab, float))(input)
+    many1(preceded(tab, float)).parse(input)
 }
 
 pub fn matrix_column<A: Alphabet>(input: &str) -> IResult<&str, (A::Symbol, Vec<f32>)> {
@@ -41,7 +42,8 @@ pub fn matrix_column<A: Alphabet>(input: &str) -> IResult<&str, (A::Symbol, Vec<
             frequencies,
         ),
         line_ending,
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn build_matrix<A: Alphabet>(
@@ -70,18 +72,19 @@ pub fn build_matrix<A: Alphabet>(
 }
 
 pub fn matrix<A: Alphabet>(input: &str) -> IResult<&str, DenseMatrix<f32, A::K>> {
-    map_res(nom::multi::many1(matrix_column::<A>), build_matrix::<A>)(input)
+    map_res(nom::multi::many1(matrix_column::<A>), build_matrix::<A>).parse(input)
 }
 
 pub fn id(input: &str) -> IResult<&str, &str> {
-    map(terminated(not_line_ending, line_ending), |s: &str| s.trim())(input)
+    map(terminated(not_line_ending, line_ending), |s: &str| s.trim()).parse(input)
 }
 
 pub fn record<A: Alphabet>(input: &str) -> IResult<&str, (&str, FrequencyMatrix<A>)> {
     terminated(
         pair(id, map_res(matrix::<A>, FrequencyMatrix::<A>::new)),
         line_ending,
-    )(input)
+    )
+    .parse(input)
 }
 
 #[cfg(test)]

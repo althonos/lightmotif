@@ -1,3 +1,6 @@
+use lightmotif::abc::Alphabet;
+use lightmotif::abc::Symbol;
+use lightmotif::dense::DenseMatrix;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::bytes::complete::take_till;
@@ -18,10 +21,7 @@ use nom::sequence::delimited;
 use nom::sequence::preceded;
 use nom::sequence::terminated;
 use nom::IResult;
-
-use lightmotif::abc::Alphabet;
-use lightmotif::abc::Symbol;
-use lightmotif::dense::DenseMatrix;
+use nom::Parser;
 
 use super::Date;
 use super::DateKind;
@@ -30,7 +30,7 @@ use super::Reference;
 use super::ReferenceNumber;
 
 pub fn parse_version(input: &str) -> IResult<&str, &str> {
-    preceded(tag("VV"), parse_line)(input)
+    preceded(tag("VV"), parse_line).parse(input)
 }
 
 pub fn parse_line(input: &str) -> IResult<&str, &str> {
@@ -52,7 +52,8 @@ pub fn parse_alphabet<S: Symbol>(input: &str) -> IResult<&str, Vec<S>> {
             separated_list1(space1, map_res(anychar, S::from_char)),
         ),
         line_ending,
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn parse_element(input: &str) -> IResult<&str, f32> {
@@ -64,7 +65,8 @@ pub fn parse_row(input: &str, k: usize) -> IResult<&str, Vec<f32>> {
         nom::character::complete::u32,
         count(delimited(space0, parse_element, space0), k),
         parse_line,
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn parse_tag(input: &str) -> IResult<&str, &str> {
@@ -80,10 +82,12 @@ pub fn parse_reference_number(input: &str) -> IResult<&str, ReferenceNumber> {
     let (rest, number) = preceded(
         terminated(tag("RN"), space0),
         delimited(char('['), nom::character::complete::u32, char(']')),
-    )(input)?;
-    match opt(anychar)(rest)?.1 {
+    )
+    .parse(input)?;
+    match opt(anychar).parse(rest)?.1 {
         Some(';') => {
-            let (rest, xref) = delimited(char(';'), take_till(|c| c == '.'), char('.'))(rest)?;
+            let (rest, xref) =
+                delimited(char(';'), take_till(|c| c == '.'), char('.')).parse(rest)?;
             let (rest, _) = parse_line(rest)?;
             Ok((
                 rest,
@@ -98,7 +102,7 @@ pub fn parse_reference_number(input: &str) -> IResult<&str, ReferenceNumber> {
 }
 
 pub fn parse_datekind(input: &str) -> IResult<&str, DateKind> {
-    match alt((tag("created"), tag("updated")))(input)? {
+    match alt((tag("created"), tag("updated"))).parse(input)? {
         (rest, "created") => Ok((rest, DateKind::Created)),
         (rest, "updated") => Ok((rest, DateKind::Updated)),
         _ => unreachable!(),
@@ -106,19 +110,20 @@ pub fn parse_datekind(input: &str) -> IResult<&str, DateKind> {
 }
 
 pub fn parse_date(input: &str) -> IResult<&str, Date> {
-    let (rest, _) = terminated(tag("DT"), space0)(input)?;
+    let (rest, _) = terminated(tag("DT"), space0).parse(input)?;
 
-    let (rest, day) = terminated(nom::character::complete::u8, char('.'))(rest)?;
-    let (rest, month) = terminated(nom::character::complete::u8, char('.'))(rest)?;
+    let (rest, day) = terminated(nom::character::complete::u8, char('.')).parse(rest)?;
+    let (rest, month) = terminated(nom::character::complete::u8, char('.')).parse(rest)?;
     let (rest, year) = nom::character::complete::u16(rest)?;
     let (rest, _) = space0(rest)?;
 
-    let (rest, kind) = delimited(char('('), parse_datekind, char(')'))(rest)?;
+    let (rest, kind) = delimited(char('('), parse_datekind, char(')')).parse(rest)?;
     let (rest, author) = delimited(
         char(';'),
         preceded(space0, take_till(|c| c == '.')),
         char('.'),
-    )(rest)?;
+    )
+    .parse(rest)?;
     let (rest, _) = parse_line(rest)?;
 
     Ok((
@@ -149,23 +154,24 @@ pub fn parse_reference(mut input: &str) -> IResult<&str, Reference> {
                         terminated(tag("PUBMED:"), space0),
                     ),
                     terminated(take_till(|c| c == '.'), char('.')),
-                )(input)?;
+                )
+                .parse(input)?;
                 let (rest, _) = parse_line(rest)?;
                 pmid = Some(line.to_string());
                 input = rest;
             }
             "RA" => {
-                let (rest, line) = preceded(tag("RA"), parse_line)(input)?;
+                let (rest, line) = preceded(tag("RA"), parse_line).parse(input)?;
                 // ra = Some(line.trim());
                 input = rest;
             }
             "RL" => {
-                let (rest, line) = preceded(tag("RL"), parse_line)(input)?;
+                let (rest, line) = preceded(tag("RL"), parse_line).parse(input)?;
                 link = Some(line.trim().to_string());
                 input = rest;
             }
             "RT" => {
-                let (rest, line) = preceded(tag("RT"), parse_line)(input)?;
+                let (rest, line) = preceded(tag("RT"), parse_line).parse(input)?;
                 title = Some(line.trim().to_string());
                 input = rest;
             }
@@ -201,37 +207,37 @@ pub fn parse_record<A: Alphabet>(mut input: &str) -> IResult<&str, Record<A>> {
     loop {
         match parse_tag(input)?.1 {
             "AC" => {
-                let (rest, line) = preceded(tag("AC"), parse_line)(input)?;
+                let (rest, line) = preceded(tag("AC"), parse_line).parse(input)?;
                 accession = Some(line.trim().to_string());
                 input = rest;
             }
             "BA" => {
-                let (rest, line) = preceded(tag("BA"), parse_line)(input)?;
+                let (rest, line) = preceded(tag("BA"), parse_line).parse(input)?;
                 _ba = Some(line.trim().to_string()); // FIXME: check uniqueness?
                 input = rest;
             }
             "BS" => {
-                let (rest, line) = preceded(tag("BS"), parse_line)(input)?;
+                let (rest, line) = preceded(tag("BS"), parse_line).parse(input)?;
                 sites.push(line.trim().to_string());
                 input = rest;
             }
             "BF" => {
-                let (rest, line) = preceded(tag("BF"), parse_line)(input)?;
+                let (rest, line) = preceded(tag("BF"), parse_line).parse(input)?;
                 factors.push(line.trim().to_string());
                 input = rest;
             }
             "CC" => {
-                let (rest, lines) = many1(preceded(tag("CC"), parse_line))(input)?;
+                let (rest, lines) = many1(preceded(tag("CC"), parse_line)).parse(input)?;
                 comments.push(lines.join(" "));
                 input = rest;
             }
             "CO" => {
-                let (rest, line) = preceded(tag("CO"), parse_line)(input)?;
+                let (rest, line) = preceded(tag("CO"), parse_line).parse(input)?;
                 _copyright = Some(line.trim().to_string()); // FIXME: check uniqueness?
                 input = rest;
             }
             "DE" => {
-                let (rest, line) = preceded(tag("DE"), parse_line)(input)?;
+                let (rest, line) = preceded(tag("DE"), parse_line).parse(input)?;
                 description = Some(line.trim().to_string());
                 input = rest;
             }
@@ -241,19 +247,19 @@ pub fn parse_record<A: Alphabet>(mut input: &str) -> IResult<&str, Record<A>> {
                 input = rest;
             }
             "ID" => {
-                let (rest, line) = preceded(tag("ID"), parse_line)(input)?;
+                let (rest, line) = preceded(tag("ID"), parse_line).parse(input)?;
                 id = Some(line.trim().to_string());
                 input = rest;
             }
             "NA" => {
-                let (rest, line) = preceded(tag("NA"), parse_line)(input)?;
+                let (rest, line) = preceded(tag("NA"), parse_line).parse(input)?;
                 name = Some(line.trim().to_string());
                 input = rest;
             }
             "P0" | "PO" => {
                 // parse alphabet and count lines
                 let (rest, symbols) = parse_alphabet::<A::Symbol>(input)?;
-                let (rest, counts) = many1(|l| parse_row(l, symbols.len()))(rest)?;
+                let (rest, counts) = many1(|l| parse_row(l, symbols.len())).parse(rest)?;
                 input = rest;
                 // read counts into a dense matrix
                 let mut matrix = DenseMatrix::<f32, A::K>::new(counts.len());
@@ -270,7 +276,7 @@ pub fn parse_record<A: Alphabet>(mut input: &str) -> IResult<&str, Record<A>> {
                 input = rest;
             }
             "//" => {
-                input = preceded(tag("//"), alt((parse_line, eof)))(input)?.0;
+                input = preceded(tag("//"), alt((parse_line, eof))).parse(input)?.0;
                 break;
             }
             "XX" => input = parse_line(input)?.0,

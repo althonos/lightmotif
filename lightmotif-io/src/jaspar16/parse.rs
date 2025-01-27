@@ -29,11 +29,12 @@ use nom::sequence::preceded;
 use nom::sequence::separated_pair;
 use nom::sequence::terminated;
 use nom::IResult;
+use nom::Parser;
 
 use super::Record;
 
 pub fn symbol<A: Alphabet>(input: &str) -> IResult<&str, A::Symbol> {
-    map_res(anychar, A::Symbol::from_char)(input)
+    map_res(anychar, A::Symbol::from_char).parse(input)
 }
 
 pub fn counts(input: &str) -> IResult<&str, Vec<u32>> {
@@ -41,11 +42,12 @@ pub fn counts(input: &str) -> IResult<&str, Vec<u32>> {
         delimited(space0, tag("["), space0),
         separated_list0(space1, nom::character::complete::u32),
         delimited(space0, tag("]"), space0),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn matrix_column<A: Alphabet>(input: &str) -> IResult<&str, (A::Symbol, Vec<u32>)> {
-    terminated(separated_pair(symbol::<A>, space1, counts), line_ending)(input)
+    terminated(separated_pair(symbol::<A>, space1, counts), line_ending).parse(input)
 }
 
 pub fn build_matrix<A: Alphabet>(
@@ -74,14 +76,15 @@ pub fn build_matrix<A: Alphabet>(
 }
 
 pub fn matrix<A: Alphabet>(input: &str) -> IResult<&str, DenseMatrix<u32, A::K>> {
-    map_res(nom::multi::many1(matrix_column::<A>), build_matrix::<A>)(input)
+    map_res(nom::multi::many1(matrix_column::<A>), build_matrix::<A>).parse(input)
 }
 
 pub fn header(input: &str) -> IResult<&str, (&str, Option<&str>)> {
     let (input, id) = preceded(
         tag(">"),
         nom::bytes::complete::take_while(|c: char| !c.is_ascii_whitespace()),
-    )(input)?;
+    )
+    .parse(input)?;
 
     let (input, accession) = nom::bytes::complete::take_until("\n")(input)?;
     let (input, _) = line_ending(input)?;
@@ -100,7 +103,7 @@ pub fn header(input: &str) -> IResult<&str, (&str, Option<&str>)> {
 
 pub fn record<A: Alphabet>(input: &str) -> IResult<&str, Record<A>> {
     let (input, (id, description)) = header(input)?;
-    let (input, matrix) = map_res(matrix::<A>, CountMatrix::<A>::new)(input)?;
+    let (input, matrix) = map_res(matrix::<A>, CountMatrix::<A>::new).parse(input)?;
 
     Ok((
         input,
