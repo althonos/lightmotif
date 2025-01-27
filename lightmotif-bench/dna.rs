@@ -260,6 +260,7 @@ mod external {
         .unwrap();
         let pbm = cm.to_freq(0.1);
         let pssm = pbm.to_scoring(bg);
+        let matrix = pssm.matrix();
 
         let mut best = 0;
         bencher.bytes = seq.len() as u64;
@@ -269,7 +270,7 @@ mod external {
             for i in 0..encoded.len() - pssm.len() + 1 {
                 let mut score = 0.0;
                 for j in 0..pssm.len() {
-                    score += pssm.matrix()[j][encoded[i + j] as usize];
+                    score += matrix[j][encoded[i + j] as usize];
                 }
                 if score > score_best {
                     score_best = score;
