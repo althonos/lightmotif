@@ -62,10 +62,18 @@ environment = { PATH="$HOME/.cargo/bin:$PATH" }
 before-all = "curl -sSf https://sh.rustup.rs | sh -s -- -y"
 
 [tool.cibuildwheel.macos]
-before-all = [
-  "curl -sSf https://sh.rustup.rs | sh -s -- -y",
-  "rustup target add aarch64-apple-darwin"
-]
+before-all = ["curl -sSf https://sh.rustup.rs | sh -s -- -y"]
+environment = { MACOSX_DEPLOYMENT_TARGET = "10.12" }
+
+[[tool.cibuildwheel.overrides]]
+select = "*-macosx_x86_64"
+inherit.before-all = "append"
+before-all = ["rustup target add x86_64-apple-darwin"]
+
+[[tool.cibuildwheel.overrides]]
+select = "*-macosx_arm64"
+inherit.before-all = "append"
+before-all = ["rustup target add aarch64-apple-darwin"]
 
 [tool.coverage.report]
 show_missing = true
