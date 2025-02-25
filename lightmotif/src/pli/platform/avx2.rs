@@ -159,7 +159,6 @@ unsafe fn score_f32_avx2_permute<A>(
             let x3 = _mm256_shuffle_epi8(x, m3);
             let x4 = _mm256_shuffle_epi8(x, m4);
             // load row for current weight matrix position
-            // debug_assert_eq!(pssmptr as usize & 0x1f, 0);
             debug_assert_eq!(pssmptr as usize & 0x1f, 0);
             let t = _mm256_load_ps(pssmptr);
             // index A/T/G/C/N lookup table with the bases
@@ -303,11 +302,16 @@ pub unsafe fn score_u8_avx2_shuffle<A>(
         // advance position in the position weight matrix
         for _ in 0..pssm.rows() {
             // load sequence row and broadcast to f32
+            debug_assert_eq!(seqptr as usize & 0x1f, 0);
             let x = _mm256_load_si256(seqptr as *const __m256i);
             // load row for current weight matrix position
             // NB: we need to broadcast it to the two lanes of the __m256i vector
-            //     because in AVX2 shuffle operates on the two halves independently.
-            let t = _mm256_broadcastsi128_si256(_mm_load_si128(&*(pssmptr as *const __m128i)));
+            //     because in AVX2 shuffle operates on the two halves independently,
+            //     but there is no `_mm256_broadcast_si128` -- so we use the
+            //     `_mm256_broadcast_ps` floating-point instruction and then
+            //     cast to the right vector type for free.
+            debug_assert_eq!(pssmptr as usize & 0x1f, 0);
+            let t = _mm256_castps_si256(_mm256_broadcast_ps(&*(pssmptr as *const __m128)));
             // load scores for given sequence
             let y = _mm256_shuffle_epi8(t, x);
             // add scores to the running sum
@@ -317,6 +321,7 @@ pub unsafe fn score_u8_avx2_shuffle<A>(
             pssmptr = pssmptr.add(pssm.stride());
         }
         // record the score for the current position
+        debug_assert_eq!(rowptr as usize & 0x1f, 0);
         _mm256_stream_si256(rowptr as *mut __m256i, s);
         rowptr = rowptr.add(data.stride());
     }
