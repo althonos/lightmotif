@@ -135,7 +135,7 @@ impl<T: MatrixElement, C: ArrayLength> DenseMatrix<T, C> {
 
     /// The number of rows of the matrix.
     #[inline]
-    pub const fn rows(&self) -> usize {
+    pub fn rows(&self) -> usize {
         self.rows
     }
 

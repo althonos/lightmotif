@@ -39,19 +39,19 @@ macro_rules! matrix_traits {
         impl<A: Alphabet> $mx<A> {
             /// The raw data storage for the matrix.
             #[inline]
-            pub const fn matrix(&self) -> &DenseMatrix<$t, A::K> {
+            pub fn matrix(&self) -> &DenseMatrix<$t, A::K> {
                 &self.data
             }
 
             /// Get the length of the motif encoded in this matrix.
             #[inline]
-            pub const fn len(&self) -> usize {
+            pub fn len(&self) -> usize {
                 self.data.rows()
             }
 
             /// Check whether the matrix is empty.
             #[inline]
-            pub const fn is_empty(&self) -> bool {
+            pub fn is_empty(&self) -> bool {
                 self.data.rows() == 0
             }
         }

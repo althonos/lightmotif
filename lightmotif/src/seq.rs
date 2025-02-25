@@ -284,25 +284,25 @@ impl<A: Alphabet, C: PositiveLength> StripedSequence<A, C> {
 
     /// Get the length of the sequence.
     #[inline]
-    pub const fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.length
     }
 
     /// Check whether the sequence is empty.
     #[inline]
-    pub const fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.length == 0
     }
 
     /// Get the number of wrapping rows in the striped matrix.
     #[inline]
-    pub const fn wrap(&self) -> usize {
+    pub fn wrap(&self) -> usize {
         self.wrap
     }
 
     /// Get an immutable reference over the underlying matrix storing the sequence.
     #[inline]
-    pub const fn matrix(&self) -> &DenseMatrix<A::Symbol, C> {
+    pub fn matrix(&self) -> &DenseMatrix<A::Symbol, C> {
         &self.data
     }
 
