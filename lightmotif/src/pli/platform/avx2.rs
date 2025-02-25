@@ -115,7 +115,10 @@ unsafe fn score_f32_avx2_permute<A>(
     let data = scores.matrix_mut();
     debug_assert!(data.rows() > 0);
 
+    let psmptr = pssm[0].as_ptr();
     let mut rowptr = data[0].as_mut_ptr();
+    let mut seqptr = seq.matrix()[rows.start].as_ptr();
+
     // constant vector for comparing unknown bases
     let n = _mm256_set1_epi32(<A as Alphabet>::K::I32 - 1);
     // mask vectors for broadcasting uint8x32_t to uint32x8_t to floatx8_t
@@ -140,27 +143,27 @@ unsafe fn score_f32_avx2_permute<A>(
         0xFFFFFF0F, 0xFFFFFF0E, 0xFFFFFF0D, 0xFFFFFF0C,
     );
     // process every position of the sequence data
-    for i in rows {
+    for _ in rows {
         // reset sums for current position
         let mut s1 = _mm256_setzero_ps();
         let mut s2 = _mm256_setzero_ps();
         let mut s3 = _mm256_setzero_ps();
         let mut s4 = _mm256_setzero_ps();
         // reset pointers to row
-        let mut seqptr = seq.matrix()[i].as_ptr();
-        let mut pssmptr = pssm[0].as_ptr();
+        let mut seqrow = seqptr;
+        let mut psmrow = psmptr;
         // advance position in the position weight matrix
         for _ in 0..pssm.rows() {
             // load sequence row and broadcast to f32
-            debug_assert_eq!(seqptr as usize & 0x1f, 0);
-            let x = _mm256_load_si256(seqptr as *const __m256i);
+            debug_assert_eq!(seqrow as usize & 0x1f, 0);
+            let x = _mm256_load_si256(seqrow as *const __m256i);
             let x1 = _mm256_shuffle_epi8(x, m1);
             let x2 = _mm256_shuffle_epi8(x, m2);
             let x3 = _mm256_shuffle_epi8(x, m3);
             let x4 = _mm256_shuffle_epi8(x, m4);
             // load row for current weight matrix position
-            debug_assert_eq!(pssmptr as usize & 0x1f, 0);
-            let t = _mm256_load_ps(pssmptr);
+            debug_assert_eq!(psmrow as usize & 0x1f, 0);
+            let t = _mm256_load_ps(psmrow);
             // index A/T/G/C/N lookup table with the bases
             let b1 = _mm256_permutevar8x32_ps(t, x1);
             let b2 = _mm256_permutevar8x32_ps(t, x2);
@@ -172,8 +175,8 @@ unsafe fn score_f32_avx2_permute<A>(
             s3 = _mm256_add_ps(s3, b3);
             s4 = _mm256_add_ps(s4, b4);
             // advance to next row in PSSM and sequence matrices
-            seqptr = seqptr.add(seq.matrix().stride());
-            pssmptr = pssmptr.add(pssm.stride());
+            seqrow = seqrow.add(seq.matrix().stride());
+            psmrow = psmrow.add(pssm.stride());
         }
         // permute lanes so that scores are in the right order
         let r1 = _mm256_permute2f128_ps(s1, s2, 0x20);
@@ -186,6 +189,7 @@ unsafe fn score_f32_avx2_permute<A>(
         _mm256_stream_ps(rowptr.add(0x10), r3);
         _mm256_stream_ps(rowptr.add(0x18), r4);
         rowptr = rowptr.add(data.stride());
+        seqptr = seqptr.add(seq.matrix().stride());
     }
 
     // Required before returning to code that may set atomic flags that invite concurrent reads,
@@ -206,7 +210,11 @@ unsafe fn score_f32_avx2_gather<A>(
     A: Alphabet,
 {
     let data = scores.matrix_mut();
+
+    let psmptr = pssm[0].as_ptr();
     let mut rowptr = data[0].as_mut_ptr();
+    let mut seqptr = seq.matrix()[rows.start].as_ptr();
+
     // mask vectors for broadcasting uint8x32_t to uint32x8_t to floatx8_t
     #[rustfmt::skip]
     let m1 = _mm256_set_epi32(
@@ -229,37 +237,37 @@ unsafe fn score_f32_avx2_gather<A>(
         0xFFFFFF0F, 0xFFFFFF0E, 0xFFFFFF0D, 0xFFFFFF0C,
     );
     // process every position of the sequence data
-    for i in rows {
+    for _ in rows {
         // reset sums for current position
         let mut s1 = _mm256_setzero_ps();
         let mut s2 = _mm256_setzero_ps();
         let mut s3 = _mm256_setzero_ps();
         let mut s4 = _mm256_setzero_ps();
         // reset pointers to row
-        let mut seqptr = seq.matrix()[i].as_ptr();
-        let mut pssmptr = pssm[0].as_ptr();
+        let mut seqrow = seqptr;
+        let mut psmrow = psmptr;
         // advance position in the position weight matrix
         for _ in 0..pssm.rows() {
             // load sequence row and broadcast to f32
-            debug_assert_eq!(seqptr as usize & 0x1f, 0);
-            let x = _mm256_load_si256(seqptr as *const __m256i);
+            debug_assert_eq!(seqrow as usize & 0x1f, 0);
+            let x = _mm256_load_si256(seqrow as *const __m256i);
             let x1 = _mm256_shuffle_epi8(x, m1);
             let x2 = _mm256_shuffle_epi8(x, m2);
             let x3 = _mm256_shuffle_epi8(x, m3);
             let x4 = _mm256_shuffle_epi8(x, m4);
             // gather scores for the sequence elements
-            let b1 = _mm256_i32gather_ps(pssmptr, x1, std::mem::size_of::<f32>() as i32);
-            let b2 = _mm256_i32gather_ps(pssmptr, x2, std::mem::size_of::<f32>() as i32);
-            let b3 = _mm256_i32gather_ps(pssmptr, x3, std::mem::size_of::<f32>() as i32);
-            let b4 = _mm256_i32gather_ps(pssmptr, x4, std::mem::size_of::<f32>() as i32);
+            let b1 = _mm256_i32gather_ps(psmrow, x1, std::mem::size_of::<f32>() as i32);
+            let b2 = _mm256_i32gather_ps(psmrow, x2, std::mem::size_of::<f32>() as i32);
+            let b3 = _mm256_i32gather_ps(psmrow, x3, std::mem::size_of::<f32>() as i32);
+            let b4 = _mm256_i32gather_ps(psmrow, x4, std::mem::size_of::<f32>() as i32);
             // add log odds to the running sum
             s1 = _mm256_add_ps(s1, b1);
             s2 = _mm256_add_ps(s2, b2);
             s3 = _mm256_add_ps(s3, b3);
             s4 = _mm256_add_ps(s4, b4);
             // advance to next row in PSSM and sequence matrices
-            seqptr = seqptr.add(seq.matrix().stride());
-            pssmptr = pssmptr.add(pssm.stride());
+            seqrow = seqrow.add(seq.matrix().stride());
+            psmrow = psmrow.add(pssm.stride());
         }
         // permute lanes so that scores are in the right order
         let r1 = _mm256_permute2f128_ps(s1, s2, 0x20);
@@ -272,6 +280,7 @@ unsafe fn score_f32_avx2_gather<A>(
         _mm256_stream_ps(rowptr.add(0x10), r3);
         _mm256_stream_ps(rowptr.add(0x18), r4);
         rowptr = rowptr.add(data.stride());
+        seqptr = seqptr.add(seq.matrix().stride());
     }
 
     // Required before returning to code that may set atomic flags that invite concurrent reads,
@@ -291,40 +300,49 @@ pub unsafe fn score_u8_avx2_shuffle<A>(
     A: Alphabet,
 {
     let data = scores.matrix_mut();
-    let mut rowptr = data[0].as_mut_ptr() as *mut i8;
+
+    let psmptr = pssm[0].as_ptr();
+    let mut rowptr = data[0].as_mut_ptr();
+    let mut seqptr = seq.matrix()[rows.start].as_ptr();
+
     // process every position of the sequence data
-    for i in rows {
+    for _ in rows {
         // reset sums for current position
         let mut s = _mm256_setzero_si256();
         // reset pointers to row
-        let mut seqptr = seq.matrix()[i].as_ptr();
-        let mut pssmptr = pssm[0].as_ptr();
+        let mut seqrow = seqptr;
+        let mut psmrow = psmptr;
         // advance position in the position weight matrix
         for _ in 0..pssm.rows() {
             // load sequence row and broadcast to f32
-            debug_assert_eq!(seqptr as usize & 0x1f, 0);
-            let x = _mm256_load_si256(seqptr as *const __m256i);
+            debug_assert_eq!(seqrow as usize & 0x1f, 0);
+            let x = _mm256_load_si256(seqrow as *const __m256i);
             // load row for current weight matrix position
             // NB: we need to broadcast it to the two lanes of the __m256i vector
             //     because in AVX2 shuffle operates on the two halves independently,
             //     but there is no `_mm256_broadcast_si128` -- so we use the
             //     `_mm256_broadcast_ps` floating-point instruction and then
             //     cast to the right vector type for free.
-            debug_assert_eq!(pssmptr as usize & 0x1f, 0);
-            let t = _mm256_castps_si256(_mm256_broadcast_ps(&*(pssmptr as *const __m128)));
+            debug_assert_eq!(psmrow as usize & 0x1f, 0);
+            let t = _mm256_castps_si256(_mm256_broadcast_ps(&*(psmrow as *const __m128)));
             // load scores for given sequence
             let y = _mm256_shuffle_epi8(t, x);
             // add scores to the running sum
             s = _mm256_adds_epu8(s, y);
             // advance to next row in PSSM and sequence matrices
-            seqptr = seqptr.add(seq.matrix().stride());
-            pssmptr = pssmptr.add(pssm.stride());
+            seqrow = seqrow.add(seq.matrix().stride());
+            psmrow = psmrow.add(pssm.stride());
         }
         // record the score for the current position
         debug_assert_eq!(rowptr as usize & 0x1f, 0);
         _mm256_stream_si256(rowptr as *mut __m256i, s);
         rowptr = rowptr.add(data.stride());
+        seqptr = seqptr.add(seq.matrix().stride());
     }
+
+    // Required before returning to code that may set atomic flags that invite concurrent reads,
+    // as LLVM lowers `AtomicBool::store(flag, true, Release)` to ordinary stores on x86-64
+    // instead of SFENCE, even though SFENCE is required in the presence of nontemporal stores.
     _mm_sfence();
 }
 

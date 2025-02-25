@@ -115,21 +115,24 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::Lanes> + Arra
     // process columns of the striped matrix, any multiple of 16 is supported
     let data = scores.matrix_mut();
     for offset in (0..C::Quotient::USIZE).map(|i| i * <Sse2 as Backend>::Lanes::USIZE) {
+        let psmptr = pssm[0].as_ptr();
         let mut rowptr = data[0].as_mut_ptr().add(offset);
+        let mut seqptr = seq.matrix()[rows.start].as_ptr().add(offset);
+
         // process every position of the sequence data
-        for i in rows.clone() {
+        for _ in 0..rows.len() {
             // reset sums for current position
             let mut s1 = _mm_setzero_ps();
             let mut s2 = _mm_setzero_ps();
             let mut s3 = _mm_setzero_ps();
             let mut s4 = _mm_setzero_ps();
             // reset position
-            let mut dataptr = seq.matrix()[i].as_ptr().add(offset);
-            let mut pssmptr = pssm[0].as_ptr();
+            let mut seqrow = seqptr;
+            let mut psmrow = psmptr;
             // advance position in the position weight matrix
             for _ in 0..pssm.rows() {
                 // load sequence row and broadcast to f32
-                let x = _mm_load_si128(dataptr as *const __m128i);
+                let x = _mm_load_si128(seqrow as *const __m128i);
                 let hi = _mm_unpackhi_epi8(x, zero);
                 let lo = _mm_unpacklo_epi8(x, zero);
                 let x1 = _mm_unpacklo_epi8(lo, zero);
@@ -139,7 +142,7 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::Lanes> + Arra
                 // index lookup table with each bases incrementally
                 for k in 0..A::K::USIZE {
                     let sym = _mm_set1_epi32(k as i32);
-                    let lut = _mm_load1_ps(pssmptr.add(k));
+                    let lut = _mm_load1_ps(psmrow.add(k));
                     let p1 = _mm_castsi128_ps(_mm_cmpeq_epi32(x1, sym));
                     let p2 = _mm_castsi128_ps(_mm_cmpeq_epi32(x2, sym));
                     let p3 = _mm_castsi128_ps(_mm_cmpeq_epi32(x3, sym));
@@ -150,8 +153,8 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::Lanes> + Arra
                     s4 = _mm_add_ps(s4, _mm_and_ps(lut, p4));
                 }
                 // advance to next row in sequence and PSSM matrices
-                dataptr = dataptr.add(seq.matrix().stride());
-                pssmptr = pssmptr.add(pssm.stride());
+                seqrow = seqrow.add(seq.matrix().stride());
+                psmrow = psmrow.add(pssm.stride());
             }
             // record the score for the current position
             _mm_stream_ps(rowptr.add(0x00), s1);
@@ -159,6 +162,7 @@ unsafe fn score_sse2<A: Alphabet, C: MultipleOf<<Sse2 as Backend>::Lanes> + Arra
             _mm_stream_ps(rowptr.add(0x08), s3);
             _mm_stream_ps(rowptr.add(0x0c), s4);
             rowptr = rowptr.add(data.stride());
+            seqptr = seqptr.add(seq.matrix().stride());
         }
     }
 

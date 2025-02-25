@@ -136,9 +136,12 @@ unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
     // process columns of the striped matrix, any multiple of 16 is supported
     let data = scores.matrix_mut();
     for offset in (0..C::Quotient::USIZE).map(|i| i * <Neon as Backend>::Lanes::USIZE) {
+        let psmptr = pssm[0].as_ptr();
         let mut rowptr = data[0].as_mut_ptr().add(offset);
+        let mut seqptr = seq.matrix()[rows.start].as_ptr().add(offset);
+
         // process every position of the sequence data
-        for i in rows.clone() {
+        for _ in 0..rows.len() {
             // reset sums for current position
             let mut s = float32x4x4_t(
                 vdupq_n_f32(0.0),
@@ -147,12 +150,12 @@ unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
                 vdupq_n_f32(0.0),
             );
             // reset position
-            let mut dataptr = seq.matrix()[i].as_ptr().add(offset);
-            let mut pssmptr = pssm[0].as_ptr();
+            let mut seqrow = seqptr;
+            let mut psmrow = psmptr;
             // advance position in the position weight matrix
             for _ in 0..pssm.rows() {
                 // load sequence row
-                let x = vld1q_u8(dataptr as *const u8);
+                let x = vld1q_u8(seqptr as *const u8);
                 let z = vzipq_u8(x, vdupq_n_u8(0));
                 // transform u8 into u32
                 let lo = vzipq_u8(z.0, vdupq_n_u8(0));
@@ -164,7 +167,7 @@ unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
                 // index lookup table with each bases incrementally
                 for k in 0..A::K::USIZE {
                     let sym = vdupq_n_u32(k as u32);
-                    let lut = vreinterpretq_u32_f32(vld1q_dup_f32(pssmptr.add(k)));
+                    let lut = vreinterpretq_u32_f32(vld1q_dup_f32(psmrow.add(k)));
                     let p1 = vceqq_u32(x1, sym);
                     let p2 = vceqq_u32(x2, sym);
                     let p3 = vceqq_u32(x3, sym);
@@ -175,12 +178,13 @@ unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
                     s.3 = vaddq_f32(s.3, vreinterpretq_f32_u32(vandq_u32(lut, p4)));
                 }
                 // advance to next row in sequence and PSSM matrices
-                dataptr = dataptr.add(seq.matrix().stride());
-                pssmptr = pssmptr.add(pssm.stride());
+                seqrow = seqrow.add(seq.matrix().stride());
+                psmrow = psmrow.add(pssm.stride());
             }
             // record the score for the current position
             vst1q_f32_x4(rowptr, s);
             rowptr = rowptr.add(data.stride());
+            seqptr = seqptr.add(seq.matrix().stride());
         }
     }
 }
