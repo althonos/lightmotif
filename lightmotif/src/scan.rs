@@ -157,7 +157,7 @@ where
     }
 }
 
-impl<'a, A, M, S, C> Iterator for Scanner<'a, A, M, S, C>
+impl<A, M, S, C> Iterator for Scanner<'_, A, M, S, C>
 where
     A: Alphabet,
     C: StrictlyPositive + ArrayLength,

@@ -301,16 +301,16 @@ impl<'a, T: MatrixElement, C: PositiveLength> Iterator for Iter<'a, T, C> {
     }
 }
 
-impl<'a, T: MatrixElement, C: PositiveLength> ExactSizeIterator for Iter<'a, T, C> {
+impl<T: MatrixElement, C: PositiveLength> ExactSizeIterator for Iter<'_, T, C> {
     #[inline]
     fn len(&self) -> usize {
         self.indices.len()
     }
 }
 
-impl<'a, T: MatrixElement, C: PositiveLength> FusedIterator for Iter<'a, T, C> {}
+impl<T: MatrixElement, C: PositiveLength> FusedIterator for Iter<'_, T, C> {}
 
-impl<'a, T: MatrixElement, C: PositiveLength> DoubleEndedIterator for Iter<'a, T, C> {
+impl<T: MatrixElement, C: PositiveLength> DoubleEndedIterator for Iter<'_, T, C> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         self.indices.next_back().map(|i| self.get(i))

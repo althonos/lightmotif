@@ -511,7 +511,7 @@ where
     }
 }
 
-impl<'a, R, A, S, C> Sampler<'a, R, A, S, C>
+impl<R, A, S, C> Sampler<'_, R, A, S, C>
 where
     R: Rng,
     A: Alphabet,
@@ -532,7 +532,7 @@ where
     }
 }
 
-impl<'a, R, A, S, C> Iterator for Sampler<'a, R, A, S, C>
+impl<R, A, S, C> Iterator for Sampler<'_, R, A, S, C>
 where
     R: Rng,
     A: Alphabet,
@@ -589,7 +589,7 @@ where
     }
 }
 
-impl<'a, R, A, S, C> FusedIterator for Sampler<'a, R, A, S, C>
+impl<R, A, S, C> FusedIterator for Sampler<'_, R, A, S, C>
 where
     R: Rng,
     A: Alphabet,

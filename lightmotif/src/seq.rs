@@ -43,7 +43,17 @@ pub trait SymbolCount<A: Alphabet> {
     }
 }
 
-impl<'a, A: Alphabet> SymbolCount<A> for &[A::Symbol] {
+impl<'a, A: Alphabet, T: SymbolCount<A>> SymbolCount<A> for &'a T {
+    fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize {
+        (*self).count_symbol(symbol)
+    }
+
+    fn count_symbols(&self) -> GenericArray<usize, A::K> {
+        (*self).count_symbols()
+    }
+}
+
+impl<A: Alphabet> SymbolCount<A> for [A::Symbol] {
     fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize {
         self.as_ref().iter().filter(|&&c| c == symbol).count()
     }
@@ -54,6 +64,16 @@ impl<'a, A: Alphabet> SymbolCount<A> for &[A::Symbol] {
             counts[c.as_index()] += 1;
         }
         counts
+    }
+}
+
+impl<'a, A: Alphabet> SymbolCount<A> for &'a [A::Symbol] {
+    fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize {
+        <[A::Symbol] as SymbolCount<A>>::count_symbol(self, symbol)
+    }
+
+    fn count_symbols(&self) -> GenericArray<usize, A::K> {
+        <[A::Symbol] as SymbolCount<A>>::count_symbols(self)
     }
 }
 
@@ -216,7 +236,7 @@ where
     }
 }
 
-impl<'a, A: Alphabet> SymbolCount<A> for EncodedSequence<A> {
+impl<A: Alphabet> SymbolCount<A> for EncodedSequence<A> {
     fn count_symbol(&self, symbol: <A as Alphabet>::Symbol) -> usize {
         self.data.iter().filter(|&&c| c == symbol).count()
     }
