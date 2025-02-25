@@ -65,9 +65,9 @@ where
             let mut encoded = _mm_set1_epi8((A::K::USIZE - 1) as i8);
             let mut unknown = _mm_set1_epi8(0xFF);
             // Check symbols one by one and match them to the letters.
-            for a in 0..A::K::USIZE {
+            for (a, &symbol) in alphabet.iter().enumerate() {
                 let index = _mm_set1_epi8(a as i8);
-                let ascii = _mm_set1_epi8(alphabet[a] as i8);
+                let ascii = _mm_set1_epi8(symbol as i8);
                 let m = _mm_cmpeq_epi8(letters, ascii);
                 encoded = _mm_or_si128(_mm_andnot_si128(m, encoded), _mm_and_si128(m, index));
                 unknown = _mm_andnot_si128(m, unknown);

@@ -64,9 +64,9 @@ where
             let mut encoded = _mm256_set1_epi8(A::K::USIZE as i8);
             let mut unknown = _mm256_set1_epi8(0xFF);
             // Check symbols one by one and match them to the letters.
-            for a in 0..A::K::USIZE {
+            for (a, &symbol) in alphabet.iter().enumerate() {
                 let index = _mm256_set1_epi8(a as i8);
-                let ascii = _mm256_set1_epi8(alphabet[a] as i8);
+                let ascii = _mm256_set1_epi8(symbol as i8);
                 let m = _mm256_cmpeq_epi8(letters, ascii);
                 encoded = _mm256_blendv_epi8(encoded, index, m);
                 unknown = _mm256_andnot_si256(m, unknown);
@@ -581,8 +581,7 @@ unsafe fn stripe_avx2<A>(
     let s = seq;
     let length = s.len();
     let mut src = s.as_ptr() as *const u8;
-    let src_stride =
-        (length + (<Avx2 as Backend>::Lanes::USIZE - 1)) / <Avx2 as Backend>::Lanes::USIZE;
+    let src_stride = length.div_ceil(<Avx2 as Backend>::Lanes::USIZE);
 
     // Get the matrix from the given striped sequence and resize it
     let mut matrix = std::mem::take(striped).into_matrix();

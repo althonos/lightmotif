@@ -273,7 +273,7 @@ impl<A: Alphabet, C: PositiveLength> StripedSequence<A, C> {
         let symbols = <A as Alphabet>::symbols();
         let dist = rand_distr::WeightedAliasIndex::new(background.frequencies().into())
             .expect("`Background` always stores frequencies valid for `WeightedAliasIndex::new`");
-        let mut data = unsafe { DenseMatrix::uninitialized((length + C::USIZE - 1) / C::USIZE) };
+        let mut data = unsafe { DenseMatrix::uninitialized(length.div_ceil(C::USIZE)) };
         for row in data.iter_mut() {
             for (x, y) in row.iter_mut().zip((&mut rng).sample_iter(&dist)) {
                 *x = symbols[y];
@@ -404,12 +404,13 @@ impl<A: Alphabet, C: PositiveLength> SymbolCount<A> for StripedSequence<A, C> {
         let rows = self.data.rows() - self.wrap;
         let l = self.len();
 
-        for i in 0..rows {
-            let row = &self.data[i];
-            for j in 0..self.data.columns() {
-                let index = j * rows + i;
-                if index < l && row[j] == symbol {
-                    count += 1
+        for (i, row) in self.data.iter().take(rows).enumerate() {
+            for (j, &x) in row.iter().enumerate() {
+                if x == symbol {
+                    let index = j * rows + i;
+                    if index < l {
+                        count += 1;
+                    }
                 }
             }
         }
@@ -423,12 +424,11 @@ impl<A: Alphabet, C: PositiveLength> SymbolCount<A> for StripedSequence<A, C> {
         let rows = self.data.rows() - self.wrap;
         let l = self.len();
 
-        for i in 0..rows {
-            let row = &self.data[i];
-            for j in 0..self.data.columns() {
+        for (i, row) in self.data.iter().take(rows).enumerate() {
+            for (j, &x) in row.iter().enumerate() {
                 let index = j * rows + i;
                 if index < l {
-                    counts[row[j].as_index()] += 1;
+                    counts[x.as_index()] += 1;
                 }
             }
         }

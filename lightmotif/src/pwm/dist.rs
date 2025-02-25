@@ -156,7 +156,7 @@ impl<A: Alphabet, S: AsRef<ScoringMatrix<A>>> From<S> for ScoreDistribution<A> {
         let mut data = DenseMatrix::<i32, A::K>::new(pssm.matrix().rows());
         for (src_row, dst_row) in pssm.matrix().iter().zip(data.iter_mut()) {
             for i in 0..A::K::USIZE {
-                dst_row[i] = f64::round((src_row[i] as f64 - offset as f64) * scale) as i32;
+                dst_row[i] = f64::round((src_row[i] as f64 - offset) * scale) as i32;
             }
         }
 

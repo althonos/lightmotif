@@ -142,11 +142,11 @@ pub trait Maximum<T: MatrixElement + PartialOrd, C: PositiveLength> {
         let mut best_score = scores[0];
 
         for (i, row) in scores.matrix().iter().enumerate() {
-            for j in 0..C::USIZE {
-                if row[j] >= best_score {
+            for (j, &x) in row.iter().enumerate() {
+                if x >= best_score {
                     best_row = i;
                     best_col = j;
-                    best_score = row[j];
+                    best_score = x;
                 }
             }
         }
@@ -179,7 +179,7 @@ pub trait Stripe<A: Alphabet, C: PositiveLength> {
         // compute length of striped matrix
         let s = seq.as_ref();
         let length = s.len();
-        let rows = (length + (C::USIZE - 1)) / C::USIZE;
+        let rows = length.div_ceil(C::USIZE);
         let capacity = rows + crate::seq::DEFAULT_EXTRA_ROWS;
 
         // get the data out of the given buffer
@@ -210,10 +210,10 @@ pub trait Threshold<T: MatrixElement + PartialOrd, C: PositiveLength> {
     fn threshold(&self, scores: &StripedScores<T, C>, threshold: T) -> Vec<MatrixCoordinates> {
         let mut positions = Vec::new();
         for (i, row) in scores.matrix().iter().enumerate() {
-            for col in 0..C::USIZE {
+            for (j, &x) in row.iter().enumerate() {
                 // assert!(!row[col].is_nan());
-                if row[col] >= threshold {
-                    positions.push(MatrixCoordinates::new(i, col));
+                if x >= threshold {
+                    positions.push(MatrixCoordinates::new(i, j));
                 }
             }
         }

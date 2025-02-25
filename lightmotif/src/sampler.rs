@@ -521,7 +521,7 @@ where
 {
     fn update_holdout(&mut self, z: usize, pssm: &ScoringMatrix<A>) {
         self.pli
-            .score_into(&pssm, &self.data.sequences.as_ref()[z], &mut self.scores);
+            .score_into(pssm, &self.data.sequences.as_ref()[z], &mut self.scores);
         let weights = self
             .scores
             .iter()
@@ -585,7 +585,6 @@ where
             counts: cm,
             z,
             step: self.step - 1,
-            _hidden: (),
         })
     }
 }
@@ -602,6 +601,7 @@ where
 
 /// A single iteration of the sampler.
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct Iteration<A: Alphabet> {
     /// The count matrix built from all sequences but *z*.
     pub counts: CountMatrix<A>,
@@ -611,8 +611,6 @@ pub struct Iteration<A: Alphabet> {
     pub z: usize,
     /// The current step.
     pub step: usize,
-    #[doc(hidden)]
-    _hidden: (),
 }
 
 #[cfg(test)]
