@@ -54,7 +54,7 @@ impl JasparMotif {
             let mut motif = Motif::from_counts(py, counts)?;
             motif.name = Some(name);
             let init = PyClassInitializer::from(motif).add_subclass(JasparMotif { description });
-            Ok(Py::new(py, init)?.to_object(py))
+            Ok(Py::new(py, init)?.into_any())
         })
     }
 
@@ -73,7 +73,7 @@ impl JasparMotif {
             let mut motif = Motif::from_counts(py, counts)?;
             motif.name = Some(name);
             let init = PyClassInitializer::from(motif).add_subclass(JasparMotif { description });
-            Ok(Py::new(py, init)?.to_object(py))
+            Ok(Py::new(py, init)?.into_any())
         })
     }
 }
@@ -99,7 +99,7 @@ impl UniprobeMotif {
             let mut motif = Motif::from_weights(py, weights)?;
             motif.name = Some(name);
             let init = PyClassInitializer::from(motif).add_subclass(UniprobeMotif {});
-            Ok(Py::new(py, init)?.to_object(py))
+            Ok(Py::new(py, init)?.into_any())
         })
     }
 }
@@ -150,7 +150,7 @@ impl TransfacMotif {
                 accession,
                 id,
             });
-            Ok(Py::new(py, init)?.to_object(py))
+            Ok(Py::new(py, init)?.into_any())
         })
     }
 }
@@ -160,7 +160,7 @@ impl TransfacMotif {
 /// An iterator for loading motifs from a file.
 #[pyclass(module = "lightmotif.lib")]
 pub struct Loader {
-    reader: Box<dyn Iterator<Item = PyResult<PyObject>> + Send>,
+    reader: Box<dyn Iterator<Item = PyResult<PyObject>> + Send + Sync>,
 }
 
 #[pymethods]
@@ -185,9 +185,9 @@ impl Loader {
     ) -> PyResult<PyClassInitializer<Self>> {
         let py = file.py();
         let pathlike = py
-            .import_bound(pyo3::intern!(py, "os"))?
+            .import(pyo3::intern!(py, "os"))?
             .call_method1(pyo3::intern!(py, "fsdecode"), (&file,));
-        let b: Box<dyn BufRead + Send> = if let Ok(path) = pathlike {
+        let b: Box<dyn BufRead + Send + Sync> = if let Ok(path) = pathlike {
             // NOTE(@althonos): In theory this is safe because `os.fsencode` encodes
             //                  the PathLike object into the OS prefered encoding,
             //                  which is was OsStr wants. In practice, there may be
@@ -201,7 +201,7 @@ impl Loader {
                 .map(std::io::BufReader::new)
                 .map(Box::new)?
         };
-        let reader: Box<dyn Iterator<Item = PyResult<PyObject>> + Send> = match format {
+        let reader: Box<dyn Iterator<Item = PyResult<PyObject>> + Send + Sync> = match format {
             "jaspar" if protein => {
                 return Err(PyValueError::new_err(
                     "cannot read protein motifs from JASPAR format",

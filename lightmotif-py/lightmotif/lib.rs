@@ -232,7 +232,8 @@ impl EncodedSequence {
         (*view).len = slf.data.len() as isize;
         (*view).readonly = 1;
         (*view).itemsize = std::mem::size_of::<u8>() as isize;
-        (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
+
+        (*view).obj = pyo3::ffi::Py_NewRef(slf.as_ptr());
         let msg = std::ffi::CStr::from_bytes_with_nul(b"B\0").unwrap();
         (*view).format = msg.as_ptr() as *mut _;
 
@@ -339,20 +340,19 @@ impl StripedSequence {
             return Err(PyBufferError::new_err("Object is not writable"));
         }
 
-        (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
         let data = slf.data.as_ptr();
         (*view).buf = data as *mut std::os::raw::c_void;
         (*view).len = (slf.data.rows() * slf.data.columns()) as isize;
         (*view).readonly = 1;
         (*view).itemsize = std::mem::size_of::<Nucleotide>() as isize;
 
+        (*view).obj = pyo3::ffi::Py_NewRef(slf.as_ptr());
         let msg = std::ffi::CStr::from_bytes_with_nul(b"B\0").unwrap();
         (*view).format = msg.as_ptr() as *mut _;
 
         (*view).ndim = 2;
         (*view).shape = slf.shape.as_mut_ptr();
         (*view).strides = slf.strides.as_mut_ptr();
-
         (*view).suboffsets = std::ptr::null_mut();
         (*view).internal = std::ptr::null_mut();
 
@@ -421,7 +421,7 @@ impl CountMatrix {
                         if matrix.rows() != column.len()? {
                             return Err(PyValueError::new_err("Invalid number of rows"));
                         }
-                        for (i, x) in column.iter()?.enumerate() {
+                        for (i, x) in column.try_iter()?.enumerate() {
                             matrix[i][s.as_index()] = x?.extract::<u32>()?;
                         }
                     }
@@ -455,7 +455,7 @@ impl CountMatrix {
         self.data.rows()
     }
 
-    pub fn __getitem__<'py>(slf: PyRef<'py, Self>, index: isize) -> PyResult<PyObject> {
+    pub fn __getitem__<'py>(slf: PyRef<'py, Self>, index: isize) -> PyResult<Bound<'py, PyAny>> {
         let py = slf.py();
 
         let mut index_ = index;
@@ -467,7 +467,7 @@ impl CountMatrix {
         }
 
         let row = slf.data.get(index as usize);
-        Ok(row.to_object(py))
+        row.into_pyobject(py)
     }
 
     /// `bool`: `True` if the count matrix stores protein counts.
@@ -573,7 +573,7 @@ impl WeightMatrix {
         self.data.rows()
     }
 
-    pub fn __getitem__<'py>(slf: PyRef<'py, Self>, index: isize) -> PyResult<PyObject> {
+    pub fn __getitem__<'py>(slf: PyRef<'py, Self>, index: isize) -> PyResult<Bound<'py, PyAny>> {
         let py = slf.py();
 
         let mut index_ = index;
@@ -585,7 +585,7 @@ impl WeightMatrix {
         }
 
         let row = slf.data.get(index as usize);
-        Ok(row.to_object(py))
+        row.into_pyobject(py)
     }
 
     /// `bool`: `True` if the weight matrix stores protein weights.
@@ -769,7 +769,7 @@ impl ScoringMatrix {
         self.data.rows()
     }
 
-    pub fn __getitem__<'py>(slf: PyRef<'py, Self>, index: isize) -> PyResult<PyObject> {
+    pub fn __getitem__<'py>(slf: PyRef<'py, Self>, index: isize) -> PyResult<Bound<'py, PyAny>> {
         let py = slf.py();
         let mut index_ = index;
         if index_ < 0 {
@@ -778,7 +778,7 @@ impl ScoringMatrix {
         if index_ < 0 || (index_ as usize) >= slf.data.rows() {
             return Err(PyIndexError::new_err(index));
         }
-        Ok(slf.data.get(index as usize).to_object(py))
+        slf.data.get(index as usize).into_pyobject(py)
     }
 
     unsafe fn __getbuffer__(
@@ -793,21 +793,19 @@ impl ScoringMatrix {
             return Err(PyBufferError::new_err("Object is not writable"));
         }
 
-        (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
-
         let data = slf.data.as_ptr();
         (*view).buf = data as *mut std::os::raw::c_void;
         (*view).len = -1;
         (*view).readonly = 1;
         (*view).itemsize = std::mem::size_of::<f32>() as isize;
 
+        (*view).obj = pyo3::ffi::Py_NewRef(slf.as_ptr());
         let msg = std::ffi::CStr::from_bytes_with_nul(b"f\0").unwrap();
         (*view).format = msg.as_ptr() as *mut _;
 
         (*view).ndim = 2;
         (*view).shape = slf.shape.as_mut_ptr();
         (*view).strides = slf.strides.as_mut_ptr();
-
         (*view).suboffsets = std::ptr::null_mut();
         (*view).internal = std::ptr::null_mut();
 
@@ -1002,7 +1000,7 @@ impl ScoreDistribution {
         (*view).readonly = 1;
         (*view).itemsize = std::mem::size_of::<f64>() as isize;
 
-        (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
+        (*view).obj = pyo3::ffi::Py_NewRef(slf.as_ptr());
         let msg = std::ffi::CStr::from_bytes_with_nul(b"d\0").unwrap();
         (*view).format = msg.as_ptr() as *mut _;
 
@@ -1059,14 +1057,13 @@ impl StripedScores {
         (*view).readonly = 1;
         (*view).itemsize = std::mem::size_of::<f32>() as isize;
 
-        (*view).obj = pyo3::ffi::_Py_NewRef(slf.as_ptr());
+        (*view).obj = pyo3::ffi::Py_NewRef(slf.as_ptr());
         let msg = std::ffi::CStr::from_bytes_with_nul(b"f\0").unwrap();
         (*view).format = msg.as_ptr() as *mut _;
 
         (*view).ndim = 2;
         (*view).shape = slf.shape.as_mut_ptr();
         (*view).strides = slf.strides.as_mut_ptr();
-
         (*view).suboffsets = std::ptr::null_mut();
         (*view).internal = std::ptr::null_mut();
 
@@ -1348,7 +1345,7 @@ pub fn create(sequences: Bound<PyAny>, protein: bool, name: Option<String>) -> P
     macro_rules! run {
         ($alphabet:ty) => {{
             let mut encoded = Vec::new();
-            for seq in sequences.iter()? {
+            for seq in sequences.try_iter()? {
                 let s = seq?.extract::<Bound<PyString>>()?;
                 let sequence = s.to_str()?;
                 let x = py

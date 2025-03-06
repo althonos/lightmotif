@@ -15,7 +15,7 @@ macro_rules! transmute_file_error {
         // Attempt to transmute the Python OSError to an actual
         // Rust `std::io::Error` using `from_raw_os_error`.
         if $e.is_instance_of::<PyOSError>($py) {
-            if let Ok(code) = &$e.value_bound($py).getattr("errno") {
+            if let Ok(code) = &$e.value($py).getattr("errno") {
                 if let Ok(n) = code.extract::<i32>() {
                     return Err(IoError::from_raw_os_error(n));
                 }
@@ -42,7 +42,7 @@ impl PyFileRead {
         let res = file.call_method1("read", (0,))?;
         if res.downcast::<PyBytes>().is_ok() {
             Ok(PyFileRead {
-                file: Mutex::new(file.to_object(file.py())),
+                file: Mutex::new(file.clone().unbind()),
             })
         } else {
             let ty = res.get_type().name()?.to_string();
@@ -58,10 +58,7 @@ impl Read for PyFileRead {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, IoError> {
         Python::with_gil(|py| {
             let file = self.file.lock().expect("failed to lock file");
-            match file
-                .to_object(py)
-                .call_method1(py, pyo3::intern!(py, "read"), (buf.len(),))
-            {
+            match file.call_method1(py, pyo3::intern!(py, "read"), (buf.len(),)) {
                 Ok(obj) => {
                     // Check `fh.read` returned bytes, else raise a `TypeError`.
                     if let Ok(bytes) = obj.downcast_bound::<PyBytes>(py) {
