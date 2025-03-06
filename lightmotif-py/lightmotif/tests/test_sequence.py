@@ -5,6 +5,7 @@ import unittest
 import sys
 
 import lightmotif
+from lightmotif.lib import LIMITED_API
 
 class TestEncodedSequence(unittest.TestCase):
 
@@ -36,6 +37,7 @@ class TestEncodedSequence(unittest.TestCase):
             _ = self.s1[10]
 
     @unittest.skipIf(sys.implementation.name != "cpython", "buffer protocol unsupported")
+    @unittest.skipIf(LIMITED_API, "compiled with Limited API")
     def test_memoryview(self):
         A, C, T, G, N = range(5)
         mem = memoryview(self.s1)
@@ -60,6 +62,7 @@ class TestStripedSequence(unittest.TestCase):
         cls.s2 = lightmotif.stripe("ATGTCCCAACAACGATACCCCGAGCCCATCGCCGTCATCGGCTCGGCATGCAGATTCCCAGGCG")
 
     @unittest.skipIf(sys.implementation.name != "cpython", "buffer protocol unsupported")
+    @unittest.skipIf(LIMITED_API, "compiled with Limited API")
     def test_memoryview(self):
         A, C, T, G, N = range(5)
         mem = memoryview(self.s1)

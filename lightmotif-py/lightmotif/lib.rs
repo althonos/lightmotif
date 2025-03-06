@@ -216,7 +216,7 @@ impl EncodedSequence {
     }
 
     /// Get the underlying memory of the encoded sequence.
-    // #[cfg(not(feature = "abi3"))]
+    #[cfg(not(feature = "abi3"))]
     unsafe fn __getbuffer__(
         slf: PyRef<'_, Self>,
         view: *mut pyo3::ffi::Py_buffer,
@@ -1472,6 +1472,11 @@ pub fn init<'py>(_py: Python<'py>, m: &Bound<PyModule>) -> PyResult<()> {
     m.add("__package__", "lightmotif")?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add("__author__", env!("CARGO_PKG_AUTHORS").replace(':', "\n"))?;
+
+    #[cfg(feature = "abi3")]
+    m.add("LIMITED_API", true)?;
+    #[cfg(not(feature = "abi3"))]
+    m.add("LIMITED_API", false)?;
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     m.add("AVX2_SUPPORTED", std::is_x86_feature_detected!("avx2"))?;
