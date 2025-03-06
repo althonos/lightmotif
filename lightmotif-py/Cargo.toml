@@ -35,6 +35,7 @@ default = ["tfmpvalue"]
 tfmpvalue = ["lightmotif-tfmpvalue"]
 built = []
 extension-module = ["pyo3/extension-module"]
+abi3 = ["pyo3/abi3-py37"]
 nightly = ["pyo3/nightly"]
 
 [[test]]

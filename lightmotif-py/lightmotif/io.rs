@@ -193,7 +193,7 @@ impl Loader {
             //                  which is was OsStr wants. In practice, there may be
             //                  some weird bugs if that encoding is incorrect, idk...
             let decoded = path.downcast::<PyString>()?;
-            std::fs::File::open(decoded.to_str()?)
+            std::fs::File::open(&*decoded.to_cow()?)
                 .map(std::io::BufReader::new)
                 .map(Box::new)?
         } else {

@@ -103,7 +103,7 @@ fn dict_to_alphabet_array<'py, A: lightmotif::Alphabet>(
         .collect::<GenericArray<f32, A::K>>();
     for (k, v) in d.iter() {
         let s = k.extract::<Bound<PyString>>()?;
-        let key = s.to_str()?;
+        let key = s.to_cow()?;
         if key.len() != 1 {
             return Err(PyValueError::new_err((
                 "Invalid key for pseudocount:",
@@ -169,15 +169,15 @@ impl EncodedSequence {
         sequence: Bound<'py, PyString>,
         protein: bool,
     ) -> PyResult<PyClassInitializer<Self>> {
-        let seq = sequence.to_str()?;
+        let seq = sequence.to_cow()?;
         let py = sequence.py();
         let data = py
             .allow_threads(|| {
                 if protein {
-                    lightmotif::seq::EncodedSequence::<Protein>::encode(seq)
+                    lightmotif::seq::EncodedSequence::<Protein>::encode(&*seq)
                         .map(EncodedSequenceData::from)
                 } else {
-                    lightmotif::seq::EncodedSequence::<Dna>::encode(seq)
+                    lightmotif::seq::EncodedSequence::<Dna>::encode(&*seq)
                         .map(EncodedSequenceData::from)
                 }
             })
@@ -216,6 +216,7 @@ impl EncodedSequence {
     }
 
     /// Get the underlying memory of the encoded sequence.
+    // #[cfg(not(feature = "abi3"))]
     unsafe fn __getbuffer__(
         slf: PyRef<'_, Self>,
         view: *mut pyo3::ffi::Py_buffer,
@@ -328,6 +329,7 @@ impl StripedSequence {
         matches!(self.data, StripedSequenceData::Protein(_))
     }
 
+    #[cfg(not(feature = "abi3"))]
     unsafe fn __getbuffer__(
         mut slf: PyRefMut<'_, Self>,
         view: *mut pyo3::ffi::Py_buffer,
@@ -781,6 +783,7 @@ impl ScoringMatrix {
         slf.data.get(index as usize).into_pyobject(py)
     }
 
+    #[cfg(not(feature = "abi3"))]
     unsafe fn __getbuffer__(
         mut slf: PyRefMut<'_, Self>,
         view: *mut pyo3::ffi::Py_buffer,
@@ -982,6 +985,7 @@ impl From<ScoreDistributionData> for ScoreDistribution {
 #[pymethods]
 impl ScoreDistribution {
     /// Get the underlying memory of the encoded sequence.
+    #[cfg(not(feature = "abi3"))]
     unsafe fn __getbuffer__(
         slf: PyRefMut<'_, Self>,
         view: *mut pyo3::ffi::Py_buffer,
@@ -1039,6 +1043,7 @@ impl StripedScores {
         }
     }
 
+    #[cfg(not(feature = "abi3"))]
     unsafe fn __getbuffer__(
         mut slf: PyRefMut<'_, Self>,
         view: *mut pyo3::ffi::Py_buffer,
@@ -1347,9 +1352,9 @@ pub fn create(sequences: Bound<PyAny>, protein: bool, name: Option<String>) -> P
             let mut encoded = Vec::new();
             for seq in sequences.try_iter()? {
                 let s = seq?.extract::<Bound<PyString>>()?;
-                let sequence = s.to_str()?;
+                let sequence = s.to_cow()?;
                 let x = py
-                    .allow_threads(|| lightmotif::EncodedSequence::<$alphabet>::encode(sequence))
+                    .allow_threads(|| lightmotif::EncodedSequence::<$alphabet>::encode(&*sequence))
                     .map_err(|_| PyValueError::new_err("Invalid symbol in sequence"))?;
                 encoded.push(x);
             }
