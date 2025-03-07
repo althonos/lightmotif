@@ -120,7 +120,7 @@ impl<T: MatrixElement, C: ArrayLength> DenseMatrix<T, C> {
     /// # use lightmotif::num::U43;
     /// # use lightmotif::dense::DenseMatrix;
     /// let d = DenseMatrix::<u8, U43>::new(0);
-    /// assert_eq!(d.stride(), 64);
+    /// assert!(d.stride() == 64 || d.stride() == 48);
     /// ```
     #[inline]
     pub const fn stride(&self) -> usize {
@@ -369,7 +369,10 @@ mod test {
         assert_eq!(d1.stride(), 32);
 
         let d2 = DenseMatrix::<u8, U16>::new(0);
+        #[cfg(target_arch = "x86_64")]
         assert_eq!(d2.stride(), 32);
+        #[cfg(not(target_arch = "x86_64"))]
+        assert_eq!(d2.stride(), 16);
 
         let d3 = DenseMatrix::<u32, U32>::new(0);
         assert_eq!(d3.stride(), 32);
@@ -381,7 +384,10 @@ mod test {
         assert_eq!(d5.stride(), 16);
 
         let d7 = DenseMatrix::<u8, U33>::new(0);
+        #[cfg(target_arch = "x86_64")]
         assert_eq!(d7.stride(), 64);
+        #[cfg(not(target_arch = "x86_64"))]
+        assert_eq!(d7.stride(), 48);
     }
 
     #[test]
