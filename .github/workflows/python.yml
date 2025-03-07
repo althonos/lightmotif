@@ -8,7 +8,6 @@ jobs:
   wheel-linux-aarch64:
     name: Build Linux wheels (Aarch64)
     runs-on: ubuntu-22.04-arm
-    if: "startsWith(github.ref, 'refs/tags/v')"
     steps:
     - uses: actions/checkout@v4
     - name: Build manylinux wheels
@@ -42,7 +41,7 @@ jobs:
 
   wheel-macos-x86_64:
     name: Build MacOS wheels (x86-64)
-    runs-on: macOS-latest
+    runs-on: macOS-13
     steps:
     - uses: actions/checkout@v4
     - name: Build manylinux wheels
@@ -59,7 +58,7 @@ jobs:
 
   wheel-macos-aarch64:
     name: Build MacOS wheels (Aarch64)
-    runs-on: macOS-latest
+    runs-on: macOS-13
     steps:
     - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@stable
