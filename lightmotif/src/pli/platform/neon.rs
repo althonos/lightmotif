@@ -155,7 +155,7 @@ unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
             // advance position in the position weight matrix
             for _ in 0..pssm.rows() {
                 // load sequence row
-                let x = vld1q_u8(seqptr as *const u8);
+                let x = vld1q_u8(seqrow as *const u8);
                 let z = vzipq_u8(x, vdupq_n_u8(0));
                 // transform u8 into u32
                 let lo = vzipq_u8(z.0, vdupq_n_u8(0));
