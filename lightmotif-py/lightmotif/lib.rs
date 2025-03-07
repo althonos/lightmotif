@@ -234,7 +234,8 @@ impl EncodedSequence {
         (*view).readonly = 1;
         (*view).itemsize = std::mem::size_of::<u8>() as isize;
 
-        (*view).obj = pyo3::ffi::Py_NewRef(slf.as_ptr());
+        (*view).obj = slf.as_ptr();
+        pyo3::ffi::Py_INCREF((*view).obj);
         let msg = std::ffi::CStr::from_bytes_with_nul(b"B\0").unwrap();
         (*view).format = msg.as_ptr() as *mut _;
 
@@ -348,7 +349,8 @@ impl StripedSequence {
         (*view).readonly = 1;
         (*view).itemsize = std::mem::size_of::<Nucleotide>() as isize;
 
-        (*view).obj = pyo3::ffi::Py_NewRef(slf.as_ptr());
+        (*view).obj = slf.as_ptr();
+        pyo3::ffi::Py_INCREF((*view).obj);
         let msg = std::ffi::CStr::from_bytes_with_nul(b"B\0").unwrap();
         (*view).format = msg.as_ptr() as *mut _;
 
@@ -802,7 +804,8 @@ impl ScoringMatrix {
         (*view).readonly = 1;
         (*view).itemsize = std::mem::size_of::<f32>() as isize;
 
-        (*view).obj = pyo3::ffi::Py_NewRef(slf.as_ptr());
+        (*view).obj = slf.as_ptr();
+        pyo3::ffi::Py_INCREF((*view).obj);
         let msg = std::ffi::CStr::from_bytes_with_nul(b"f\0").unwrap();
         (*view).format = msg.as_ptr() as *mut _;
 
@@ -1004,7 +1007,8 @@ impl ScoreDistribution {
         (*view).readonly = 1;
         (*view).itemsize = std::mem::size_of::<f64>() as isize;
 
-        (*view).obj = pyo3::ffi::Py_NewRef(slf.as_ptr());
+        (*view).obj = slf.as_ptr();
+        pyo3::ffi::Py_INCREF((*view).obj);
         let msg = std::ffi::CStr::from_bytes_with_nul(b"d\0").unwrap();
         (*view).format = msg.as_ptr() as *mut _;
 
@@ -1062,7 +1066,8 @@ impl StripedScores {
         (*view).readonly = 1;
         (*view).itemsize = std::mem::size_of::<f32>() as isize;
 
-        (*view).obj = pyo3::ffi::Py_NewRef(slf.as_ptr());
+        (*view).obj = slf.as_ptr();
+        pyo3::ffi::Py_INCREF((*view).obj);
         let msg = std::ffi::CStr::from_bytes_with_nul(b"f\0").unwrap();
         (*view).format = msg.as_ptr() as *mut _;
 
