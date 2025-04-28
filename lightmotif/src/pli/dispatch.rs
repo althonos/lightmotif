@@ -21,6 +21,8 @@ use crate::dense::MatrixCoordinates;
 use crate::dense::MatrixElement;
 use crate::err::InvalidSymbol;
 #[allow(unused)]
+use crate::num::Unsigned;
+#[allow(unused)]
 use crate::num::U1;
 use crate::pwm::ScoringMatrix;
 use crate::scores::StripedScores;
@@ -91,7 +93,9 @@ impl<A: Alphabet> Score<f32, A, <Dispatch as Backend>::Lanes> for Pipeline<A, Di
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             Dispatch::Sse2 => Sse2::score_rows_into(pssm, seq.as_ref(), rows, scores),
             #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-            Dispatch::Neon => Neon::score_f32_rows_into(pssm, seq.as_ref(), rows, scores),
+            Dispatch::Neon if A::K::USIZE <= 8 => {
+                Neon::score_f32_rows_into(pssm, seq.as_ref(), rows, scores)
+            }
             _ => <Generic as Score<f32, A, <Dispatch as Backend>::Lanes>>::score_rows_into(
                 &Generic,
                 pssm,
