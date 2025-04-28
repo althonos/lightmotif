@@ -67,6 +67,25 @@ jobs:
     - name: Test code
       run: cargo test
 
+  bench-aarch64:
+    name: Bench (aarch64)
+    runs-on: ubuntu-22.04-arm
+    needs: test-aarch64
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Setup Rust nightly
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: nightly
+    - name: Setup cache for cargo
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-nightly
+    - name: Test code
+      run: cargo bench -p lightmotif
+
   cover:
     name: Coverage (${{ matrix.cpu }})
     runs-on: ubuntu-latest
