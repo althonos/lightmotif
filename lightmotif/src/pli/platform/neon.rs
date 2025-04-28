@@ -127,7 +127,7 @@ where
 
 #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
 #[target_feature(enable = "neon")]
-unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
+unsafe fn score_f32_neon_vandq<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
     pssm: &DenseMatrix<f32, A::K>,
     seq: &StripedSequence<A, C>,
     rows: Range<usize>,
@@ -189,6 +189,95 @@ unsafe fn score_f32_neon<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
     }
 }
 
+#[cfg(any(target_arch = "aarch64"))]
+#[target_feature(enable = "neon")]
+unsafe fn score_f32_neon_vqtbl1q<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
+    pssm: &DenseMatrix<f32, A::K>,
+    seq: &StripedSequence<A, C>,
+    rows: Range<usize>,
+    scores: &mut StripedScores<f32, C>,
+) {
+    // transpose a PSSM row, K <= 8
+    #[inline]
+    unsafe fn _vtrans_f32(v: float32x4x2_t) -> uint8x16x4_t {
+        let t: uint16x8x2_t = vuzpq_u16(vreinterpretq_u16_f32(v.0), vreinterpretq_u16_f32(v.1));
+        let q01: uint8x16x2_t = vuzpq_u8(vreinterpretq_u8_u16(t.0), vreinterpretq_u8_u16(t.0));
+        let q23: uint8x16x2_t = vuzpq_u8(vreinterpretq_u8_u16(t.1), vreinterpretq_u8_u16(t.1));
+        uint8x16x4_t(q01.0, q01.1, q23.0, q23.1)
+    }
+
+    #[inline]
+    unsafe fn _vuntrans_f32(
+        v0: uint8x16_t,
+        v1: uint8x16_t,
+        v2: uint8x16_t,
+        v3: uint8x16_t,
+    ) -> float32x4x4_t {
+        let b01: uint8x16x2_t = vzipq_u8(v0, v1);
+        let b23: uint8x16x2_t = vzipq_u8(v2, v3);
+        let f01: uint16x8x2_t = vzipq_u16(vreinterpretq_u16_u8(b01.0), vreinterpretq_u16_u8(b23.0));
+        let f23: uint16x8x2_t = vzipq_u16(vreinterpretq_u16_u8(b01.1), vreinterpretq_u16_u8(b23.1));
+        float32x4x4_t(
+            vreinterpretq_f32_u16(f01.0),
+            vreinterpretq_f32_u16(f01.1),
+            vreinterpretq_f32_u16(f23.0),
+            vreinterpretq_f32_u16(f23.1),
+        )
+    }
+
+    // process columns of the striped matrix, any multiple of 16 is supported
+    let data = scores.matrix_mut();
+    for offset in (0..C::Quotient::USIZE).map(|i| i * <Neon as Backend>::Lanes::USIZE) {
+        let psmptr = pssm[0].as_ptr();
+        let mut rowptr = data[0].as_mut_ptr().add(offset);
+        let mut seqptr = seq.matrix()[rows.start].as_ptr().add(offset);
+
+        // process every position of the sequence data
+        for _ in 0..rows.len() {
+            // reset sums for current position
+            let mut s = float32x4x4_t(
+                vdupq_n_f32(0.0),
+                vdupq_n_f32(0.0),
+                vdupq_n_f32(0.0),
+                vdupq_n_f32(0.0),
+            );
+            // reset position
+            let mut seqrow = seqptr;
+            let mut psmrow = psmptr;
+            // advance position in the position weight matrix
+            for _ in 0..pssm.rows() {
+                // load sequence row
+                let x = vld1q_u8(seqrow as *const u8);
+
+                // load pssm row
+                let p = vld2q_f32(psmrow as *const f32);
+                let pt: uint8x16x4_t = _vtrans_f32(p);
+
+                // index each byte
+                let b0 = vqtbl1q_u8(pt.0, x);
+                let b1 = vqtbl1q_u8(pt.1, x);
+                let b2 = vqtbl1q_u8(pt.2, x);
+                let b3 = vqtbl1q_u8(pt.3, x);
+
+                // untranspose
+                let xs = _vuntrans_f32(b0, b1, b2, b3);
+                s.0 = vaddq_f32(s.0, xs.0);
+                s.1 = vaddq_f32(s.1, xs.1);
+                s.2 = vaddq_f32(s.2, xs.2);
+                s.3 = vaddq_f32(s.3, xs.3);
+
+                // advance to next row in sequence and PSSM matrices
+                seqrow = seqrow.add(seq.matrix().stride());
+                psmrow = psmrow.add(pssm.stride());
+            }
+            // record the score for the current position
+            vst1q_f32_x4(rowptr, s);
+            rowptr = rowptr.add(data.stride());
+            seqptr = seqptr.add(seq.matrix().stride());
+        }
+    }
+}
+
 #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
 #[target_feature(enable = "neon")]
 unsafe fn score_u8_neon<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
@@ -215,8 +304,8 @@ unsafe fn score_u8_neon<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
                 // load pssm row
                 let t = vld1q_u8(pssmptr as *const u8);
                 // shuffle pssm with the sequence characters
-                let y = vqtbl1q_u8(t, x);
-                // add scores to the running sum
+                let y = vqtbl1q_u8(t, x); // NB: not available in ARMv7
+                                          // add scores to the running sum
                 s = vaddq_u8(s, y);
                 // advance to next row in PSSM and sequence matrices
                 seqptr = seqptr.add(seq.matrix().stride());
@@ -247,7 +336,7 @@ impl Neon {
     }
 
     #[allow(unused)]
-    pub fn score_f32_rows_into<A, C, S, M>(
+    pub fn score_f32_rows_into_vandq<A, C, S, M>(
         pssm: M,
         seq: S,
         rows: Range<usize>,
@@ -276,10 +365,67 @@ impl Neon {
         scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.rows()));
         #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
         unsafe {
-            score_f32_neon(pssm, seq, rows, scores);
+            score_f32_neon_vandq(pssm, seq, rows, scores);
         }
         #[cfg(not(any(target_arch = "arm", target_arch = "aarch64")))]
         panic!("attempting to run NEON code on a non-Arm host")
+    }
+
+    #[allow(unused)]
+    fn score_f32_rows_into_vtblq<A, C, S, M>(
+        pssm: M,
+        seq: S,
+        rows: Range<usize>,
+        scores: &mut StripedScores<f32, C>,
+    ) where
+        A: Alphabet,
+        C: MultipleOf<U16> + ArrayLength,
+        S: AsRef<StripedSequence<A, C>>,
+        M: AsRef<DenseMatrix<f32, A::K>>,
+    {
+        assert!(A::K::USIZE <= 8);
+
+        let seq = seq.as_ref();
+        let pssm = pssm.as_ref();
+
+        if seq.wrap() < pssm.rows() - 1 {
+            panic!(
+                "not enough wrapping rows for motif of length {}",
+                pssm.rows()
+            );
+        }
+
+        if seq.len() < pssm.rows() || rows.is_empty() {
+            scores.resize(0, 0);
+            return;
+        }
+
+        scores.resize(rows.len(), (seq.len() + 1).saturating_sub(pssm.rows()));
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            score_f32_neon_vqtbl1q(pssm, seq, rows, scores)
+        };
+        #[cfg(not(target_arch = "aarch64"))]
+        panic!("attempting to run ARMv8 NEON code on a non-ARMv8 host")
+    }
+
+    #[allow(unused)]
+    pub fn score_f32_rows_into<A, C, S, M>(
+        pssm: M,
+        seq: S,
+        rows: Range<usize>,
+        scores: &mut StripedScores<f32, C>,
+    ) where
+        A: Alphabet,
+        C: MultipleOf<U16> + ArrayLength,
+        S: AsRef<StripedSequence<A, C>>,
+        M: AsRef<DenseMatrix<f32, A::K>>,
+    {
+        if A::K::USIZE <= 8 {
+            Self::score_f32_rows_into_vtblq(pssm, seq, rows, scores)
+        } else {
+            Self::score_f32_rows_into_vandq(pssm, seq, rows, scores)
+        }
     }
 
     #[allow(unused)]
