@@ -203,12 +203,12 @@ unsafe fn score_f32_neon_vqtbl1q<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
         v1: uint8x16_t,
         v2: uint8x16_t,
         v3: uint8x16_t,
-    ) -> float32x4x4_t {
+    ) -> (float32x4_t, float32x4_t, float32x4_t, float32x4_t) {
         let b01: uint8x16x2_t = vzipq_u8(v0, v1);
         let b23: uint8x16x2_t = vzipq_u8(v2, v3);
         let f01: uint16x8x2_t = vzipq_u16(vreinterpretq_u16_u8(b01.0), vreinterpretq_u16_u8(b23.0));
         let f23: uint16x8x2_t = vzipq_u16(vreinterpretq_u16_u8(b01.1), vreinterpretq_u16_u8(b23.1));
-        float32x4x4_t(
+        (
             vreinterpretq_f32_u16(f01.0),
             vreinterpretq_f32_u16(f01.1),
             vreinterpretq_f32_u16(f23.0),
@@ -276,11 +276,11 @@ unsafe fn score_f32_neon_vqtbl1q<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
                     b3 = vcombine_u8(l3, h3);
                 }
                 // revert the look-up result into a proper float32x4x4_t
-                let xs = _vuntrans_f32(b0, b1, b2, b3);
-                s0 = vaddq_f32(s0, xs.0);
-                s1 = vaddq_f32(s1, xs.1);
-                s2 = vaddq_f32(s2, xs.2);
-                s3 = vaddq_f32(s3, xs.3);
+                let (xs0, xs1, xs2, xs3) = _vuntrans_f32(b0, b1, b2, b3);
+                s0 = vaddq_f32(s0, xs0);
+                s1 = vaddq_f32(s1, xs1);
+                s2 = vaddq_f32(s2, xs2);
+                s3 = vaddq_f32(s3, xs3);
                 // advance to next row in sequence and PSSM matrices
                 seqrow = seqrow.add(seq.matrix().stride());
                 psmrow = psmrow.add(pssm.stride());
