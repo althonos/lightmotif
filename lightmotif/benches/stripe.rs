@@ -4,7 +4,6 @@ extern crate lightmotif;
 extern crate test;
 
 use lightmotif::dense::DefaultColumns;
-use lightmotif::num::U32;
 use lightmotif::pli::Pipeline;
 use lightmotif::pli::Stripe;
 use lightmotif::seq::EncodedSequence;
@@ -17,7 +16,7 @@ mod dna {
     const SEQUENCE: &str = include_str!("ecoli.txt");
 
     fn bench<P: Stripe<Dna, DefaultColumns>>(bencher: &mut test::Bencher, pli: &P) {
-        let seq = EncodedSequence::encode(SEQUENCE).unwrap();
+        let seq = EncodedSequence::<Dna>::encode(SEQUENCE).unwrap();
         let mut dst = seq.to_striped();
 
         bencher.iter(|| {
@@ -68,8 +67,8 @@ mod protein {
 
     const SEQUENCE: &str = include_str!("abyB1.txt");
 
-    fn bench<P: Stripe<Protein, U32>>(bencher: &mut test::Bencher, pli: &P) {
-        let seq = EncodedSequence::encode(SEQUENCE).unwrap();
+    fn bench<P: Stripe<Protein, DefaultColumns>>(bencher: &mut test::Bencher, pli: &P) {
+        let seq = EncodedSequence::<Protein>::encode(SEQUENCE).unwrap();
         let mut dst = seq.to_striped();
 
         bencher.iter(|| {
