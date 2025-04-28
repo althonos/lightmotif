@@ -197,15 +197,6 @@ unsafe fn score_f32_neon_vqtbl1q<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
     rows: Range<usize>,
     scores: &mut StripedScores<f32, C>,
 ) {
-    // transpose a PSSM row, K <= 8
-    #[inline]
-    unsafe fn _vtrans_f32(v: float32x4x2_t) -> uint8x16x4_t {
-        let t: uint16x8x2_t = vuzpq_u16(vreinterpretq_u16_f32(v.0), vreinterpretq_u16_f32(v.1));
-        let q01: uint8x16x2_t = vuzpq_u8(vreinterpretq_u8_u16(t.0), vdupq_n_u8(0));
-        let q23: uint8x16x2_t = vuzpq_u8(vreinterpretq_u8_u16(t.1), vdupq_n_u8(0));
-        uint8x16x4_t(q01.0, q01.1, q23.0, q23.1)
-    }
-
     #[inline]
     unsafe fn _vuntrans_f32(
         v0: uint8x16_t,
@@ -246,39 +237,50 @@ unsafe fn score_f32_neon_vqtbl1q<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
             for _ in 0..pssm.rows() {
                 // load sequence row
                 let x: uint8x16_t = vld1q_u8(seqrow as *const u8);
-
-                // load pssm row
-                let p = vld1q_f32_x2(psmrow as *const f32);
-                let pt: uint8x16x4_t = _vtrans_f32(p);
-
+                // load pssm row with de-interleaving
+                let pt = vld4q_u8(psmrow as *const u8);
+                // let pt: uint8x16x4_t = _vtrans_f32(p);
                 // index each byte
-                let b0 = vqtbl1q_u8(pt.0, x);
-                let b1 = vqtbl1q_u8(pt.1, x);
-                let b2 = vqtbl1q_u8(pt.2, x);
-                let b3 = vqtbl1q_u8(pt.3, x);
-
-                // let l0 = vtbl1_u8(vget_low_u8(pt.0), vget_low_u8(x));
-                // let l1 = vtbl1_u8(vget_low_u8(pt.1), vget_low_u8(x));
-                // let l2 = vtbl1_u8(vget_low_u8(pt.2), vget_low_u8(x));
-                // let l3 = vtbl1_u8(vget_low_u8(pt.3), vget_low_u8(x));
-
-                // let h0 = vtbl1_u8(vget_low_u8(pt.0), vget_high_u8(x));
-                // let h1 = vtbl1_u8(vget_low_u8(pt.1), vget_high_u8(x));
-                // let h2 = vtbl1_u8(vget_low_u8(pt.2), vget_high_u8(x));
-                // let h3 = vtbl1_u8(vget_low_u8(pt.3), vget_high_u8(x));
-
-                // let b0 = vcombine_u8(l0, h0);
-                // let b1 = vcombine_u8(l1, h1);
-                // let b2 = vcombine_u8(l2, h2);
-                // let b3 = vcombine_u8(l3, h3);
-
-                // untranspose
+                let b0: uint8x16_t;
+                let b1: uint8x16_t;
+                let b2: uint8x16_t;
+                let b3: uint8x16_t;
+                // ARMv8 can perform indexing of uint8x16x4_t by uint8x16_t
+                // using the vqtbl1q_u8 instruction, so it's easy
+                #[cfg(target_arch = "aarch64")]
+                {
+                    b0 = vqtbl1q_u8(pt.0, x);
+                    b1 = vqtbl1q_u8(pt.1, x);
+                    b2 = vqtbl1q_u8(pt.2, x);
+                    b3 = vqtbl1q_u8(pt.3, x);
+                }
+                // ARMv7 only support indexing uint8x8_t by uint8x8_t;
+                // we know that we have 8 elements in the LUT (since K <= 8)
+                // but we still need to handle both halves of `x`
+                #[cfg(target_arch = "arm")]
+                {
+                    // index LUT with first 8 bytes
+                    let l0 = vtbl1_u8(vget_low_u8(pt.0), vget_low_u8(x));
+                    let l1 = vtbl1_u8(vget_low_u8(pt.1), vget_low_u8(x));
+                    let l2 = vtbl1_u8(vget_low_u8(pt.2), vget_low_u8(x));
+                    let l3 = vtbl1_u8(vget_low_u8(pt.3), vget_low_u8(x));
+                    // index LUT with next 8 bytes
+                    let h0 = vtbl1_u8(vget_low_u8(pt.0), vget_high_u8(x));
+                    let h1 = vtbl1_u8(vget_low_u8(pt.1), vget_high_u8(x));
+                    let h2 = vtbl1_u8(vget_low_u8(pt.2), vget_high_u8(x));
+                    let h3 = vtbl1_u8(vget_low_u8(pt.3), vget_high_u8(x));
+                    // combine the results
+                    b0 = vcombine_u8(l0, h0);
+                    b1 = vcombine_u8(l1, h1);
+                    b2 = vcombine_u8(l2, h2);
+                    b3 = vcombine_u8(l3, h3);
+                }
+                // revert the look-up result into a proper float32x4x4_t
                 let xs = _vuntrans_f32(b0, b1, b2, b3);
                 s0 = vaddq_f32(s0, xs.0);
                 s1 = vaddq_f32(s1, xs.1);
                 s2 = vaddq_f32(s2, xs.2);
                 s3 = vaddq_f32(s3, xs.3);
-
                 // advance to next row in sequence and PSSM matrices
                 seqrow = seqrow.add(seq.matrix().stride());
                 psmrow = psmrow.add(pssm.stride());
@@ -320,8 +322,23 @@ unsafe fn score_u8_neon<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
                 // load pssm row
                 let t = vld1q_u8(pssmptr as *const u8);
                 // shuffle pssm with the sequence characters
-                // NB: not available in ARMv7?
-                let y = vqtbl1q_u8(t, x);
+                let y: uint8x16_t;
+                // ARMv8 can perform indexing of uint8x16_t by uint8x16_t
+                // using the vqtbl1q_u8 instruction, so it's easy
+                #[cfg(target_arch = "aarch64")]
+                {
+                    y = vqtbl1q_u8(t, x);
+                }
+                // ARMv7 only support indexing uint8x8_t by uint8x8_t;
+                // we know that we have 8 elements in the LUT (since K <= 8)
+                // but we still need to handle both halves of `x`
+                #[cfg(target_arch = "arm")]
+                {
+                    // index LUT with first 8 bytes
+                    let lo = vtbl1_u8(vget_low_u8(t), vget_low_u8(x));
+                    let hi = vtbl1_u8(vget_low_u8(t), vget_high_u8(x));
+                    y = vcombine_u8(lo, hi);
+                }
                 // add scores to the running sum
                 s = vaddq_u8(s, y);
                 // advance to next row in PSSM and sequence matrices
@@ -459,6 +476,11 @@ impl Neon {
         S: AsRef<StripedSequence<A, C>>,
         M: AsRef<DenseMatrix<u8, A::K>>,
     {
+        // vqtbl1q_u8 limits to K<=16 since the lookup-table is a uint8x16_t,
+        // with max 16 elements, but this could be expanded to K<=32 with
+        // vqtbl2q_u8 to support protein sequences...
+        assert!(A::K::USIZE <= 16);
+
         let seq = seq.as_ref();
         let pssm = pssm.as_ref();
 
