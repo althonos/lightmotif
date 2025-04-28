@@ -189,7 +189,7 @@ unsafe fn score_f32_neon_vandq<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
     }
 }
 
-#[cfg(any(target_arch = "aarch64"))]
+#[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
 #[target_feature(enable = "neon")]
 unsafe fn score_f32_neon_vqtbl1q<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
     pssm: &DenseMatrix<f32, A::K>,
@@ -201,8 +201,8 @@ unsafe fn score_f32_neon_vqtbl1q<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
     #[inline]
     unsafe fn _vtrans_f32(v: float32x4x2_t) -> uint8x16x4_t {
         let t: uint16x8x2_t = vuzpq_u16(vreinterpretq_u16_f32(v.0), vreinterpretq_u16_f32(v.1));
-        let q01: uint8x16x2_t = vuzpq_u8(vreinterpretq_u8_u16(t.0), vreinterpretq_u8_u16(t.0));
-        let q23: uint8x16x2_t = vuzpq_u8(vreinterpretq_u8_u16(t.1), vreinterpretq_u8_u16(t.1));
+        let q01: uint8x16x2_t = vuzpq_u8(vreinterpretq_u8_u16(t.0), vdupq_n_u8(0));
+        let q23: uint8x16x2_t = vuzpq_u8(vreinterpretq_u8_u16(t.1), vdupq_n_u8(0));
         uint8x16x4_t(q01.0, q01.1, q23.0, q23.1)
     }
 
@@ -228,29 +228,27 @@ unsafe fn score_f32_neon_vqtbl1q<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
     // process columns of the striped matrix, any multiple of 16 is supported
     let data = scores.matrix_mut();
     for offset in (0..C::Quotient::USIZE).map(|i| i * <Neon as Backend>::Lanes::USIZE) {
-        let psmptr = pssm[0].as_ptr();
-        let mut rowptr = data[0].as_mut_ptr().add(offset);
-        let mut seqptr = seq.matrix()[rows.start].as_ptr().add(offset);
+        let psmptr: *const f32 = pssm[0].as_ptr();
+        let mut rowptr: *mut f32 = data[0].as_mut_ptr().add(offset);
+        let mut seqptr: *const A::Symbol = seq.matrix()[rows.start].as_ptr().add(offset);
 
         // process every position of the sequence data
         for _ in 0..rows.len() {
             // reset sums for current position
-            let mut s = float32x4x4_t(
-                vdupq_n_f32(0.0),
-                vdupq_n_f32(0.0),
-                vdupq_n_f32(0.0),
-                vdupq_n_f32(0.0),
-            );
+            let mut s0 = vdupq_n_f32(0.0);
+            let mut s1 = vdupq_n_f32(0.0);
+            let mut s2 = vdupq_n_f32(0.0);
+            let mut s3 = vdupq_n_f32(0.0);
             // reset position
             let mut seqrow = seqptr;
             let mut psmrow = psmptr;
             // advance position in the position weight matrix
             for _ in 0..pssm.rows() {
                 // load sequence row
-                let x = vld1q_u8(seqrow as *const u8);
+                let x: uint8x16_t = vld1q_u8(seqrow as *const u8);
 
                 // load pssm row
-                let p = vld2q_f32(psmrow as *const f32);
+                let p = vld1q_f32_x2(psmrow as *const f32);
                 let pt: uint8x16x4_t = _vtrans_f32(p);
 
                 // index each byte
@@ -259,19 +257,37 @@ unsafe fn score_f32_neon_vqtbl1q<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
                 let b2 = vqtbl1q_u8(pt.2, x);
                 let b3 = vqtbl1q_u8(pt.3, x);
 
+                // let l0 = vtbl1_u8(vget_low_u8(pt.0), vget_low_u8(x));
+                // let l1 = vtbl1_u8(vget_low_u8(pt.1), vget_low_u8(x));
+                // let l2 = vtbl1_u8(vget_low_u8(pt.2), vget_low_u8(x));
+                // let l3 = vtbl1_u8(vget_low_u8(pt.3), vget_low_u8(x));
+
+                // let h0 = vtbl1_u8(vget_low_u8(pt.0), vget_high_u8(x));
+                // let h1 = vtbl1_u8(vget_low_u8(pt.1), vget_high_u8(x));
+                // let h2 = vtbl1_u8(vget_low_u8(pt.2), vget_high_u8(x));
+                // let h3 = vtbl1_u8(vget_low_u8(pt.3), vget_high_u8(x));
+
+                // let b0 = vcombine_u8(l0, h0);
+                // let b1 = vcombine_u8(l1, h1);
+                // let b2 = vcombine_u8(l2, h2);
+                // let b3 = vcombine_u8(l3, h3);
+
                 // untranspose
                 let xs = _vuntrans_f32(b0, b1, b2, b3);
-                s.0 = vaddq_f32(s.0, xs.0);
-                s.1 = vaddq_f32(s.1, xs.1);
-                s.2 = vaddq_f32(s.2, xs.2);
-                s.3 = vaddq_f32(s.3, xs.3);
+                s0 = vaddq_f32(s0, xs.0);
+                s1 = vaddq_f32(s1, xs.1);
+                s2 = vaddq_f32(s2, xs.2);
+                s3 = vaddq_f32(s3, xs.3);
 
                 // advance to next row in sequence and PSSM matrices
                 seqrow = seqrow.add(seq.matrix().stride());
                 psmrow = psmrow.add(pssm.stride());
             }
             // record the score for the current position
-            vst1q_f32_x4(rowptr, s);
+            vst1q_f32(rowptr, s0);
+            vst1q_f32(rowptr.add(0x04), s1);
+            vst1q_f32(rowptr.add(0x08), s2);
+            vst1q_f32(rowptr.add(0x0c), s3);
             rowptr = rowptr.add(data.stride());
             seqptr = seqptr.add(seq.matrix().stride());
         }
@@ -304,8 +320,9 @@ unsafe fn score_u8_neon<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
                 // load pssm row
                 let t = vld1q_u8(pssmptr as *const u8);
                 // shuffle pssm with the sequence characters
-                let y = vqtbl1q_u8(t, x); // NB: not available in ARMv7
-                                          // add scores to the running sum
+                // NB: not available in ARMv7?
+                let y = vqtbl1q_u8(t, x);
+                // add scores to the running sum
                 s = vaddq_u8(s, y);
                 // advance to next row in PSSM and sequence matrices
                 seqptr = seqptr.add(seq.matrix().stride());
