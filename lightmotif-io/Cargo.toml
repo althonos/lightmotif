@@ -8,7 +8,7 @@ description = "Parser implementations of several formats for the lightmotif crat
 repository = "https://github.com/althonos/lightmotif"
 homepage = "https://github.com/althonos/lightmotif/tree/main/lightmotif-io"
 readme = "README.md"
-categories = ["science", "parser-implementations"]
+categories = ["science::bioinformatics", "parser-implementations"]
 keywords = ["bioinformatics", "motif", "parser", "transfac", "meme"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
