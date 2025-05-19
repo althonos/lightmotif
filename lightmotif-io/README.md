@@ -27,7 +27,7 @@ PSSM file formats, including:
   (in JASPAR 2016 bracketed format or raw format) with their record header.
 - [x] [UniPROBE](http://the_brain.bwh.harvard.edu/uniprobe/index.php) 
   frequency matrices with their record header.
-- [ ] [MEME minimal](https://meme-suite.org/meme/doc/meme-format.html) records
+- [x] [MEME minimal](https://meme-suite.org/meme/doc/meme-format.html) records
   with their metadata, background probabilities, and frequency matrices.
 
 
