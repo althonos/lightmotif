@@ -21,3 +21,4 @@ generic-array = "1.0"
 [dependencies.lightmotif]
 path = "../lightmotif"
 version = "0.9.1"
+default-features = false
