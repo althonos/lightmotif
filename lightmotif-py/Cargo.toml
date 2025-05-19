@@ -19,6 +19,7 @@ doctest = false
 [dependencies.lightmotif]
 path = "../lightmotif"
 version = "0.9.1"
+default-features = false
 [dependencies.lightmotif-io]
 path = "../lightmotif-io"
 version = "0.9.1"
