@@ -3,10 +3,13 @@
 use std::io::BufRead;
 use std::sync::Arc;
 
+use generic_array::GenericArray;
 use lightmotif::abc::Alphabet;
 use lightmotif::abc::Background;
+use lightmotif::abc::Symbol;
 use lightmotif::dense::DenseMatrix;
-use lightmotif::FrequencyMatrix;
+use lightmotif::num::Unsigned;
+use lightmotif::pwm::FrequencyMatrix;
 
 use crate::error::Error;
 
@@ -72,6 +75,7 @@ pub struct Reader<B: BufRead, A: Alphabet> {
     buffer: String,
     bufread: B,
     meme_version: String,
+    symbols: GenericArray<A::Symbol, A::K>,
     background: Option<Background<A>>,
     error: Option<crate::error::Error>,
     _alphabet: std::marker::PhantomData<A>,
@@ -83,6 +87,7 @@ impl<B: BufRead, A: Alphabet> Reader<B, A> {
         let mut meme_version = None;
         let mut error = None;
         let mut background = None;
+        let mut symbols = None;
 
         macro_rules! read_line {
             () => {
@@ -156,12 +161,20 @@ impl<B: BufRead, A: Alphabet> Reader<B, A> {
             }
         }
 
+        if symbols.is_none() {
+            let mut s: GenericArray<A::Symbol, A::K> =
+                GenericArray::from_slice(A::symbols()).clone();
+            s.as_mut_slice()[..A::K::USIZE - 1].sort_by(|x, y| x.as_char().cmp(&y.as_char()));
+            symbols = Some(s);
+        }
+
         Self {
             bufread: reader,
             buffer,
             meme_version: meme_version.unwrap(),
             error,
             background,
+            symbols: symbols.unwrap(),
             _alphabet: std::marker::PhantomData,
         }
     }
@@ -225,7 +238,7 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
                         Ok(0) => break,
                         Ok(n) => (),
                     };
-                    match self::parse::motif_row::<A>(&self.buffer) {
+                    match self::parse::motif_row::<A>(&self.buffer, &self.symbols) {
                         Ok((_, row)) => rows.push(row),
                         Err(e) => break, // FIXME?
                     }

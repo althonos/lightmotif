@@ -91,38 +91,55 @@ pub fn background<A: Alphabet>(input: &str) -> IResult<&str, Background<A>> {
     Ok((input, data))
 }
 
-pub fn motif_row<A: Alphabet>(input: &str) -> IResult<&str, GenericArray<f32, A::K>> {
-    let mut row = GenericArray::default();
+pub fn motif_row<'a, 'i, A: Alphabet>(
+    input: &'i str,
+    symbols: &'a [A::Symbol],
+) -> IResult<&'i str, GenericArray<f32, A::K>> {
+    let mut buffer = GenericArray::<f32, A::K>::default();
     let (i, _) = terminated(
         nom::multi::fill(
             preceded(space0, nom::number::float()),
-            &mut row.as_mut_slice()[..A::K::USIZE - 1],
+            &mut buffer.as_mut_slice()[..A::K::USIZE - 1],
         ),
         preceded(space0, line_ending),
     )
     .parse(input)?;
+
+    let mut row = GenericArray::<f32, A::K>::default();
+    for (i, symbol) in symbols.iter().enumerate() {
+        row[symbol.as_index()] = buffer[i];
+    }
+
     Ok((i, row))
 }
 
-pub fn motif_matrix<A: Alphabet>(
-    input: &str,
+pub fn motif_matrix<'a, 'i, A: Alphabet>(
+    input: &'i str,
+    symbols: &'a [A::Symbol],
     rows: Option<usize>,
-) -> IResult<&str, DenseMatrix<f32, A::K>> {
+) -> IResult<&'i str, DenseMatrix<f32, A::K>> {
     let (input, rows) = match rows {
-        Some(x) => many(x, motif_row::<A>).parse(input)?,
-        None => terminated(many1(motif_row::<A>), not(peek(motif_row::<A>))).parse(input)?,
+        Some(x) => many(x, |x| motif_row::<A>(x, symbols)).parse(input)?,
+        None => terminated(
+            many1(|x| motif_row::<A>(x, symbols)),
+            not(peek(|x| motif_row::<A>(x, symbols))),
+        )
+        .parse(input)?,
     };
     Ok((input, DenseMatrix::from_rows(rows)))
 }
 
-pub fn letter_probability_matrix<A: Alphabet>(input: &str) -> IResult<&str, FrequencyMatrix<A>> {
+pub fn letter_probability_matrix<'a, 'i, A: Alphabet>(
+    input: &'i str,
+    symbols: &'a [A::Symbol],
+) -> IResult<&'i str, FrequencyMatrix<A>> {
     let (input, _) = tag("letter-probability matrix:").parse(input)?;
     let (input, _) = terminated(
         nom::bytes::complete::take_while(|c: char| !c.is_newline()),
         line_ending,
     )
     .parse(input)?;
-    let (input, matrix) = motif_matrix::<A>(input, None)?;
+    let (input, matrix) = motif_matrix::<A>(input, symbols, None)?;
     Ok((input, FrequencyMatrix::new_unchecked(matrix)))
 }
 
@@ -199,15 +216,17 @@ mod tests {
 
     #[test]
     fn motif_row() {
+        let symbols = &[Nucleotide::A, Nucleotide::C, Nucleotide::G, Nucleotide::T];
         let (rest, row) =
-            super::motif_row::<Dna>("0.611111  0.000000  0.055556  0.333333\n").unwrap();
+            super::motif_row::<Dna>("0.611111  0.000000  0.055556  0.333333\n", symbols).unwrap();
         assert_eq!(rest, "");
-        assert_eq!(row.as_ref(), [0.611111, 0.000000, 0.055556, 0.333333, 0.0]);
+        assert_eq!(row.as_ref(), [0.611111, 0.000000, 0.333333, 0.055556, 0.0]);
     }
 
     #[test]
     fn motif_matrix() {
-        let (rest, row) = super::motif_matrix::<Dna>(" 0.002850 0.929490 0.000004 0.000399\n0.002850 0.020399 0.000004 0.000399\n0.002850 0.020399 0.000004 0.000399\n\n", None).unwrap();
+        let symbols = &[Nucleotide::A, Nucleotide::C, Nucleotide::G, Nucleotide::T];
+        let (rest, row) = super::motif_matrix::<Dna>(" 0.002850 0.929490 0.000004 0.000399\n0.002850 0.020399 0.000004 0.000399\n0.002850 0.020399 0.000004 0.000399\n\n", symbols, None).unwrap();
         assert_eq!(rest, "\n");
     }
 
