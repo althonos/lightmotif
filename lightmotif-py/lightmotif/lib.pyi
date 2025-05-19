@@ -12,7 +12,7 @@ __author__: str
 
 AVX2_SUPPORTED: bool
 
-FORMAT = Literal["jaspar", "jaspar16", "uniprobe", "transfac"]
+FORMAT = Literal["jaspar", "jaspar16", "uniprobe", "transfac", "meme"]
 METHOD = Literal["meme", "tfmpvalue"]
 
 class EncodedSequence:
@@ -111,6 +111,14 @@ class JasparMotif(Motif):
     @property
     def description(self) -> Optional[str]: ...
 
+class MemeMotif(Motif):
+    @property
+    def counts(self) -> None: ...
+    @property
+    def name(self) -> str: ...
+    @property
+    def description(self) -> Optional[str]: ...
+
 class UniprobeMotif(Motif):
     @property
     def counts(self) -> None: ...
@@ -138,7 +146,7 @@ class Loader(Generic[M], Iterator[M]):
     def __init__(
         self,
         file: Union[BinaryIO, PathLike[str]],
-        format: Literal["jaspar16"],
+        format: FORMAT = "jaspar",
         *,
         protein: bool = False,
     ) -> None: ...
@@ -184,6 +192,13 @@ def load(
     *,
     protein: bool = False,
 ) -> Loader[TransfacMotif]: ...
+@typing.overload
+def load(
+    file: Union[BinaryIO, PathLike[str]],
+    format: Literal["meme"],
+    *,
+    protein: bool = False,
+) -> Loader[MemeMotif]: ...
 @typing.overload
 def load(
     file: Union[BinaryIO, PathLike[str]],

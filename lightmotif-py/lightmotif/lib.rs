@@ -1503,6 +1503,7 @@ pub fn init<'py>(_py: Python<'py>, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<io::TransfacMotif>()?;
     m.add_class::<io::JasparMotif>()?;
     m.add_class::<io::UniprobeMotif>()?;
+    m.add_class::<io::MemeMotif>()?;
 
     m.add_class::<Scanner>()?;
     m.add_class::<Hit>()?;

@@ -3,7 +3,8 @@
 use std::io::BufRead;
 use std::sync::Arc;
 
-use lightmotif::abc::{Alphabet, Background};
+use lightmotif::abc::Alphabet;
+use lightmotif::abc::Background;
 use lightmotif::dense::DenseMatrix;
 use lightmotif::FrequencyMatrix;
 
@@ -20,12 +21,33 @@ pub struct Record<A: Alphabet> {
     nsites: Option<usize>,
     evalue: Option<f32>,
     id: String,
-    description: Option<String>,
+    name: Option<String>,
     matrix: FrequencyMatrix<A>,
     url: Option<String>,
+    background: Option<Background<A>>,
 }
 
 impl<A: Alphabet> Record<A> {
+    /// Get the background of the record, if any declared in the file.
+    pub fn background(&self) -> Option<&Background<A>> {
+        self.background.as_ref()
+    }
+
+    /// Get the identifier of the record.
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    /// Get the name of the record, if any.
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_ref().map(String::as_ref)
+    }
+
+    /// Get the URL of the record, if any.
+    pub fn url(&self) -> Option<&str> {
+        self.url.as_ref().map(String::as_ref)
+    }
+
     /// Get the frequency matrix of the record.
     pub fn matrix(&self) -> &FrequencyMatrix<A> {
         &self.matrix
@@ -179,16 +201,17 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
                 }
                 match self::parse::motif(&self.buffer) {
                     Err(e) => return Some(Err(e.into())),
-                    Ok((_, (id, description))) => {
+                    Ok((_, (id, name))) => {
                         motif = Some(Record {
                             alength: None,
                             w: None,
                             nsites: None,
                             evalue: None,
                             id: id.to_string(),
-                            description: description.map(String::from),
+                            name: name.map(String::from),
                             url: None,
                             matrix: FrequencyMatrix::new(DenseMatrix::new(0)).unwrap(),
+                            background: self.background.clone(),
                         });
                     }
                 }

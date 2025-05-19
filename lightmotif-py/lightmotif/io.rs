@@ -156,6 +156,48 @@ impl TransfacMotif {
     }
 }
 
+// --- MEME records ------------------------------------------------------------
+
+/// A motif loaded from a MEME file.
+///
+/// `MEME format files <https://meme-suite.org/meme/doc/meme-format.html>`_
+/// store additional metadata about each motif, such as
+#[pyclass(module = "lightmotif.lib", extends = Motif)]
+pub struct MemeMotif {
+    #[pyo3(get)]
+    /// `str` or `None`: The description of the motif, if any.
+    description: Option<String>,
+    #[pyo3(get)]
+    /// `str` or `None`: The URL of the motif, if any.
+    url: Option<String>,
+}
+
+impl MemeMotif {
+    fn convert<A>(record: Result<lightmotif_io::meme::Record<A>, Error>) -> PyResult<PyObject>
+    where
+        A: Alphabet,
+        CountMatrixData: From<lightmotif::pwm::CountMatrix<A>>,
+        WeightMatrixData: From<lightmotif::pwm::WeightMatrix<A>>,
+        ScoringMatrixData: From<lightmotif::pwm::ScoringMatrix<A>>,
+    {
+        let record = record.map_err(convert_error)?;
+
+        let name = record.id().into();
+        let description = record.name().map(String::from);
+        let url = record.url().map(String::from);
+        let background = record.background().map(Clone::clone);
+
+        let weights = record.into_matrix().to_weight(background);
+
+        Python::with_gil(|py| {
+            let mut motif = Motif::from_weights(py, weights)?;
+            motif.name = Some(name);
+            let init = PyClassInitializer::from(motif).add_subclass(MemeMotif { description, url });
+            Ok(Py::new(py, init)?.into_any())
+        })
+    }
+}
+
 // --- Loader ------------------------------------------------------------------
 
 /// An iterator for loading motifs from a file.
@@ -217,6 +259,9 @@ impl Loader {
             "uniprobe" if protein => {
                 Box::new(lightmotif_io::uniprobe::read::<_, Protein>(b).map(UniprobeMotif::convert))
             }
+            "meme" if protein => {
+                Box::new(lightmotif_io::meme::read::<_, Protein>(b).map(MemeMotif::convert))
+            }
             "jaspar" => Box::new(lightmotif_io::jaspar::read(b).map(JasparMotif::convert)),
             "jaspar16" => {
                 Box::new(lightmotif_io::jaspar16::read::<_, Dna>(b).map(JasparMotif::convert16))
@@ -227,6 +272,7 @@ impl Loader {
             "uniprobe" => {
                 Box::new(lightmotif_io::uniprobe::read::<_, Dna>(b).map(UniprobeMotif::convert))
             }
+            "meme" => Box::new(lightmotif_io::meme::read::<_, Dna>(b).map(MemeMotif::convert)),
             _ => return Err(PyValueError::new_err(format!("invalid format: {}", format))),
         };
         Ok(PyClassInitializer::from(Loader { reader }))
