@@ -359,6 +359,18 @@ impl<A: Alphabet> Background<A> {
         })
     }
 
+    /// Create a new background without checking frequencies.
+    #[doc(hidden)]
+    pub fn new_unchecked<F>(frequencies: F) -> Self
+    where
+        F: Into<GenericArray<f32, A::K>>,
+    {
+        Self {
+            frequencies: frequencies.into(),
+            alphabet: std::marker::PhantomData,
+        }
+    }
+
     /// Create a new background from the given symbol counts.
     ///
     /// # Example
