@@ -126,6 +126,15 @@ pub fn letter_probability_matrix<A: Alphabet>(input: &str) -> IResult<&str, Freq
     Ok((input, FrequencyMatrix::new_unchecked(matrix)))
 }
 
+pub fn url(input: &str) -> IResult<&str, &str> {
+    let (input, _) = terminated(tag("URL"), space1).parse(input)?;
+    terminated(
+        nom::bytes::complete::take_while(|c: char| !c.is_newline()),
+        line_ending,
+    )
+    .parse(input)
+}
+
 pub fn name(input: &str) -> IResult<&str, &str> {
     nom::bytes::complete::take_while(|c: char| !c.is_whitespace()).parse(input)
 }
@@ -156,7 +165,7 @@ mod tests {
     use lightmotif::abc::Protein;
 
     #[test]
-    fn test_background() {
+    fn background() {
         let (rest, bg) =
             super::background::<Protein>("Background letter frequencies\nA 0.0313 C 0.224 D 4.35e-05 E 0.00439 F 0.0322 G 0.114 H 0.0166 I 0.0479 K 0.0192 L 0.0296 M 0.000913 N 0.0435 P 0.007 Q 0.0105 R 0.213 S 0.00787 T 0.0192 V 0.0905 W 0.027 Y 0.0609\n").unwrap();
         assert_eq!(rest, "");
@@ -164,7 +173,7 @@ mod tests {
     }
 
     #[test]
-    fn test_background_source() {
+    fn background_source() {
         let (rest, bg) =
             super::background::<Protein>("Background letter frequencies (from lipocalin.S):\nA 0.071 C 0.029 D 0.069 E 0.077 F 0.043 G 0.057 H 0.026 I 0.048 K 0.085\nL 0.087 M 0.018 N 0.053 P 0.032 Q 0.029 R 0.031 S 0.058 T 0.048 V 0.069\nW 0.017 Y 0.050\n").unwrap();
         assert_eq!(rest, "");
@@ -172,7 +181,7 @@ mod tests {
     }
 
     #[test]
-    fn test_alphabet() {
+    fn alphabet() {
         let (rest, alphabet) =
             super::alphabet::<Protein>("ALPHABET= ACDEFGHIKLMNPQRSTVWY\n").unwrap();
         assert_eq!(rest, "");
@@ -183,29 +192,36 @@ mod tests {
     }
 
     #[test]
-    fn test_motif_row() {
+    fn motif_row() {
         let (rest, row) =
             super::motif_row::<Dna>(" 0.002850 0.929490 0.000004 0.000399\n").unwrap();
         assert_eq!(rest, "");
     }
 
     #[test]
-    fn test_motif_matrix() {
+    fn motif_matrix() {
         let (rest, row) = super::motif_matrix::<Dna>(" 0.002850 0.929490 0.000004 0.000399\n0.002850 0.020399 0.000004 0.000399\n0.002850 0.020399 0.000004 0.000399\n\n", None).unwrap();
         assert_eq!(rest, "\n");
     }
 
     #[test]
-    fn test_motif_name1() {
+    fn motif_name1() {
         let (rest, (name, accession)) = super::motif("MOTIF crp\n").unwrap();
         assert_eq!(name, "crp");
         assert_eq!(accession, None);
     }
 
     #[test]
-    fn test_motif_name2() {
+    fn motif_name2() {
         let (rest, (name, accession)) = super::motif("MOTIF TACTGTATATAHAHMCAG MEME-1\n").unwrap();
         assert_eq!(name, "TACTGTATATAHAHMCAG");
         assert_eq!(accession, Some("MEME-1"));
+    }
+
+    #[test]
+    fn url() {
+        let (rest, url) = super::url("URL http://jaspar.genereg.net/matrix/MA0004.1\n").unwrap();
+        assert_eq!(rest, "");
+        assert_eq!(url, "http://jaspar.genereg.net/matrix/MA0004.1");
     }
 }

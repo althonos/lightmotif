@@ -8,7 +8,7 @@ fn test_dna() {
     let reader = meme::Reader::<_, Dna>::new(Cursor::new(DNA));
     assert_eq!(reader.meme_version().unwrap(), "4");
 
-    let bg = unsafe { Background::new_unchecked([0.303, 0.183, 0.306, 0.209, 0.000]) };
+    let bg = Background::new_unchecked([0.303, 0.183, 0.306, 0.209, 0.000]);
     assert_eq!(reader.background().unwrap(), Some(&bg));
 
     let records = reader.collect::<Result<Vec<_>, _>>().unwrap();

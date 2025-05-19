@@ -19,8 +19,8 @@ pub struct Record<A: Alphabet> {
     w: Option<usize>,
     nsites: Option<usize>,
     evalue: Option<f32>,
-    name: String,
-    accession: Option<String>,
+    id: String,
+    description: Option<String>,
     matrix: FrequencyMatrix<A>,
     url: Option<String>,
 }
@@ -166,16 +166,7 @@ impl<B: BufRead, A: Alphabet> Reader<B, A> {
 impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
     type Item = Result<Record<A>, Error>;
     fn next(&mut self) -> Option<Self::Item> {
-        let mut motif = Record::<A> {
-            alength: None,
-            w: None,
-            nsites: None,
-            evalue: None,
-            name: String::new(),
-            accession: None,
-            url: None,
-            matrix: FrequencyMatrix::new(DenseMatrix::new(0)).unwrap(),
-        };
+        let mut motif: Option<Record<A>> = None;
 
         if let Some(err) = self.error.as_ref() {
             return Some(Err(err.clone()));
@@ -183,18 +174,28 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
 
         loop {
             if self.buffer.starts_with("MOTIF") {
+                if let Some(m) = motif {
+                    return Some(Ok(m));
+                }
                 match self::parse::motif(&self.buffer) {
                     Err(e) => return Some(Err(e.into())),
-                    Ok((_, (name, accession))) => {
-                        motif.name = name.to_string();
-                        motif.accession = accession.map(String::from);
+                    Ok((_, (id, description))) => {
+                        motif = Some(Record {
+                            alength: None,
+                            w: None,
+                            nsites: None,
+                            evalue: None,
+                            id: id.to_string(),
+                            description: description.map(String::from),
+                            url: None,
+                            matrix: FrequencyMatrix::new(DenseMatrix::new(0)).unwrap(),
+                        });
                     }
                 }
                 self.buffer.clear();
             } else if self.buffer.starts_with("letter-probability matrix") {
-                self.buffer.clear(); // FIXME
+                self.buffer.clear(); // FIXME: parse line & metadata
                 let mut rows = Vec::new();
-
                 loop {
                     match self.bufread.read_line(&mut self.buffer) {
                         Err(e) => return Some(Err(e.into())),
@@ -207,17 +208,36 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
                     }
                     self.buffer.clear();
                 }
-
-                motif.matrix = FrequencyMatrix::new(DenseMatrix::from_rows(rows)).unwrap();
-
-                return Some(Ok(motif));
+                if let Some(m) = motif.as_mut() {
+                    m.matrix = FrequencyMatrix::new(DenseMatrix::from_rows(rows)).unwrap();
+                } else {
+                    return Some(Err(crate::error::Error::InvalidData(Some(String::from(
+                        "motif data before declared motif",
+                    )))));
+                }
+            } else if self.buffer.starts_with("URL") {
+                let url = match self::parse::url(&self.buffer) {
+                    Ok((_, url)) => url,
+                    Err(e) => return Some(Err(e.into())),
+                };
+                if let Some(m) = motif.as_mut() {
+                    m.url = Some(url.into());
+                } else {
+                    return Some(Err(crate::error::Error::InvalidData(Some(String::from(
+                        "motif data before declared motif",
+                    )))));
+                }
+                self.buffer.clear();
+            } else {
+                self.buffer.clear();
             }
 
-            self.buffer.clear(); // fixme
-            match self.bufread.read_line(&mut self.buffer) {
-                Err(e) => return Some(Err(e.into())),
-                Ok(0) => return None,
-                Ok(_) => (),
+            if self.buffer.is_empty() {
+                match self.bufread.read_line(&mut self.buffer) {
+                    Err(e) => return Some(Err(e.into())),
+                    Ok(0) => return motif.map(Ok),
+                    Ok(_) => (),
+                }
             }
         }
     }
@@ -226,4 +246,33 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
 /// Read the records from a file in MEME format.
 pub fn read<B: BufRead, A: Alphabet>(reader: B) -> self::Reader<B, A> {
     self::Reader::new(reader)
+}
+
+#[cfg(test)]
+mod tests {
+    use lightmotif::abc::Dna;
+
+    #[test]
+    fn record() {
+        const TEXT: &'static str = concat!(
+            "MEME version 4\n",
+            "MOTIF MA0004.1 Arnt\n",
+            "letter-probability matrix: alength= 4 w= 6 nsites= 20 E= 0\n",
+            " 0.200000  0.800000  0.000000  0.000000\n",
+            " 0.950000  0.000000  0.050000  0.000000\n",
+            " 0.000000  1.000000  0.000000  0.000000\n",
+            " 0.000000  0.000000  1.000000  0.000000\n",
+            " 0.000000  0.000000  0.000000  1.000000\n",
+            " 0.000000  0.000000  1.000000  0.000000\n",
+            "URL http://jaspar.genereg.net/matrix/MA0004.1\n",
+        );
+        let mut reader = super::Reader::<_, Dna>::new(std::io::Cursor::new(TEXT));
+        let record = reader.next().unwrap().unwrap();
+        assert_eq!(&record.id, "MA0004.1");
+        assert_eq!(
+            &record.url.unwrap(),
+            "http://jaspar.genereg.net/matrix/MA0004.1"
+        );
+        assert!(reader.next().is_none());
+    }
 }
