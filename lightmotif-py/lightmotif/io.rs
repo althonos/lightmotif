@@ -21,7 +21,8 @@ use super::WeightMatrixData;
 
 fn convert_error(error: Error) -> PyErr {
     match error {
-        Error::InvalidData => PyValueError::new_err("invalid data"),
+        Error::InvalidData(None) => PyValueError::new_err("invalid data"),
+        Error::InvalidData(Some(err)) => PyValueError::new_err(format!("invalid data: {}", err)),
         Error::Io(err) => Arc::into_inner(err)
             .map(PyErr::from)
             .unwrap_or_else(|| PyOSError::new_err("unknown error")),
