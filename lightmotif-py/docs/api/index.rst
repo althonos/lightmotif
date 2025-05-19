@@ -84,6 +84,7 @@ Motif
     lightmotif.TransfacMotif
     lightmotif.JasparMotif
     lightmotif.UniprobeMotif
+    lightmotif.MemeMotif
 
 
 Scores
