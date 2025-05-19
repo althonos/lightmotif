@@ -3,7 +3,7 @@
 use std::io::BufRead;
 use std::sync::Arc;
 
-use lightmotif::abc::Alphabet;
+use lightmotif::abc::{Alphabet, Background};
 use lightmotif::dense::DenseMatrix;
 use lightmotif::FrequencyMatrix;
 
@@ -22,6 +22,7 @@ pub struct Record<A: Alphabet> {
     name: String,
     accession: Option<String>,
     matrix: FrequencyMatrix<A>,
+    url: Option<String>,
 }
 
 impl<A: Alphabet> Record<A> {
@@ -49,6 +50,7 @@ pub struct Reader<B: BufRead, A: Alphabet> {
     buffer: String,
     bufread: B,
     meme_version: String,
+    background: Option<Background<A>>,
     error: Option<crate::error::Error>,
     _alphabet: std::marker::PhantomData<A>,
 }
@@ -56,35 +58,107 @@ pub struct Reader<B: BufRead, A: Alphabet> {
 impl<B: BufRead, A: Alphabet> Reader<B, A> {
     pub fn new(mut reader: B) -> Self {
         let mut buffer = String::new();
-        let mut meme_version = String::new();
+        let mut meme_version = None;
         let mut error = None;
+        let mut background = None;
 
-        loop {
+        macro_rules! read_line {
+            () => {
+                match reader.read_line(&mut buffer) {
+                    Err(e) => {
+                        error = Some(crate::error::Error::Io(Arc::new(e)));
+                        break;
+                    }
+                    Ok(0) => {
+                        error = Some(crate::error::Error::InvalidData(None)); // FIXME
+                        break;
+                    }
+                    _ => (),
+                }
+            };
+        }
+
+        // Detect MEME version but don't read past the first motif
+        while !buffer.starts_with("MOTIF") {
+            // attempt parsing current line
             match self::parse::meme_version(&buffer) {
                 Err(e) => buffer.clear(),
-                Ok((_, v)) => {
-                    meme_version.push_str(v);
+                Ok((_, v)) if meme_version.is_none() => {
+                    meme_version = Some(v.to_string());
+                    buffer.clear();
+                    break;
+                }
+                Ok(_) => {
+                    error = Some(crate::error::Error::InvalidData(Some(String::from(
+                        "multiple MEME versions found",
+                    ))));
                     break;
                 }
             }
-            match reader.read_line(&mut buffer) {
-                Err(e) => {
-                    error = Some(crate::error::Error::Io(Arc::new(e)));
-                    break;
+            // read next line
+            read_line!();
+        }
+
+        // Error if no MEME version was found (only mandatory field)
+        if meme_version.is_none() {
+            error = Some(crate::error::Error::InvalidData(Some(String::from(
+                "no MEME version found",
+            ))));
+            meme_version = Some(String::new());
+        }
+
+        // Get remaining global metadata
+        if error.is_none() {
+            while !buffer.starts_with("MOTIF") {
+                // get background, which can span on multiple lines
+                if buffer.starts_with("Background letter frequencies") {
+                    loop {
+                        read_line!();
+                        match self::parse::background::<A>(&buffer) {
+                            Err(nom::Err::Incomplete(_)) => {
+                                read_line!();
+                            }
+                            Err(e) => panic!("{:?}", e),
+                            Ok((_, bg)) => {
+                                background = Some(bg);
+                                buffer.clear();
+                                break;
+                            }
+                        }
+                    }
                 }
-                Ok(0) => {
-                    error = Some(crate::error::Error::InvalidData); // FIXME
-                }
-                _ => (),
+                // get alphabet (TODO)
+                // get strands (TODO)
+                buffer.clear();
+                read_line!();
             }
         }
 
         Self {
             bufread: reader,
             buffer,
-            meme_version,
+            meme_version: meme_version.unwrap(),
             error,
+            background,
             _alphabet: std::marker::PhantomData,
+        }
+    }
+
+    /// Get the MEME format version of the file being read.
+    pub fn meme_version(&self) -> Result<&str, Error> {
+        if let Some(e) = self.error.as_ref() {
+            Err(e.clone())
+        } else {
+            Ok(&self.meme_version)
+        }
+    }
+
+    /// Get the background alphabet probabilities, if any.
+    pub fn background(&self) -> Result<Option<&Background<A>>, Error> {
+        if let Some(e) = self.error.as_ref() {
+            Err(e.clone())
+        } else {
+            Ok(self.background.as_ref())
         }
     }
 }
@@ -99,11 +173,12 @@ impl<B: BufRead, A: Alphabet> Iterator for Reader<B, A> {
             evalue: None,
             name: String::new(),
             accession: None,
+            url: None,
             matrix: FrequencyMatrix::new(DenseMatrix::new(0)).unwrap(),
         };
 
-        if let Some(err) = self.error.take() {
-            return Some(Err(err));
+        if let Some(err) = self.error.as_ref() {
+            return Some(Err(err.clone()));
         }
 
         loop {
