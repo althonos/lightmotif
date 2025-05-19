@@ -159,7 +159,8 @@ pub struct CountMatrix<A: Alphabet> {
 
 impl<A: Alphabet> CountMatrix<A> {
     /// Create a new count matrix without checking the contents.
-    pub(crate) fn new_unchecked(data: DenseMatrix<u32, A::K>, n: usize) -> Self {
+    #[doc(hidden)]
+    pub fn new_unchecked(data: DenseMatrix<u32, A::K>, n: usize) -> Self {
         Self {
             alphabet: std::marker::PhantomData,
             n,
@@ -342,7 +343,8 @@ pub struct FrequencyMatrix<A: Alphabet> {
 
 impl<A: Alphabet> FrequencyMatrix<A> {
     /// Create a new frequency matrix without checking the contents.
-    fn new_unchecked(data: DenseMatrix<f32, A::K>) -> Self {
+    #[doc(hidden)]
+    pub fn new_unchecked(data: DenseMatrix<f32, A::K>) -> Self {
         Self {
             alphabet: std::marker::PhantomData,
             data,
@@ -454,7 +456,8 @@ pub struct WeightMatrix<A: Alphabet> {
 
 impl<A: Alphabet> WeightMatrix<A> {
     /// Create a new weight matrix without checking the contents.
-    fn new_unchecked(background: Background<A>, data: DenseMatrix<f32, A::K>) -> Self {
+    #[doc(hidden)]
+    pub fn new_unchecked(background: Background<A>, data: DenseMatrix<f32, A::K>) -> Self {
         Self { background, data }
     }
 
