@@ -29,6 +29,7 @@ use nom::combinator::not;
 use nom::combinator::opt;
 use nom::combinator::peek;
 use nom::error::Error;
+use nom::multi::many;
 use nom::multi::many1;
 use nom::multi::separated_list0;
 use nom::sequence::delimited;
@@ -78,13 +79,7 @@ pub fn background_data<A: Alphabet>(input: &str) -> IResult<&str, Background<A>>
         data[symbol.as_index()] = freq;
     }
 
-    let sum = data.iter().sum::<f32>();
-    data[A::Symbol::default().as_index()] = 1.0 - sum;
-
-    match Background::new(data) {
-        Ok(bg) => Ok((input, bg)),
-        Err(e) => unimplemented!(),
-    }
+    unsafe { Ok((input, Background::new_unchecked(data))) }
 }
 
 pub fn background<A: Alphabet>(input: &str) -> IResult<&str, Background<A>> {
@@ -109,10 +104,15 @@ pub fn motif_row<A: Alphabet>(input: &str) -> IResult<&str, GenericArray<f32, A:
     Ok((i, row))
 }
 
-pub fn motif_matrix<A: Alphabet>(input: &str) -> IResult<&str, DenseMatrix<f32, A::K>> {
-    terminated(many1(motif_row::<A>), not(peek(motif_row::<A>)))
-        .parse(input)
-        .map(|(i, rows)| (i, DenseMatrix::from_rows(rows)))
+pub fn motif_matrix<A: Alphabet>(
+    input: &str,
+    rows: Option<usize>,
+) -> IResult<&str, DenseMatrix<f32, A::K>> {
+    let (input, rows) = match rows {
+        Some(x) => many(x, motif_row::<A>).parse(input)?,
+        None => terminated(many1(motif_row::<A>), not(peek(motif_row::<A>))).parse(input)?,
+    };
+    Ok((input, DenseMatrix::from_rows(rows)))
 }
 
 pub fn letter_probability_matrix<A: Alphabet>(input: &str) -> IResult<&str, FrequencyMatrix<A>> {
@@ -122,8 +122,8 @@ pub fn letter_probability_matrix<A: Alphabet>(input: &str) -> IResult<&str, Freq
         line_ending,
     )
     .parse(input)?;
-    let (input, matrix) = motif_matrix::<A>(input)?;
-    Ok((input, FrequencyMatrix::new(matrix).unwrap())) // FIXME
+    let (input, matrix) = motif_matrix::<A>(input, None)?;
+    Ok((input, FrequencyMatrix::new_unchecked(matrix)))
 }
 
 pub fn name(input: &str) -> IResult<&str, &str> {
@@ -191,7 +191,7 @@ mod tests {
 
     #[test]
     fn test_motif_matrix() {
-        let (rest, row) = super::motif_matrix::<Dna>(" 0.002850 0.929490 0.000004 0.000399\n0.002850 0.020399 0.000004 0.000399\n0.002850 0.020399 0.000004 0.000399\n\n").unwrap();
+        let (rest, row) = super::motif_matrix::<Dna>(" 0.002850 0.929490 0.000004 0.000399\n0.002850 0.020399 0.000004 0.000399\n0.002850 0.020399 0.000004 0.000399\n\n", None).unwrap();
         assert_eq!(rest, "\n");
     }
 
