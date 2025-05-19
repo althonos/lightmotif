@@ -1,6 +1,6 @@
 [package]
 name = "lightmotif-io"
-version = "0.9.1"
+version = "0.10.0"
 authors = ["Martin Larralde <martin.larralde@embl.de>"]
 edition = "2021"
 license = "MIT"
@@ -20,5 +20,5 @@ generic-array = "1.0"
 
 [dependencies.lightmotif]
 path = "../lightmotif"
-version = "0.9.1"
+version = "0.10.0"
 default-features = false

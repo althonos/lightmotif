@@ -1,6 +1,11 @@
 [
     {
-        "name": "v0.9 (latest)",
+        "name": "v0.10 (latest)",
+        "version": "0.10.0",
+        "url": "https://lightmotif.readthedocs.io/en/v0.10.0/"
+    },
+    {
+        "name": "v0.9",
         "version": "0.9.1",
         "url": "https://lightmotif.readthedocs.io/en/v0.9.1/"
     },

@@ -6,7 +6,61 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.10.0...HEAD
+
+
+## [v0.10.0] - 2025-05-19
+[v0.10.0]: https://github.com/althonos/lightmotif/compare/v0.9.1...v0.10.0
+
+### Added
+
+#### `lightmotif`
+- Experimental Gibbs sampler implementation for motif detection in `zoops` and `oops` modes.
+- `IndexMut<MatrixCoordinates>` trait implementation for `DenseMatrix` type.
+- `AsRef<Vec<T>>` for `Scores<T>`.
+- `information_content` methods to `WeightMatrix` and `ScoringMatrix`.
+- `consensus` method to `CountMatrix`.
+- `FrequencyMatrix::into_scoring` to take ownership of a frequency matrix and converting it inplace into a `ScoringMatrix`.
+- Implement `size_hint` for `StripedScores` iterator.
+- Cumulative distribution approximation for `ScoringMatrix`.
+- Add `ScoringMatrix::to_score_distribution` method to compute a score distribution suitable for P-value estimation.
+- Trait to compute correlations for `lightmotif::pwm` matrices.
+- `new_unchecked` constructors to `lightmotif::pwm` types (undocumented).
+- Efficient look-up table implementation for Aarch64 NEON `f32`-scoring.
+
+#### `lightmotif-io`
+- Reader for MEME format files.
+
+### Changed
+
+#### `lightmotif`
+- Implement `DenseMatrix` iterators without unsafe code.
+- Make `lightmotif::scan::Hit` fields read-only.
+- Inline short functions in `lightmotif` core moduels.
+- Make the `ravel` methods of `DenseMatrix` unsafe.
+- Allow accessing and configuring the row capacity of a `DenseMatrix`.
+- Always pre-allocate additional rows when creating a new `StripedSequence` to avoid reallocation for wrap rows.
+- Use pointers to avoid matrix indexing inside pipeline hot loops.
+- Skip use of NEON for `Score<Protein>` since generic code is faster.
+
+#### `lightmotif-io`
+- Update `nom` dependency to `8.0`.
+
+#### `lightmotif-py`
+- Update `pyo3` dependency to `0.23`.
+- Use `maturin` instead of `setuptools-rust` to build Python bindings from source.
+
+### Fixed
+
+#### `lightmotif`
+- Use all columns of the matrix in `CountMatrix::entropy`.
+- Fix missing `_mm_sfence` in `score_f32_avx2_permute` code.
+- Avoid multiple `log` calls in `FrequencyMatrix::to_scoring`.
+
+### Removed
+
+#### `lightmotif`
+- Const method declaration for matrix traits not `const` in `lightmotif::pwm`.
 
 
 ## [v0.9.1] - 2024-09-03
