@@ -6,14 +6,14 @@ use nom::error::Error as NomError;
 
 #[derive(Clone, Debug)]
 pub enum Error {
-    InvalidData,
+    InvalidData(Option<String>),
     Io(Arc<std::io::Error>),
     Nom(Arc<NomError<String>>),
 }
 
 impl From<lightmotif::err::InvalidData> for Error {
     fn from(_error: lightmotif::err::InvalidData) -> Self {
-        Error::InvalidData
+        Error::InvalidData(None)
     }
 }
 
@@ -42,7 +42,8 @@ impl From<nom::Err<NomError<&'_ str>>> for Error {
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::InvalidData => f.write_str("invalid data"),
+            Error::InvalidData(None) => f.write_str("invalid data"),
+            Error::InvalidData(Some(x)) => write!(f, "invalid data: {}", x),
             Error::Io(err) => err.fmt(f),
             Error::Nom(err) => err.fmt(f),
         }
@@ -52,7 +53,7 @@ impl Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::InvalidData => None,
+            Error::InvalidData(_) => None,
             Error::Io(e) => Some(e),
             Error::Nom(e) => Some(e),
         }
