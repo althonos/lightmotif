@@ -165,6 +165,12 @@ mod tests {
     use lightmotif::abc::Protein;
 
     #[test]
+    fn meme_version() {
+        let (rest, version) = super::meme_version("MEME version 4").unwrap();
+        assert_eq!(version, "4");
+    }
+
+    #[test]
     fn background() {
         let (rest, bg) =
             super::background::<Protein>("Background letter frequencies\nA 0.0313 C 0.224 D 4.35e-05 E 0.00439 F 0.0322 G 0.114 H 0.0166 I 0.0479 K 0.0192 L 0.0296 M 0.000913 N 0.0435 P 0.007 Q 0.0105 R 0.213 S 0.00787 T 0.0192 V 0.0905 W 0.027 Y 0.0609\n").unwrap();
@@ -194,8 +200,9 @@ mod tests {
     #[test]
     fn motif_row() {
         let (rest, row) =
-            super::motif_row::<Dna>(" 0.002850 0.929490 0.000004 0.000399\n").unwrap();
+            super::motif_row::<Dna>("0.611111  0.000000  0.055556  0.333333\n").unwrap();
         assert_eq!(rest, "");
+        assert_eq!(row.as_ref(), [0.611111, 0.000000, 0.055556, 0.333333, 0.0]);
     }
 
     #[test]
@@ -216,6 +223,10 @@ mod tests {
         let (rest, (name, accession)) = super::motif("MOTIF TACTGTATATAHAHMCAG MEME-1\n").unwrap();
         assert_eq!(name, "TACTGTATATAHAHMCAG");
         assert_eq!(accession, Some("MEME-1"));
+
+        let (rest, (name, accession)) = super::motif("MOTIF MA0002.1 RUNX1\n").unwrap();
+        assert_eq!(name, "MA0002.1");
+        assert_eq!(accession, Some("RUNX1"));
     }
 
     #[test]
