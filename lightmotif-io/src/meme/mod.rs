@@ -3,7 +3,6 @@
 use std::io::BufRead;
 use std::sync::Arc;
 
-use generic_array::GenericArray;
 use lightmotif::abc::Alphabet;
 use lightmotif::abc::Background;
 use lightmotif::abc::Symbol;
@@ -75,7 +74,7 @@ pub struct Reader<B: BufRead, A: Alphabet> {
     buffer: String,
     bufread: B,
     meme_version: String,
-    symbols: GenericArray<A::Symbol, A::K>,
+    symbols: Vec<A::Symbol>,
     background: Option<Background<A>>,
     error: Option<crate::error::Error>,
     _alphabet: std::marker::PhantomData<A>,
@@ -136,7 +135,7 @@ impl<B: BufRead, A: Alphabet> Reader<B, A> {
 
         // Get remaining global metadata
         if error.is_none() {
-            while !buffer.starts_with("MOTIF") {
+            while !buffer.starts_with("MOTIF") && error.is_none() {
                 // get background, which can span on multiple lines
                 if buffer.starts_with("Background letter frequencies") {
                     loop {
@@ -145,7 +144,10 @@ impl<B: BufRead, A: Alphabet> Reader<B, A> {
                             Err(nom::Err::Incomplete(_)) => {
                                 read_line!();
                             }
-                            Err(e) => panic!("{:?}", e),
+                            Err(e) => {
+                                error = Some(e.into());
+                                break;
+                            }
                             Ok((_, bg)) => {
                                 background = Some(bg);
                                 buffer.clear();
@@ -154,16 +156,28 @@ impl<B: BufRead, A: Alphabet> Reader<B, A> {
                         }
                     }
                 }
-                // get alphabet (TODO)
+                // get alphabet symbols to ensure columns are parsed in order
+                if buffer.starts_with("ALPHABET") {
+                    match self::parse::alphabet::<A>(&buffer) {
+                        Err(e) => {
+                            error = Some(e.into());
+                            break;
+                        }
+                        Ok((_, s)) => {
+                            symbols = Some(s);
+                            buffer.clear();
+                        }
+                    }
+                }
                 // get strands (TODO)
                 buffer.clear();
                 read_line!();
             }
         }
 
+        // If no alphabet found, use lexicographic order for columns
         if symbols.is_none() {
-            let mut s: GenericArray<A::Symbol, A::K> =
-                GenericArray::from_slice(A::symbols()).clone();
+            let mut s = A::symbols().to_vec();
             s.as_mut_slice()[..A::K::USIZE - 1].sort_by(|x, y| x.as_char().cmp(&y.as_char()));
             symbols = Some(s);
         }
@@ -286,7 +300,7 @@ pub fn read<B: BufRead, A: Alphabet>(reader: B) -> self::Reader<B, A> {
 
 #[cfg(test)]
 mod tests {
-    use lightmotif::abc::Dna;
+    use lightmotif::abc::{Dna, Nucleotide, Symbol};
 
     #[test]
     fn record() {
@@ -306,9 +320,60 @@ mod tests {
         let record = reader.next().unwrap().unwrap();
         assert_eq!(&record.id, "MA0004.1");
         assert_eq!(
-            &record.url.unwrap(),
+            record.url().unwrap(),
             "http://jaspar.genereg.net/matrix/MA0004.1"
         );
         assert!(reader.next().is_none());
+
+        assert_eq!(
+            record.matrix().matrix()[0][Nucleotide::A.as_index()],
+            0.200000
+        );
+        assert_eq!(
+            record.matrix().matrix()[0][Nucleotide::C.as_index()],
+            0.800000
+        );
+        assert_eq!(
+            record.matrix().matrix()[0][Nucleotide::G.as_index()],
+            0.000000
+        );
+        assert_eq!(
+            record.matrix().matrix()[0][Nucleotide::T.as_index()],
+            0.000000
+        );
+
+        assert_eq!(
+            record.matrix().matrix()[1][Nucleotide::A.as_index()],
+            0.950000
+        );
+        assert_eq!(
+            record.matrix().matrix()[1][Nucleotide::C.as_index()],
+            0.000000
+        );
+        assert_eq!(
+            record.matrix().matrix()[1][Nucleotide::G.as_index()],
+            0.050000
+        );
+        assert_eq!(
+            record.matrix().matrix()[1][Nucleotide::T.as_index()],
+            0.000000
+        );
+
+        assert_eq!(
+            record.matrix().matrix()[3][Nucleotide::A.as_index()],
+            0.000000
+        );
+        assert_eq!(
+            record.matrix().matrix()[3][Nucleotide::C.as_index()],
+            0.000000
+        );
+        assert_eq!(
+            record.matrix().matrix()[3][Nucleotide::G.as_index()],
+            1.000000
+        );
+        assert_eq!(
+            record.matrix().matrix()[3][Nucleotide::T.as_index()],
+            0.000000
+        );
     }
 }
