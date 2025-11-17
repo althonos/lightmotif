@@ -1,4 +1,4 @@
-use lightmotif::abc::{Background, Dna};
+use lightmotif::abc::{Background, Dna, Protein};
 use lightmotif_io::meme;
 use std::io::Cursor;
 
@@ -46,4 +46,16 @@ fn test_streme() {
     );
     let records = reader.collect::<Result<Vec<_>, _>>().unwrap();
     assert_eq!(records.len(), 7);
+}
+
+#[test]
+fn test_streme_protein() {
+    const PROTEIN: &str = include_str!("autoclust_7_64_17_streme.txt");
+    let reader = meme::Reader::<_, Protein>::new(Cursor::new(PROTEIN));
+    assert_eq!(
+        reader.meme_version().unwrap(),
+        "5.5.7 (Release date: Wed Jun 19 13:59:04 2024 -0700)"
+    );
+    let records = reader.collect::<Result<Vec<_>, _>>().unwrap();
+    assert_eq!(records.len(), 9);
 }
