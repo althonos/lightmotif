@@ -1,0 +1,35 @@
+[package]
+name = "lightmotif-cli"
+version = "0.1.0"
+authors = ["Martin Larralde <martin.larralde@embl.de>"]
+edition = "2024"
+license = "MIT"
+description = "A lightweight platform-accelerated library for biological motif scanning using position weight matrices."
+repository = "https://github.com/althonos/lightmotif"
+homepage = "https://github.com/althonos/lightmotif"
+readme = "README.md"
+categories = ["science::bioinformatics", "command-line-utilities"]
+keywords = ["bioinformatics", "genomics", "motif", "pssm", "matrix"]
+
+[dependencies.lightmotif]
+path = "../lightmotif"
+version = "0.10.0"
+default-features = false
+[dependencies.lightmotif-io]
+path = "../lightmotif-io"
+version = "0.10.0"
+
+[dependencies.clap]
+version = "4.5.53"
+features = ["derive"]
+
+[dependencies]
+noodles-fasta = "0.57.0"
+gb-io = "0.9.0"
+
+flate2 = "*"
+indicatif = "*"
+crossbeam-channel = "*"
+# ordered-float = { version = "4.0", default-features = false }
+# tracing = "*"
+# tracing-subscriber = "*"
