@@ -182,9 +182,11 @@ where
                 // scores in floating-point to see if they pass the real threshold.
                 for c in self.pipeline.threshold(&self.dscores, t) {
                     let index = c.col * (seq.matrix().rows() - seq.wrap()) + self.row + c.row;
-                    let score = self.pssm.as_ref().score_position(seq, index);
-                    if score >= self.threshold {
-                        self.hits.push(Hit::new(index, score));
+                    if index + self.pssm.as_ref().len() <= seq.len() {
+                        let score = self.pssm.as_ref().score_position(seq, index);
+                        if score >= self.threshold {
+                            self.hits.push(Hit::new(index, score));
+                        }
                     }
                 }
             }

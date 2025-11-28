@@ -668,12 +668,20 @@ impl<A: Alphabet> ScoringMatrix<A> {
             .matrix()
             .iter()
             .map(|row| {
+                // get the smallest finite score of the row
+                let m = row
+                    .iter()
+                    .filter(|x| x.is_finite())
+                    .min_by(|x, y| x.partial_cmp(y).unwrap())
+                    .unwrap_or(&0.0);
+                // take the minimum value
                 row[..A::K::USIZE - 1]
                     .iter()
+                    // .cloned()
+                    .map(|x| if x.is_infinite() { m - 1.0 } else { *x })
                     .min_by(|x, y| x.partial_cmp(y).unwrap())
                     .unwrap()
             })
-            .cloned()
             .collect::<Vec<f32>>();
         let offset = offsets.iter().sum::<f32>();
         let factor = (max_score - offset) / (u8::MAX as f32);
@@ -821,5 +829,30 @@ mod test {
         let counts = CountMatrix::<Dna>::new(counts).unwrap();
         assert_eq!(counts.auto_correlation(0), 1.0);
         assert_eq!(counts.auto_correlation(4), 1.0);
+    }
+
+    #[test]
+    fn discrete_matrix_neginf_scores() {
+        let counts = DenseMatrix::<u32, <Dna as Alphabet>::K>::from_rows([
+            [1, 3, 3, 1, 0],
+            [8, 0, 0, 0, 0],
+            [1, 7, 0, 0, 0],
+            [3, 2, 2, 1, 0],
+            [1, 3, 3, 1, 0],
+            [8, 0, 0, 0, 0],
+            [1, 7, 0, 0, 0],
+            [3, 2, 2, 1, 0],
+        ]);
+
+        let counts = CountMatrix::<Dna>::new(counts).unwrap();
+        let discrete = counts.to_freq(0.0).to_scoring(None).to_discrete();
+
+        assert_ne!(discrete.offset, f32::NEG_INFINITY);
+        assert_ne!(discrete.factor, f32::INFINITY);
+        for row in discrete.matrix() {
+            if let Some(m) = row.iter().max() {
+                assert!(*m > 0);
+            }
+        }
     }
 }
