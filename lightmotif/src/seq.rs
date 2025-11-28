@@ -97,12 +97,31 @@ impl<A: Alphabet> EncodedSequence<A> {
 
     /// Create a new encoded sequence from a textual representation.
     ///
+    /// Errors when the sequence contains a symbol not part of the required
+    /// alphabet. Use [`EncodedSequence::encode_lossy`] to automatically map
+    /// the unknown symbols to `A::default_symbol()`.
+    ///
     /// # Note
     /// Uses platform-accelerated implementation when available.
     #[inline]
     pub fn encode<S: AsRef<[u8]>>(sequence: S) -> Result<Self, InvalidSymbol> {
         let pli = Pipeline::<A, _>::dispatch();
         pli.encode(sequence.as_ref())
+    }
+
+    /// Create a new encoded sequence from a textual representation.
+    ///
+    /// Use `A::default_symbol()` as the wildcard to encode unknown symbols
+    /// in the sequence. Use [`EncodedSequence::encode`] to get a function
+    /// which errors instead.
+    #[inline]
+    pub fn encode_lossy<S: AsRef<[u8]>>(sequence: S) -> Self {
+        sequence
+            .as_ref()
+            .iter()
+            .map(|c| <A as Alphabet>::Symbol::from_ascii(*c).unwrap_or_default())
+            .collect::<Vec<<A as Alphabet>::Symbol>>()
+            .into()
     }
 
     /// Sample a new random sequence from the given background frequencies.
