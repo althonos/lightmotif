@@ -177,7 +177,8 @@ where
             self.pipeline
                 .score_rows_into(&self.dm, &self.seq, self.row..end, &mut self.dscores);
             // check if any position is higher than the discrete threshold.
-            if self.pipeline.max(&self.dscores).unwrap() >= t {
+            // (do nothing in case no maximum, i.e. the scores are empty)
+            if self.pipeline.max(&self.dscores).unwrap_or(0) >= t {
                 // scan through the positions above discrete threshold and recompute
                 // scores in floating-point to see if they pass the real threshold.
                 for c in self.pipeline.threshold(&self.dscores, t) {
