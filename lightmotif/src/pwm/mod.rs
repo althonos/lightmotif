@@ -668,17 +668,12 @@ impl<A: Alphabet> ScoringMatrix<A> {
             .matrix()
             .iter()
             .map(|row| {
-                // get the smallest finite score of the row
-                let m = row
-                    .iter()
-                    .filter(|x| x.is_finite())
-                    .min_by(|x, y| x.partial_cmp(y).unwrap())
-                    .unwrap_or(&0.0);
-                // take the minimum value
+                // take the maximum value for row, except if we have a
+                // neginf score, in which case we take -max_score to ensure
+                // the output score will never be above max_score
                 row[..A::K::USIZE - 1]
                     .iter()
-                    // .cloned()
-                    .map(|x| if x.is_infinite() { m - 1.0 } else { *x })
+                    .map(|x| if x.is_infinite() { -max_score } else { *x })
                     .min_by(|x, y| x.partial_cmp(y).unwrap())
                     .unwrap()
             })
