@@ -178,7 +178,7 @@ where
                 .score_rows_into(&self.dm, &self.seq, self.row..end, &mut self.dscores);
             // check if any position is higher than the discrete threshold.
             // (do nothing in case no maximum, i.e. the scores are empty)
-            if self.pipeline.max(&self.dscores).unwrap_or(0) >= t {
+            if self.pipeline.max(&self.dscores).unwrap_or_default() >= t {
                 // scan through the positions above discrete threshold and recompute
                 // scores in floating-point to see if they pass the real threshold.
                 for c in self.pipeline.threshold(&self.dscores, t) {
@@ -223,7 +223,7 @@ where
                 .score_rows_into(&self.dm, seq, self.row..end, &mut self.dscores);
             // Check if the highest score in the block is high enough to be
             // a new global maximum
-            if self.pipeline.max(&self.dscores).unwrap() >= best_discrete {
+            if self.pipeline.max(&self.dscores).unwrap_or_default() >= best_discrete {
                 // Iterate over candidate position in `u8` scores and recalculate
                 // scores for candidates passing the threshold.
                 for c in self.pipeline.threshold(&self.dscores, best_discrete) {
@@ -295,12 +295,51 @@ mod test {
     }
 
     #[test]
+    fn collect_block1() {
+        let pssm = self::pssm();
+        let mut striped = self::seq();
+        striped.configure(&pssm);
+
+        let mut scanner = Scanner::new(&pssm, &striped);
+        scanner.block_size(1);
+        scanner.threshold(-10.0);
+
+        let mut hits = scanner.collect::<Vec<_>>();
+        assert_eq!(hits.len(), 3);
+
+        hits.sort_by_key(|hit| hit.position);
+        assert_eq!(hits[0].position, 18);
+        assert_eq!(hits[1].position, 27);
+        assert_eq!(hits[2].position, 32);
+    }
+
+    #[test]
     fn max() {
         let pssm = self::pssm();
         let mut striped = self::seq();
         striped.configure(&pssm);
 
         let mut scanner = Scanner::new(&pssm, &striped);
+        scanner.threshold(-10.0);
+
+        let hit = scanner.max().unwrap();
+        assert!(
+            (hit.score - -5.50167).abs() < 1e-5,
+            "{} != {}",
+            hit.score,
+            -5.50167
+        );
+        assert_eq!(hit.position, 18);
+    }
+
+    #[test]
+    fn max_block1() {
+        let pssm = self::pssm();
+        let mut striped = self::seq();
+        striped.configure(&pssm);
+
+        let mut scanner = Scanner::new(&pssm, &striped);
+        scanner.block_size(1);
         scanner.threshold(-10.0);
 
         let hit = scanner.max().unwrap();
