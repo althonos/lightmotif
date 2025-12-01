@@ -174,6 +174,7 @@ pub struct WorkerThread {
     s_hit: Sender<Vec<Hit>>,
     pbar: Arc<ProgressBar>,
     handle: Option<JoinHandle<Vec<Hit>>>,
+    block_size: usize,
 }
 
 impl WorkerThread {
@@ -181,21 +182,22 @@ impl WorkerThread {
         r_motif: Receiver<Option<(Arc<Motif<Dna>>, Arc<SeqRecord<Dna>>)>>,
         s_hit: Sender<Vec<Hit>>,
         pbar: Arc<ProgressBar>,
+        block_size: usize,
     ) -> Self {
         Self {
             r_motif,
             s_hit,
             pbar,
             handle: None,
+            block_size,
         }
     }
 
     pub fn start(&mut self) {
-        const BLOCK_SIZE: usize = 256;
-
         let r_motif = self.r_motif.clone();
         let s_hit = self.s_hit.clone();
         let pbar = self.pbar.clone();
+        let block_size = self.block_size;
 
         self.handle = Some(std::thread::spawn(move || {
             // let mut i8scores = unsafe { DenseMatrix::uninitialized(sequence.matrix().rows() - sequence.wrap()) };
@@ -250,7 +252,7 @@ impl WorkerThread {
                         lightmotif::scan::Scanner::new(&pssm, &sequence.striped)
                             .scores(&mut scores)
                             .threshold(motif.threshold)
-                            .block_size(BLOCK_SIZE)
+                            .block_size(block_size)
                             .map(|hit| {
                                 let pvalue = motif.dist.pvalue(hit.score());
                                 Hit {
@@ -271,7 +273,7 @@ impl WorkerThread {
                         lightmotif::scan::Scanner::new(&pssm, &sequence.striped)
                             .scores(&mut scores)
                             .threshold(motif.threshold)
-                            .block_size(BLOCK_SIZE)
+                            .block_size(block_size)
                             .map(|hit| {
                                 let pvalue = motif.dist.pvalue(hit.score());
                                 Hit {
@@ -350,6 +352,9 @@ struct Parameters {
 
     #[command(flatten)]
     threshold: ThresholdParameters,
+
+    #[arg(long, default_value_t = 126)]
+    block_size: usize,
 }
 
 fn open_compressed<P: AsRef<Path>>(path: P) -> Result<Box<dyn BufRead>, std::io::Error> {
@@ -439,7 +444,12 @@ fn main() -> Result<(), Arc<std::io::Error>> {
     // start job pool and submit jobs
     let pool = (0..params.jobs)
         .map(|_| {
-            let mut w = WorkerThread::new(r_motif.clone(), s_hit.clone(), pbar.clone());
+            let mut w = WorkerThread::new(
+                r_motif.clone(),
+                s_hit.clone(),
+                pbar.clone(),
+                params.block_size,
+            );
             w.start();
             w
         })
