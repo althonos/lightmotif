@@ -154,7 +154,7 @@ impl Display for EncodedSequenceData {
 }
 
 /// A biological sequence encoded as digits.
-#[pyclass(module = "lightmotif.lib")]
+#[pyclass(module = "lightmotif.lib", skip_from_py_object)]
 #[derive(Clone, Debug)]
 pub struct EncodedSequence {
     data: EncodedSequenceData,
@@ -172,7 +172,7 @@ impl EncodedSequence {
         let seq = sequence.to_cow()?;
         let py = sequence.py();
         let data = py
-            .allow_threads(|| {
+            .detach(|| {
                 if protein {
                     lightmotif::seq::EncodedSequence::<Protein>::encode(&*seq)
                         .map(EncodedSequenceData::from)
@@ -292,7 +292,7 @@ impl StripedSequenceData {
 }
 
 /// An encoded biological sequence stored in a column-major matrix.
-#[pyclass(module = "lightmotif.lib")]
+#[pyclass(module = "lightmotif.lib", skip_from_py_object)]
 #[derive(Clone, Debug)]
 pub struct StripedSequence {
     data: StripedSequenceData,
@@ -385,7 +385,7 @@ impl CountMatrixData {
 }
 
 /// A matrix storing the count of a motif letters at each position.
-#[pyclass(module = "lightmotif.lib", sequence)]
+#[pyclass(module = "lightmotif.lib", sequence, skip_from_py_object)]
 #[derive(Clone, Debug)]
 pub struct CountMatrix {
     data: CountMatrixData,
@@ -498,10 +498,10 @@ impl CountMatrix {
     ///         pseudocount. If `None` given, no pseudocount is used.
     ///
     #[pyo3(signature = (pseudocount=None))]
-    pub fn normalize(&self, pseudocount: Option<PyObject>) -> PyResult<WeightMatrix> {
+    pub fn normalize(&self, pseudocount: Option<Py<PyAny>>) -> PyResult<WeightMatrix> {
         macro_rules! run {
             ($data:ident, $alphabet:ty) => {{
-                let pseudo = Python::with_gil(|py| {
+                let pseudo = Python::attach(|py| {
                     if let Some(obj) = pseudocount {
                         if let Ok(x) = obj.extract::<f32>(py) {
                             Ok(lightmotif::abc::Pseudocounts::from(x))
@@ -548,7 +548,7 @@ impl WeightMatrixData {
 }
 
 /// A matrix storing position-specific odds-ratio for a motif.
-#[pyclass(module = "lightmotif.lib")]
+#[pyclass(module = "lightmotif.lib", skip_from_py_object)]
 #[derive(Clone, Debug)]
 pub struct WeightMatrix {
     data: WeightMatrixData,
@@ -606,11 +606,11 @@ impl WeightMatrix {
     ///         `None` given, uniform background frequencies will be used.
     ///
     #[pyo3(signature=(background=None, base=2.0))]
-    pub fn log_odds(&self, background: Option<PyObject>, base: f32) -> PyResult<ScoringMatrix> {
+    pub fn log_odds(&self, background: Option<Py<PyAny>>, base: f32) -> PyResult<ScoringMatrix> {
         macro_rules! run {
             ($data:ident, $alphabet:ty) => {{
                 // extract the background from the method argument
-                let bg = Python::with_gil(|py| {
+                let bg = Python::attach(|py| {
                     if let Some(obj) = background {
                         if let Ok(d) = obj.extract::<Bound<PyDict>>(py) {
                             let p = dict_to_alphabet_array::<$alphabet>(d)?;
@@ -705,13 +705,13 @@ impl ScoringMatrix {
     #[allow(unused)]
     pub fn __init__<'py>(
         values: Bound<'py, PyDict>,
-        background: Option<PyObject>,
+        background: Option<Py<PyAny>>,
         protein: bool,
     ) -> PyResult<PyClassInitializer<Self>> {
         macro_rules! run {
             ($alphabet:ty) => {{
                 // extract the background from the method argument
-                let bg = Python::with_gil(|py| {
+                let bg = Python::attach(|py| {
                     if let Some(obj) = background {
                         if let Ok(d) = obj.extract::<Bound<PyDict>>(py) {
                             let p = dict_to_alphabet_array::<$alphabet>(d)?;
@@ -730,7 +730,7 @@ impl ScoringMatrix {
                 for s in <$alphabet as Alphabet>::symbols() {
                     let key = String::from(s.as_char());
                     if let Some(res) = values.get_item(&key)? {
-                        let column = res.downcast::<PyList>()?;
+                        let column = res.cast::<PyList>()?;
                         if data.is_none() {
                             data = Some(DenseMatrix::new(column.len()));
                         }
@@ -862,12 +862,12 @@ impl ScoringMatrix {
             (StripedSequenceData::Dna(dna), ScoringMatrixData::Dna(pssm)) => {
                 let pli = lightmotif::pli::Pipeline::dispatch();
                 dna.configure(pssm);
-                Ok(slf.py().allow_threads(|| pli.score(pssm, dna)).into())
+                Ok(slf.py().detach(|| pli.score(pssm, dna)).into())
             }
             (StripedSequenceData::Protein(prot), ScoringMatrixData::Protein(pssm)) => {
                 let pli = lightmotif::pli::Pipeline::dispatch();
                 prot.configure(pssm);
-                Ok(slf.py().allow_threads(|| pli.score(pssm, prot)).into())
+                Ok(slf.py().detach(|| pli.score(pssm, prot)).into())
             }
             (_, _) => Err(PyValueError::new_err("alphabet mismatch")),
         }
@@ -973,7 +973,7 @@ impl ScoreDistributionData {
 }
 
 /// A matrix storing position-specific odds-ratio for a motif.
-#[pyclass(module = "lightmotif.lib")]
+#[pyclass(module = "lightmotif.lib", skip_from_py_object)]
 #[derive(Clone, Debug)]
 pub struct ScoreDistribution {
     data: ScoreDistributionData,
@@ -1025,7 +1025,7 @@ impl ScoreDistribution {
 // --- Scores ------------------------------------------------------------------
 
 /// A striped matrix storing scores obtained with a scoring matrix.
-#[pyclass(module = "lightmotif.lib", sequence)]
+#[pyclass(module = "lightmotif.lib", sequence, skip_from_py_object)]
 #[derive(Clone, Debug)]
 pub struct StripedScores {
     scores: lightmotif::scores::StripedScores<f32>,
@@ -1093,7 +1093,7 @@ impl StripedScores {
     ///
     pub fn threshold(slf: PyRef<'_, Self>, threshold: f32) -> Vec<usize> {
         let scores = &slf.scores;
-        slf.py().allow_threads(|| scores.threshold(threshold))
+        slf.py().detach(|| scores.threshold(threshold))
     }
 
     /// Return the maximum score, if the score matrix is not empty.
@@ -1107,7 +1107,7 @@ impl StripedScores {
     ///
     pub fn max(slf: PyRef<'_, Self>) -> Option<f32> {
         let scores = &slf.scores;
-        slf.py().allow_threads(|| scores.max())
+        slf.py().detach(|| scores.max())
     }
 
     /// Return the position of the maximum score, if the score matrix is not empty.
@@ -1121,7 +1121,7 @@ impl StripedScores {
     ///
     pub fn argmax(slf: PyRef<'_, Self>) -> Option<usize> {
         let scores = &slf.scores;
-        slf.py().allow_threads(|| scores.argmax())
+        slf.py().detach(|| scores.argmax())
     }
 }
 
@@ -1359,7 +1359,7 @@ pub fn create(sequences: Bound<PyAny>, protein: bool, name: Option<String>) -> P
                 let s = seq?.extract::<Bound<PyString>>()?;
                 let sequence = s.to_cow()?;
                 let x = py
-                    .allow_threads(|| lightmotif::EncodedSequence::<$alphabet>::encode(&*sequence))
+                    .detach(|| lightmotif::EncodedSequence::<$alphabet>::encode(&*sequence))
                     .map_err(|_| PyValueError::new_err("Invalid symbol in sequence"))?;
                 encoded.push(x);
             }

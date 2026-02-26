@@ -46,12 +46,12 @@ pub struct JasparMotif {
 }
 
 impl JasparMotif {
-    fn convert(record: Result<lightmotif_io::jaspar::Record, Error>) -> PyResult<PyObject> {
+    fn convert(record: Result<lightmotif_io::jaspar::Record, Error>) -> PyResult<Py<PyAny>> {
         let record = record.map_err(convert_error)?;
         let name = record.id().to_string();
         let description = record.description().map(String::from);
         let counts = record.into();
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut motif = Motif::from_counts(py, counts)?;
             motif.name = Some(name);
             let init = PyClassInitializer::from(motif).add_subclass(JasparMotif { description });
@@ -59,7 +59,9 @@ impl JasparMotif {
         })
     }
 
-    fn convert16<A>(record: Result<lightmotif_io::jaspar16::Record<A>, Error>) -> PyResult<PyObject>
+    fn convert16<A>(
+        record: Result<lightmotif_io::jaspar16::Record<A>, Error>,
+    ) -> PyResult<Py<PyAny>>
     where
         A: Alphabet,
         CountMatrixData: From<lightmotif::pwm::CountMatrix<A>>,
@@ -70,7 +72,7 @@ impl JasparMotif {
         let name = record.id().to_string();
         let description = record.description().map(String::from);
         let counts = record.into_matrix();
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut motif = Motif::from_counts(py, counts)?;
             motif.name = Some(name);
             let init = PyClassInitializer::from(motif).add_subclass(JasparMotif { description });
@@ -86,7 +88,7 @@ impl JasparMotif {
 pub struct UniprobeMotif {}
 
 impl UniprobeMotif {
-    fn convert<A>(record: Result<lightmotif_io::uniprobe::Record<A>, Error>) -> PyResult<PyObject>
+    fn convert<A>(record: Result<lightmotif_io::uniprobe::Record<A>, Error>) -> PyResult<Py<PyAny>>
     where
         A: Alphabet,
         WeightMatrixData: From<lightmotif::pwm::WeightMatrix<A>>,
@@ -96,7 +98,7 @@ impl UniprobeMotif {
         let name = record.id().to_string();
         let freqs = record.into_matrix();
         let weights = freqs.to_weight(None);
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut motif = Motif::from_weights(py, weights)?;
             motif.name = Some(name);
             let init = PyClassInitializer::from(motif).add_subclass(UniprobeMotif {});
@@ -127,7 +129,7 @@ pub struct TransfacMotif {
 }
 
 impl TransfacMotif {
-    fn convert<A>(record: Result<lightmotif_io::transfac::Record<A>, Error>) -> PyResult<PyObject>
+    fn convert<A>(record: Result<lightmotif_io::transfac::Record<A>, Error>) -> PyResult<Py<PyAny>>
     where
         A: Alphabet,
         CountMatrixData: From<lightmotif::pwm::CountMatrix<A>>,
@@ -143,7 +145,7 @@ impl TransfacMotif {
         let counts = record
             .to_counts()
             .ok_or_else(|| PyValueError::new_err("invalid count matrix"))?;
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut motif = Motif::from_counts(py, counts)?;
             motif.name = name;
             let init = PyClassInitializer::from(motif).add_subclass(TransfacMotif {
@@ -173,7 +175,7 @@ pub struct MemeMotif {
 }
 
 impl MemeMotif {
-    fn convert<A>(record: Result<lightmotif_io::meme::Record<A>, Error>) -> PyResult<PyObject>
+    fn convert<A>(record: Result<lightmotif_io::meme::Record<A>, Error>) -> PyResult<Py<PyAny>>
     where
         A: Alphabet,
         CountMatrixData: From<lightmotif::pwm::CountMatrix<A>>,
@@ -189,7 +191,7 @@ impl MemeMotif {
 
         let weights = record.into_matrix().to_weight(background);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut motif = Motif::from_weights(py, weights)?;
             motif.name = Some(name);
             let init = PyClassInitializer::from(motif).add_subclass(MemeMotif { description, url });
@@ -203,7 +205,7 @@ impl MemeMotif {
 /// An iterator for loading motifs from a file.
 #[pyclass(module = "lightmotif.lib")]
 pub struct Loader {
-    reader: Box<dyn Iterator<Item = PyResult<PyObject>> + Send + Sync>,
+    reader: Box<dyn Iterator<Item = PyResult<Py<PyAny>>> + Send + Sync>,
 }
 
 #[pymethods]
@@ -235,7 +237,7 @@ impl Loader {
             //                  the PathLike object into the OS prefered encoding,
             //                  which is was OsStr wants. In practice, there may be
             //                  some weird bugs if that encoding is incorrect, idk...
-            let decoded = path.downcast::<PyString>()?;
+            let decoded = path.cast::<PyString>()?;
             std::fs::File::open(&*decoded.to_cow()?)
                 .map(std::io::BufReader::new)
                 .map(Box::new)?
@@ -244,7 +246,7 @@ impl Loader {
                 .map(std::io::BufReader::new)
                 .map(Box::new)?
         };
-        let reader: Box<dyn Iterator<Item = PyResult<PyObject>> + Send + Sync> = match format {
+        let reader: Box<dyn Iterator<Item = PyResult<Py<PyAny>>> + Send + Sync> = match format {
             "jaspar" if protein => {
                 return Err(PyValueError::new_err(
                     "cannot read protein motifs from JASPAR format",
@@ -282,7 +284,7 @@ impl Loader {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyResult<PyObject>> {
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyResult<Py<PyAny>>> {
         slf.reader.next()
     }
 }

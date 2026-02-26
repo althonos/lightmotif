@@ -22,20 +22,19 @@ pub fn main() -> PyResult<()> {
         .unwrap();
 
     // spawn a Python interpreter
-    pyo3::prepare_freethreaded_python();
-    Python::with_gil(|py| {
+    // pyo3::prepare_freethreaded_python();
+    Python::initialize();
+    Python::attach(|py| {
         // insert the project folder in `sys.modules` so that
         // the main module can be imported by Python
         let sys = py.import("sys")?;
-        sys.getattr("path")?
-            .downcast::<PyList>()?
-            .insert(0, folder)?;
+        sys.getattr("path")?.cast::<PyList>()?.insert(0, folder)?;
 
         // create a Python module from our rust code with debug symbols
         let module = PyModule::new(py, "lightmotif.lib")?;
         lightmotif_py::init(py, &module).unwrap();
         sys.getattr("modules")?
-            .downcast::<PyDict>()?
+            .cast::<PyDict>()?
             .set_item("lightmotif.lib", module)?;
 
         // run unittest on the tests

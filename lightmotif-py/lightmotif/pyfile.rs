@@ -34,13 +34,13 @@ macro_rules! transmute_file_error {
 
 /// A wrapper for a Python file that can outlive the GIL.
 pub struct PyFileRead {
-    file: Mutex<PyObject>,
+    file: Mutex<Py<PyAny>>,
 }
 
 impl PyFileRead {
     pub fn from_ref(file: &Bound<PyAny>) -> PyResult<PyFileRead> {
         let res = file.call_method1("read", (0,))?;
-        if res.downcast::<PyBytes>().is_ok() {
+        if res.cast::<PyBytes>().is_ok() {
             Ok(PyFileRead {
                 file: Mutex::new(file.clone().unbind()),
             })
@@ -56,17 +56,18 @@ impl PyFileRead {
 
 impl Read for PyFileRead {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, IoError> {
-        Python::with_gil(|py| {
-            let file = self.file.lock().expect("failed to lock file");
-            match file.call_method1(py, pyo3::intern!(py, "read"), (buf.len(),)) {
+        Python::attach(|py| {
+            let guard = self.file.lock().expect("failed to lock file");
+            let file = guard.bind(py);
+            match file.call_method1(pyo3::intern!(py, "read"), (buf.len(),)) {
                 Ok(obj) => {
                     // Check `fh.read` returned bytes, else raise a `TypeError`.
-                    if let Ok(bytes) = obj.downcast_bound::<PyBytes>(py) {
+                    if let Ok(bytes) = obj.cast::<PyBytes>() {
                         let b = bytes.as_bytes();
                         (&mut buf[..b.len()]).copy_from_slice(b);
                         Ok(b.len())
                     } else {
-                        let ty = obj.bind(py).get_type().name()?.to_string();
+                        let ty = obj.get_type().name()?.to_string();
                         let msg = format!("expected bytes, found {}", ty);
                         PyTypeError::new_err(msg).restore(py);
                         Err(IoError::new(
