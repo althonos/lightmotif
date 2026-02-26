@@ -17,10 +17,10 @@ generic-array = "1.0"
 
 [dependencies.rand]
 optional = true
-version = "0.8.5"
+version = "0.10.0"
 [dependencies.rand_distr]
 optional = true
-version = "0.4.3"
+version = "0.6.0"
 
 [features]
 default = ["sampling"]

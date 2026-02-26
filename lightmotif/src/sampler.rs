@@ -30,11 +30,11 @@ use std::iter::FusedIterator;
 use std::iter::Iterator;
 
 use generic_array::GenericArray;
-use rand::distributions::Distribution;
-use rand::distributions::Uniform;
-use rand::seq::SliceRandom;
+use rand::distr::Distribution;
+use rand::distr::Uniform;
+use rand::seq::IndexedRandom;
 use rand::Rng;
-use rand_distr::WeightedIndex;
+use rand_distr::weighted::WeightedIndex;
 
 use super::abc::Alphabet;
 use super::abc::Background;
@@ -388,7 +388,10 @@ where
             .sequences
             .as_ref()
             .iter()
-            .map(|seq| rng.sample(Uniform::new(0, seq.len() - width + 1)))
+            .map(|seq| {
+                let dist = Uniform::new(0, seq.len() - width + 1).unwrap();
+                dist.sample(&mut rng)
+            })
             .collect::<Vec<usize>>();
 
         // select initial active sequences
@@ -459,7 +462,10 @@ where
             SamplerMode::Zoops if self.step < self.inertia => {
                 *self.seed.choose(&mut self.rng).unwrap()
             }
-            _ => self.rng.sample(Uniform::new(0, self.starts.len())),
+            _ => {
+                let dist = Uniform::new(0, self.starts.len()).unwrap();
+                dist.sample(&mut self.rng)
+            }
         }
     }
 
@@ -617,6 +623,8 @@ pub struct Iteration<A: Alphabet> {
 mod test {
     use std::str::FromStr;
 
+    use rand::SeedableRng;
+
     use crate::abc::Protein;
     use crate::seq::EncodedSequence;
 
@@ -682,11 +690,11 @@ mod test {
 
         let data = SamplerData::new(&striped);
 
-        let rng = rand::rngs::mock::StepRng::new(1, 42);
+        let rng = rand::rngs::Xoshiro128PlusPlus::seed_from_u64(42);
         let gen = Sampler::_new(&data, 17, rng, SamplerMode::Oops, 0, 0, 10);
 
         let result = gen.skip(20).next().unwrap();
-        assert_eq!(result.pssm.information_content(), 13.143386);
+        assert_eq!(result.pssm.information_content(), 11.552428);
     }
 
     #[test]
@@ -746,10 +754,10 @@ mod test {
 
         let data = SamplerData::new(&striped);
 
-        let rng = rand::rngs::mock::StepRng::new(1, 42);
+        let rng = rand::rngs::Xoshiro128PlusPlus::seed_from_u64(42);
         let gen = Sampler::_new(&data, 17, rng, SamplerMode::Zoops, 5, 10, 10);
 
-        let result = gen.skip(20).next().unwrap();
-        assert_eq!(result.pssm.information_content(), 20.8202);
+        let result = gen.skip(10).next().unwrap();
+        assert_eq!(result.pssm.information_content(), 18.167128);
     }
 }

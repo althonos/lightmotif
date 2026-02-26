@@ -9,7 +9,11 @@ use std::str::FromStr;
 
 use generic_array::GenericArray;
 #[cfg(feature = "sampling")]
+use rand::distr::Distribution;
+#[cfg(feature = "sampling")]
 use rand::Rng;
+#[cfg(feature = "sampling")]
+use rand_distr::weighted::WeightedAliasIndex;
 
 use super::abc::Alphabet;
 #[cfg(feature = "sampling")]
@@ -126,11 +130,13 @@ impl<A: Alphabet> EncodedSequence<A> {
 
     /// Sample a new random sequence from the given background frequencies.
     #[cfg(feature = "sampling")]
-    pub fn sample<R: Rng>(rng: R, background: Background<A>, length: usize) -> Self {
+    pub fn sample<R: Rng>(mut rng: R, background: Background<A>, length: usize) -> Self {
+        use rand_distr::Distribution;
+
         let symbols = <A as Alphabet>::symbols();
-        let dist = rand_distr::WeightedAliasIndex::new(background.frequencies().into())
+        let dist = WeightedAliasIndex::new(background.frequencies().into())
             .expect("`Background` always stores frequencies valid for `WeightedAliasIndex::new`");
-        rng.sample_iter(&dist)
+        dist.sample_iter(&mut rng)
             .take(length)
             .map(|i| symbols[i])
             .collect()
@@ -310,11 +316,11 @@ impl<A: Alphabet, C: PositiveLength> StripedSequence<A, C> {
     #[cfg(feature = "sampling")]
     pub fn sample<R: Rng>(mut rng: R, background: Background<A>, length: usize) -> Self {
         let symbols = <A as Alphabet>::symbols();
-        let dist = rand_distr::WeightedAliasIndex::new(background.frequencies().into())
+        let dist = WeightedAliasIndex::new(background.frequencies().into())
             .expect("`Background` always stores frequencies valid for `WeightedAliasIndex::new`");
         let mut data = unsafe { DenseMatrix::uninitialized(length.div_ceil(C::USIZE)) };
         for row in data.iter_mut() {
-            for (x, y) in row.iter_mut().zip((&mut rng).sample_iter(&dist)) {
+            for (x, y) in row.iter_mut().zip((&dist).sample_iter(&mut rng)) {
                 *x = symbols[y];
             }
         }

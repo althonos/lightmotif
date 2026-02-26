@@ -30,9 +30,9 @@
 //! - <a id="ref1">\[1\]</a> Grant, Charles E., Timothy L. Bailey, and William Stafford Noble. ‘FIMO: Scanning for Occurrences of a given Motif’. Bioinformatics 27, no. 7 (1 April 2011): 1017–18. [doi:10.1093/bioinformatics/btr064](https://doi.org/10.1093/bioinformatics/btr064).
 
 #[cfg(feature = "sampling")]
-use rand::distributions::uniform::Uniform;
+use rand::distr::uniform::Uniform;
 #[cfg(feature = "sampling")]
-use rand::distributions::Distribution;
+use rand::distr::Distribution;
 
 use crate::abc::Alphabet;
 use crate::abc::Symbol;
@@ -227,7 +227,7 @@ impl<A: Alphabet, S: AsRef<ScoringMatrix<A>>> From<S> for ScoreDistribution<A> {
 #[cfg(feature = "sampling")]
 impl<A: Alphabet> Distribution<f32> for ScoreDistribution<A> {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> f32 {
-        let s = Uniform::new_inclusive(0.0, 1.0);
+        let s = Uniform::new_inclusive(0.0, 1.0).unwrap();
         let p = s.sample(rng);
         self.score(p)
     }
