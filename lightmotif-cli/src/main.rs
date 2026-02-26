@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
+use std::path::Iter;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -32,7 +33,7 @@ use crossbeam_channel::RecvTimeoutError;
 use crossbeam_channel::Sender;
 use indicatif::ProgressBar;
 
-// --- Format ------------------------------------------------------------------
+// --- MatrixFormat ------------------------------------------------------------
 
 #[derive(Debug, Clone)]
 struct InvalidFormat(String);
@@ -69,7 +70,7 @@ impl FromStr for MatrixFormat {
     }
 }
 
-// --- MatrixParser ------------------------------------------------------------
+// --- MatrixRecord ------------------------------------------------------------
 
 struct MatrixRecord<A: Alphabet> {
     id: Option<String>,
@@ -86,6 +87,8 @@ impl<A: Alphabet> From<Jaspar16Record<A>> for MatrixRecord<A> {
         }
     }
 }
+
+// --- MatrixParser ------------------------------------------------------------
 
 enum MatrixParser<A: Alphabet, B: BufRead> {
     Jaspar(JasparReader<B>),
@@ -133,13 +136,78 @@ impl<A: Alphabet, B: BufRead> Iterator for MatrixParser<A, B> {
     }
 }
 
-// --- SeqParser ---------------------------------------------------------------
+// --- SeqFormat ---------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy)]
+enum SeqFormat {
+    Fasta,
+    GenBank,
+}
+
+impl FromStr for SeqFormat {
+    type Err = InvalidFormat;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use self::SeqFormat::*;
+        match s {
+            "fasta" => Ok(Fasta),
+            "genbank" => Ok(GenBank),
+            _ => Err(InvalidFormat(s.into())),
+        }
+    }
+}
+
+// --- SeqRecord ---------------------------------------------------------------
 
 #[derive(Debug)]
 pub struct SeqRecord<A: Alphabet> {
     index: usize,
     id: Arc<String>,
     striped: StripedSequence<A>,
+}
+
+// --- SeqParser ---------------------------------------------------------------
+
+struct FastaSeqParser<A: Alphabet, B: BufRead> {
+    pos: usize,
+    reader: noodles_fasta::io::Reader<B>,
+    _abc: std::marker::PhantomData<A>,
+}
+
+enum SeqParser<A: Alphabet, B: BufRead> {
+    Fasta(FastaSeqParser<A, B>),
+    GenBank(std::marker::PhantomData<A>),
+}
+
+impl<A: Alphabet, B: BufRead> Iterator for SeqParser<A, B> {
+    type Item = Result<SeqRecord<A>, lightmotif_io::error::Error>;
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            SeqParser::GenBank(_) => todo!(),
+            SeqParser::Fasta(parser) => match parser.reader.records().next()? {
+                Ok(record) => {
+                    let index = parser.pos;
+                    parser.pos += 1;
+                    let name = match std::str::from_utf8(record.name()) {
+                        Ok(name) => name.to_string(),
+                        Err(e) => {
+                            return Some(Err(std::io::Error::new(
+                                std::io::ErrorKind::InvalidData,
+                                e,
+                            )
+                            .into()));
+                        }
+                    };
+                    let seq = lightmotif::EncodedSequence::<A>::encode_lossy(record.sequence());
+                    Some(Ok(SeqRecord {
+                        index,
+                        id: Arc::new(name),
+                        striped: seq.into(),
+                    }))
+                }
+                Err(err) => Some(Err(err.into())),
+            },
+        }
+    }
 }
 
 // --- Hit ---------------------------------------------------------------------
