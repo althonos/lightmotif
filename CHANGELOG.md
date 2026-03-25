@@ -6,7 +6,32 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/althonos/lightmotif/compare/v0.10.1...HEAD
+
+
+## [v0.10.1] - 2026-03-25
+[v0.10.1]: https://github.com/althonos/lightmotif/compare/v0.10.0...v0.10.1
+
+### Added
+
+#### `lightmotif`
+- Lossy constructor for `EncodedSequence` replacing unknown characters with `Alphabet::default_symbol`.
+- `block_size` option to change the number of rows of the block used in a `Scanner`.
+
+### Fixed
+
+#### `lightmotif`
+- `ScoringMatrix::to_discrete` failing conversion on cells with `-inf` scores (due to zero pseudocounts).
+- Panic in `Scanner::next` caused by empty scores buffer.
+- Non-saturating add being used in `score_u8_neon` causing `Scanner` to ignore some hits on Arm platforms.
+
+### Changed
+
+#### `lightmotif`
+- Update `rand` dependency to `v0.10.0`.
+
+##### `lightmotif-py`
+- Update `pyo3` dependency to `v0.28.0.`.
 
 
 ## [v0.10.0] - 2025-05-19

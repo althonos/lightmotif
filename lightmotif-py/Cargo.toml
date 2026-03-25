@@ -1,6 +1,6 @@
 [package]
 name = "lightmotif-py"
-version = "0.10.0"
+version = "0.10.1"
 authors = ["Martin Larralde <martin.larralde@embl.de>"]
 edition = "2021"
 license = "MIT OR GPL-3.0-or-later"
@@ -18,7 +18,7 @@ doctest = false
 
 [dependencies.lightmotif]
 path = "../lightmotif"
-version = "0.10.0"
+version = "0.10.1"
 default-features = false
 [dependencies.lightmotif-io]
 path = "../lightmotif-io"
