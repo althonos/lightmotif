@@ -339,8 +339,8 @@ unsafe fn score_u8_neon<A: Alphabet, C: MultipleOf<U16> + ArrayLength>(
                     let hi = vtbl1_u8(vget_low_u8(t), vget_high_u8(x));
                     y = vcombine_u8(lo, hi);
                 }
-                // add scores to the running sum
-                s = vaddq_u8(s, y);
+                // add scores to the running sum using saturation
+                s = vqaddq_u8(s, y);
                 // advance to next row in PSSM and sequence matrices
                 seqptr = seqptr.add(seq.matrix().stride());
                 pssmptr = pssmptr.add(pssm.stride());
