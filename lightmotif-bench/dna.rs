@@ -143,7 +143,7 @@ mod f32 {
     #[bench]
     fn neon(bencher: &mut test::Bencher) {
         let pli = Pipeline::neon().unwrap();
-        bench_lightmotif(bencher, &pli);
+        bench_lightmotif::<U16, _>(bencher, &pli);
     }
 }
 
@@ -218,7 +218,7 @@ mod u8 {
     #[bench]
     fn neon(bencher: &mut test::Bencher) {
         let pli = Pipeline::neon().unwrap();
-        bench_lightmotif_discrete(bencher, &pli);
+        bench_lightmotif_discrete::<U16, _>(bencher, &pli);
     }
 }
 
