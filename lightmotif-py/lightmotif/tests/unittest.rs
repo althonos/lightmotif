@@ -28,7 +28,9 @@ pub fn main() -> PyResult<()> {
         // insert the project folder in `sys.modules` so that
         // the main module can be imported by Python
         let sys = py.import("sys")?;
-        sys.getattr("path")?.cast::<PyList>()?.insert(0, folder)?;
+        sys.getattr("path")?
+            .cast::<PyList>()?
+            .insert(0, folder.to_str())?;
 
         // create a Python module from our rust code with debug symbols
         let module = PyModule::new(py, "lightmotif.lib")?;
